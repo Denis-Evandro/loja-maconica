@@ -1715,7 +1715,7 @@ function renderDashboard() {
       <div style="${cardStyle.replace('cursor:pointer','')}">
         <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;margin-bottom:12px">📋 Registros</div>
         <div style="display:flex;gap:12px;align-items:flex-end;margin-bottom:10px">
-          <div style="flex:1;cursor:pointer;border-radius:4px;padding:6px 8px;background:rgba(27,58,107,0.04);border:1px solid rgba(27,58,107,0.12)" onclick="showPanel('frequencia')">
+          <div style="flex:1;cursor:pointer;border-radius:4px;padding:6px 8px;background:rgba(27,58,107,0.04);border:1px solid rgba(27,58,107,0.12)" onclick="showPanel('eventos')">
             <div style="font-size:30px;font-weight:700;font-family:'Cinzel',serif;color:var(--navy);line-height:1">${totalSessoes}</div>
             <div style="font-size:9px;color:var(--navy);margin-top:3px;font-family:'Cinzel',serif;font-weight:700;letter-spacing:0.08em">SESSÕES →</div>
           </div>
@@ -1748,50 +1748,46 @@ function renderDashboard() {
     </div>
 
     <!-- LINHA 2: Card financeiro grande com mini-gráfico -->
-    <div style="${cardStyle}" onclick="showPanel('financas')" onmouseover="${hoverIn}" onmouseout="${hoverOut}; margin-bottom:14px" style="margin-bottom:14px;background:var(--white);border:1px solid var(--border-mid);border-radius:6px;padding:18px 22px;cursor:pointer;transition:box-shadow 0.15s,transform 0.15s" onmouseover="${hoverIn}" onmouseout="${hoverOut}">
+    <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;padding:18px 22px;cursor:pointer;transition:box-shadow 0.15s,transform 0.15s;margin-bottom:14px" onclick="showPanel('financas')" onmouseover="${hoverIn}" onmouseout="${hoverOut}">
       <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;margin-bottom:14px">💰 Financeiro — ${meses[hoje.getMonth()]} ${anoAtual}</div>
-      <div style="display:grid;grid-template-columns:repeat(5,1fr) 2fr;gap:12px;align-items:end">
+      <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:20px;align-items:stretch">
 
-        <!-- 5 métricas -->
-        <div style="text-align:center;padding:10px 6px;background:rgba(34,139,34,0.05);border:1px solid rgba(34,139,34,0.15);border-radius:5px">
-          <div style="font-size:11px;font-weight:700;font-family:'Cinzel',serif;color:var(--green)">${fmtVal(mensalidadesMes)}</div>
-          <div style="font-size:8px;color:var(--text-muted);margin-top:4px;text-transform:uppercase;letter-spacing:0.08em">Mensalidades</div>
-        </div>
-        <div style="text-align:center;padding:10px 6px;background:rgba(107,58,0,0.05);border:1px solid rgba(107,58,0,0.15);border-radius:5px">
-          <div style="font-size:11px;font-weight:700;font-family:'Cinzel',serif;color:#7A4A00">${fmtVal(troncoMes)}</div>
-          <div style="font-size:8px;color:var(--text-muted);margin-top:4px;text-transform:uppercase;letter-spacing:0.08em">Tronco Mês</div>
-        </div>
-        <div style="text-align:center;padding:10px 6px;background:rgba(107,58,0,0.03);border:1px solid rgba(107,58,0,0.1);border-radius:5px">
-          <div style="font-size:11px;font-weight:700;font-family:'Cinzel',serif;color:#A06B00">${fmtVal(saldoTronco)}</div>
-          <div style="font-size:8px;color:var(--text-muted);margin-top:4px;text-transform:uppercase;letter-spacing:0.08em">Caixa Tronco</div>
-        </div>
-        <div style="text-align:center;padding:10px 6px;background:rgba(139,32,32,0.05);border:1px solid rgba(139,32,32,0.15);border-radius:5px">
-          <div style="font-size:11px;font-weight:700;font-family:'Cinzel',serif;color:var(--red)">${fmtVal(despMes)}</div>
-          <div style="font-size:8px;color:var(--text-muted);margin-top:4px;text-transform:uppercase;letter-spacing:0.08em">Despesas</div>
-        </div>
-        <div style="text-align:center;padding:10px 6px;background:${saldoTotal>=0?'rgba(34,139,34,0.06)':'rgba(139,32,32,0.06)'};border:1px solid ${saldoTotal>=0?'rgba(34,139,34,0.18)':'rgba(139,32,32,0.18)'};border-radius:5px">
-          <div style="font-size:11px;font-weight:700;font-family:'Cinzel',serif;color:${saldoTotal>=0?'var(--green)':'var(--red)'}">${fmtVal(saldoTotal)}</div>
-          <div style="font-size:8px;color:var(--text-muted);margin-top:4px;text-transform:uppercase;letter-spacing:0.08em">Saldo Caixa</div>
+        <!-- Coluna esquerda: métricas em lista -->
+        <div style="display:flex;flex-direction:column;gap:8px">
+          ${[
+            {label:'Mensalidades mês', val: fmtVal(mensalidadesMes), cor:'var(--green)'},
+            {label:'Despesas mês',     val: fmtVal(despMes),         cor:'var(--red)'},
+            {label:'Saldo mês',        val: fmtVal(recMes-despMes),  cor: (recMes-despMes)>=0?'var(--green)':'var(--red)'},
+            {label:'Saldo em caixa',   val: fmtVal(saldoTotal),      cor: saldoTotal>=0?'var(--green)':'var(--red)'},
+            {label:'Saldo tronco',     val: fmtVal(saldoTronco),     cor:'#7A4A00'},
+          ].map(r=>`
+            <div style="display:flex;align-items:center;justify-content:space-between;border:1px solid var(--border);border-radius:4px;padding:7px 12px;background:var(--cream)">
+              <span style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.08em;color:var(--text-muted);text-transform:uppercase">${r.label}</span>
+              <span style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;color:${r.cor}">${r.val}</span>
+            </div>`).join('')}
         </div>
 
-        <!-- Mini gráfico últimos 6 meses -->
-        <div style="padding:4px 0 0 16px;border-left:1px solid var(--border)">
-          <div style="font-size:8px;color:var(--text-muted);margin-bottom:6px;text-align:center;text-transform:uppercase;letter-spacing:0.08em">Rec./Desp. — 6 meses</div>
-          <div style="display:flex;align-items:flex-end;gap:3px;height:42px">
+        <!-- Coluna direita: gráfico -->
+        <div style="border:1px solid var(--border);border-radius:5px;padding:12px 14px;background:var(--cream);display:flex;flex-direction:column">
+          <div style="font-size:8px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;text-align:center">Receitas vs Despesas — últimos 6 meses</div>
+          <div style="flex:1;display:flex;align-items:flex-end;gap:4px;min-height:70px">
             ${grafMeses.map(g=>`
-              <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:1px">
-                <div style="width:100%;background:rgba(34,139,34,0.5);border-radius:1px 1px 0 0;height:${Math.round(g.rec/maxGraf*38)}px" title="Rec: ${fmtVal(g.rec)}"></div>
-                <div style="width:100%;background:rgba(139,32,32,0.45);border-radius:1px 1px 0 0;height:${Math.round(g.desp/maxGraf*38)}px" title="Desp: ${fmtVal(g.desp)}"></div>
+              <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
+                <div style="width:100%;display:flex;flex-direction:column;align-items:center;gap:1px">
+                  <div style="width:70%;background:rgba(34,139,34,0.55);border-radius:2px 2px 0 0;height:${Math.round(g.rec/maxGraf*60)}px;min-height:${g.rec>0?2:0}px" title="Rec: ${fmtVal(g.rec)}"></div>
+                  <div style="width:70%;background:rgba(139,32,32,0.5);border-radius:2px 2px 0 0;height:${Math.round(g.desp/maxGraf*60)}px;min-height:${g.desp>0?2:0}px" title="Desp: ${fmtVal(g.desp)}"></div>
+                </div>
               </div>`).join('')}
           </div>
-          <div style="display:flex;justify-content:space-between;margin-top:3px">
-            ${grafMeses.map(g=>`<div style="flex:1;text-align:center;font-size:7px;color:var(--text-muted)">${g.label}</div>`).join('')}
+          <div style="display:flex;justify-content:space-between;margin-top:5px;border-top:1px solid var(--border);padding-top:5px">
+            ${grafMeses.map(g=>`<div style="flex:1;text-align:center;font-size:7px;color:var(--text-muted);font-family:'Cinzel',serif">${g.label}</div>`).join('')}
           </div>
-          <div style="display:flex;gap:8px;justify-content:center;margin-top:4px">
-            <span style="font-size:7px;color:var(--text-muted)"><span style="display:inline-block;width:8px;height:8px;background:rgba(34,139,34,0.5);border-radius:1px;vertical-align:middle;margin-right:2px"></span>Rec.</span>
-            <span style="font-size:7px;color:var(--text-muted)"><span style="display:inline-block;width:8px;height:8px;background:rgba(139,32,32,0.45);border-radius:1px;vertical-align:middle;margin-right:2px"></span>Desp.</span>
+          <div style="display:flex;gap:12px;justify-content:center;margin-top:6px">
+            <span style="font-size:8px;color:var(--text-muted);display:flex;align-items:center;gap:3px"><span style="display:inline-block;width:10px;height:10px;background:rgba(34,139,34,0.55);border-radius:2px"></span>Receitas</span>
+            <span style="font-size:8px;color:var(--text-muted);display:flex;align-items:center;gap:3px"><span style="display:inline-block;width:10px;height:10px;background:rgba(139,32,32,0.5);border-radius:2px"></span>Despesas</span>
           </div>
         </div>
+
       </div>
     </div>
 
@@ -1805,10 +1801,10 @@ function renderDashboard() {
         ? `<div style="font-style:italic;color:var(--text-muted);font-size:13px">Nenhum aniversariante este mês.</div>`
         : `<div style="display:flex;flex-wrap:wrap;gap:8px">
             ${todosAniv.map(a=>`
-              <div style="background:var(--white);border:1px solid rgba(212,168,67,0.3);border-radius:4px;padding:8px 14px;min-width:150px">
-                <div style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:var(--text)">${a.nome}</div>
-                <div style="font-size:10px;color:var(--gold-dark)">${fmtData(a.data)}</div>
-                <div style="font-size:9px;color:var(--text-muted);font-style:italic">${a.tipo}</div>
+              <div style="background:var(--white);border:1px solid rgba(212,168,67,0.3);border-radius:4px;padding:10px 16px;min-width:170px">
+                <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;color:var(--text)">${a.nome}</div>
+                <div style="font-size:12px;color:var(--gold-dark);margin-top:2px">${fmtData(a.data)}</div>
+                <div style="font-size:10px;color:var(--text-muted);font-style:italic;margin-top:2px">${a.tipo}</div>
               </div>`).join('')}
           </div>`}
     </div>`;
@@ -4302,9 +4298,19 @@ function abrirModalComissao(tipoInicial='permanente', comissaoExistente=null) {
             <div>${lb('Presidente *')}
               <select id="com-presidente" ${inp}>${opsPres}</select></div>
 
-            <div>${lb('Membros')}
-              <select id="com-membros" multiple ${inp} style="height:90px">${opsMembros}</select>
-              <div style="font-size:10px;color:var(--text-muted);font-style:italic;margin-top:3px">Segure Ctrl/Cmd para selecionar múltiplos</div></div>
+            <div>${lb('Membros da Comissão')}
+              <input type="text" id="busca-membros-com" placeholder="🔍 Buscar irmão..." oninput="filtrarMembrosCom()"
+                style="width:100%;border:1px solid var(--border-mid);border-radius:3px 3px 0 0;padding:7px 12px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--cream);color:var(--text);border-bottom:none">
+              <div id="lista-membros-com" style="border:1px solid var(--border-mid);border-radius:0 0 3px 3px;max-height:160px;overflow-y:auto;background:var(--white)">
+                ${DATA.membros.map(m=>`
+                  <label style="display:flex;align-items:center;gap:10px;padding:7px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-family:'Cormorant Garamond',serif;font-size:13px;transition:background 0.1s" onmouseover="this.style.background='var(--cream)'" onmouseout="this.style.background='transparent'" data-nome="${m.nome_maconico.toLowerCase()}">
+                    <input type="checkbox" value="${m.nome_maconico}" ${(c.membros||[]).includes(m.nome_maconico)?'checked':''} style="width:15px;height:15px;cursor:pointer;accent-color:var(--navy)">
+                    <span style="font-weight:${(c.membros||[]).includes(m.nome_maconico)?'700':'400'};color:var(--text)">${m.nome_maconico}</span>
+                    ${m.cargo?`<span style="font-size:10px;color:var(--text-muted);margin-left:auto">${m.cargo}</span>`:''}
+                  </label>`).join('')}
+              </div>
+              <div style="font-size:10px;color:var(--text-muted);font-style:italic;margin-top:4px">Marque todos os irmãos que farão parte desta comissão</div>
+            </div>
 
             <div id="campos-temporaria" style="${tipo!=='temporaria'?'display:none':''}">
               <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
@@ -4353,12 +4359,21 @@ function setTipoComissao(tipo) {
   document.getElementById('campos-temporaria').style.display = tipo==='temporaria'?'block':'none';
 }
 
+function filtrarMembrosCom() {
+  const termo = document.getElementById('busca-membros-com')?.value.toLowerCase()||'';
+  document.querySelectorAll('#lista-membros-com label').forEach(lbl => {
+    const nome = lbl.dataset.nome||'';
+    lbl.style.display = nome.includes(termo) ? 'flex' : 'none';
+  });
+}
+
 function salvarComissao(id) {
   const nome = document.getElementById('com-nome')?.value.trim();
   const presidente = document.getElementById('com-presidente')?.value;
   if (!nome || !presidente) { toast('Preencha nome e presidente'); return; }
-  const sel = document.getElementById('com-membros');
-  const membros = sel ? Array.from(sel.selectedOptions).map(o=>o.value) : [];
+  // Ler checkboxes
+  const checkboxes = document.querySelectorAll('#lista-membros-com input[type="checkbox"]:checked');
+  const membros = Array.from(checkboxes).map(cb=>cb.value);
   const tipo = document.getElementById('com-tipo')?.value;
   const comissao = {
     id: id && id!=='null' ? id : 'com_'+Date.now(),
@@ -4444,10 +4459,39 @@ function renderRelatorios() {
 
 // ─── HELPER IMPRESSÃO ───
 function abrirJanelaPrint(html) {
-  const area = document.getElementById('print-area');
-  area.innerHTML = html;
-  area.style.display = 'block';
-  setTimeout(() => { window.print(); area.style.display = 'none'; }, 300);
+  const w = window.open('', '_blank', 'width=900,height=700');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <title>Relatório — A.R.L.S. Fraternidade Acadêmica de Peruíbe Nº 3524</title>
+  <style>
+    @page { size: A4 portrait; margin: 15mm 12mm 12mm 12mm; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Georgia', serif; font-size: 11px; color: #1a1a1a; background: white; }
+    .print-header { text-align: center; border-bottom: 2px solid #C9A84C; padding-bottom: 10px; margin-bottom: 14px; }
+    .print-lodge { font-family: 'Times New Roman', serif; font-size: 14px; font-weight: bold; letter-spacing: 0.05em; color: #1B3A6B; }
+    .print-title  { font-family: 'Times New Roman', serif; font-size: 16px; font-weight: bold; color: #1B3A6B; margin: 6px 0 3px; }
+    .print-date   { font-size: 10px; color: #666; }
+    .print-rel-titulo { font-family:'Times New Roman',serif; font-size:15px; font-weight:700; color:#1B3A6B; text-align:center; margin:8px 0 4px; }
+    .print-periodo { font-size:10px; color:#666; text-align:center; margin-bottom:10px; }
+    .print-resumo { display:flex; gap:12px; justify-content:center; margin:10px 0 14px; }
+    .print-resumo-item { text-align:center; border:1px solid #C9A84C; border-radius:3px; padding:6px 14px; }
+    .print-resumo-valor { font-size:18px; font-weight:700; color:#1B3A6B; }
+    .print-resumo-label { font-size:9px; color:#666; text-transform:uppercase; letter-spacing:0.08em; }
+    .print-section { font-size:11px; font-weight:700; color:#5C3D14; background:#f5f0e8; padding:5px 8px; margin:10px 0 4px; }
+    table { width:100%; border-collapse:collapse; margin-bottom:10px; font-size:10px; }
+    thead tr { background:#1B3A6B; color:white; }
+    th { padding:5px 7px; text-align:left; font-size:9px; letter-spacing:0.06em; font-weight:600; }
+    td { padding:4px 7px; border-bottom:1px solid #e8e0d0; vertical-align:middle; }
+    tr:nth-child(even) td { background:#fafaf7; }
+    .print-rodape { margin-top:14px; padding-top:8px; border-top:1px solid #C9A84C; display:flex; justify-content:space-between; font-size:9px; color:#888; }
+    .rel-section-title { font-weight:700; color:#5C3D14; background:#f5f0e8; padding:5px 8px; margin:10px 0 4px; font-size:10px; }
+    @media print {
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      thead tr { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+  </style></head><body>${html}
+  <script>window.onload=function(){window.print();}<\/script>
+  </body></html>`);
+  w.document.close();
 }
 
 // ─── MEMBROS ───
