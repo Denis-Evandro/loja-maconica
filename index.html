@@ -2484,11 +2484,22 @@ async function salvarSessao() {
 
   fecharModal();
 
+  // Criar ata vinculada automaticamente
+  if (sessaoId) {
+    await sb.from('atas').insert({
+      sessao_id: sessaoId,
+      titulo: tipo + ' — ' + fmtData(data),
+      data: data,
+      conteudo: null,
+      arquivo_url: null
+    });
+  }
+
   // Re-renderizar Frequência imediatamente com os dados já atualizados
   const access = ROLES[currentRole].access['frequencia'] || 'none';
   renderFrequencia(access);
 
-  toast(`Sessão criada ✦${sessaoId && !tiposNaoRituais.includes(tipo) ? ' — Frequência aberta para todos' : ''}`);
+  toast(`Sessão criada ✦${sessaoId && !tiposNaoRituais.includes(tipo) ? ' — Frequência e Ata abertas automaticamente' : ''}`);
 
   // Recarregar dados do servidor em background para garantir sincronia
   loadAllData();
@@ -3624,11 +3635,10 @@ async function salvarEvento() {
   const tipo = document.getElementById('ev-tipo')?.value;
   const descricao_local = document.getElementById('ev-local')?.value.trim() || 'Templo';
   const grau = parseInt(document.getElementById('ev-grau')?.value)||3;
-  const hora = document.getElementById('ev-hora')?.value || '19:30';
   const descricao = document.getElementById('ev-desc')?.value.trim();
   if (!titulo || !data) { toast('Preencha título e data'); return; }
 
-  // Mapa tipo evento → tipo sessão (idêntico ao abrirModalSessao)
+  // Mapa tipo evento → tipo sessão (mesmos valores aceitos pela tabela sessoes)
   const tipoSessaoMap = {
     ordinaria: 'Sessão Ordinária',
     instrucao: 'Sessão de Instrução',
@@ -3639,41 +3649,53 @@ async function salvarEvento() {
   };
   const tipoSessao = tipoSessaoMap[tipo] || 'Sessão Ordinária';
 
+  fecharModal();
+
   // ── 1. Criar o evento ──────────────────────────────────────────────────
   const resEv = await sb.from('eventos').insert({
     titulo, descricao: descricao || titulo, data, tipo, grau
   });
   if (resEv.error) { toast('Erro ao criar evento: ' + resEv.error.message); return; }
 
-  // ── 2. Criar sessão em Frequência (exatamente como salvarSessao faz) ───
+  // ── 2. Criar sessão — usando EXATAMENTE os mesmos campos de salvarSessao ─
   const resSess = await sb.from('sessoes').insert({
-    data, hora, tipo: tipoSessao, grau, descricao_local,
-    descricao: titulo, status: 'agendada'
+    data,
+    tipo: tipoSessao,
+    grau,
+    descricao_local
   });
   if (resSess.error) {
-    console.warn('Sessão não criada:', resSess.error.message);
-    fecharModal(); toast('Evento criado ✦ (erro ao criar sessão)');
-    await loadAllData(); return;
+    toast('Evento criado, mas erro na sessão: ' + resSess.error.message);
+    await loadAllData();
+    return;
   }
 
-  // Buscar ID da sessão recém-criada
+  // Buscar a sessão recém-criada (igual salvarSessao)
   const resBusca = await sb.from('sessoes')
     .select('*').eq('data', data).eq('tipo', tipoSessao)
     .order('criado_em', {ascending: false}).limit(1);
   const sessaoNova = resBusca.data?.[0];
   const sessaoId = sessaoNova?.id;
 
-  // ── 3. Criar presenças automáticas (igual a salvarSessao) ──────────────
-  if (sessaoId) {
+  // Atualizar DATA.sessoes imediatamente (igual salvarSessao)
+  if (sessaoNova && !DATA.sessoes.find(s => s.id === sessaoId)) {
+    DATA.sessoes.unshift(sessaoNova);
+  }
+
+  // ── 3. Criar presenças automáticas (igual salvarSessao) ────────────────
+  const tiposNaoRituais = ['Evento Social', 'social'];
+  if (sessaoId && !tiposNaoRituais.includes(tipo)) {
     const membrosAtivos = DATA.membros.filter(m => m.status === 'ativo' || m.status === 'iniciado');
     if (membrosAtivos.length > 0) {
-      await sb.from('presencas').insert(
-        membrosAtivos.map(m => ({ sessao_id: sessaoId, membro_id: m.id, situacao: 'ausente', presente: false }))
-      );
+      const presRows = membrosAtivos.map(m => ({
+        sessao_id: sessaoId, membro_id: m.id, situacao: 'ausente', presente: false
+      }));
+      const resP = await sb.from('presencas').insert(presRows);
+      if (!resP.error && resP.data) DATA.presencas.push(...resP.data);
     }
   }
 
-  // ── 4. Criar entrada de ata vinculada (vazia, pronta para redigir) ─────
+  // ── 4. Criar entrada de ata vinculada (pronta para redigir em Atas) ────
   if (sessaoId) {
     await sb.from('atas').insert({
       sessao_id: sessaoId,
@@ -3684,8 +3706,9 @@ async function salvarEvento() {
     });
   }
 
-  fecharModal();
-  toast('Evento criado ✦ · Sessão aberta em Frequência · Ata disponível em Atas & Eventos');
+  toast('Evento criado ✦  |  Sessão aberta em Frequência  |  Ata disponível em Atas & Eventos');
+
+  // Recarregar tudo do servidor
   await loadAllData();
 }
 
