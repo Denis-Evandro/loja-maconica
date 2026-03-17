@@ -3984,7 +3984,8 @@ function verAta(conteudo, data, titulo) {
 async function renderAtas() {
   const res = await sb.from('atas').select('*').order('criado_em', {ascending:false});
   const atas = res.data || [];
-  console.log('ATAS carregadas:', atas); // debug
+  console.log('ATAS carregadas:', atas);
+  atas.forEach((a,i) => console.log(`Ata ${i+1}:`, {id:a.id, titulo:a.titulo, data:a.data, sessao_id:a.sessao_id, criado_em:a.criado_em}));
   const hoje = new Date().toISOString().split('T')[0];
   const proxSessoes = DATA.sessoes.filter(s => s.data >= hoje).sort((a,b)=>a.data.localeCompare(b.data)).slice(0,5);
   const canEdit = currentRole === 'secretario' || currentRole === 'veneravel' || currentRole === 'admin';
@@ -4022,10 +4023,10 @@ async function renderAtas() {
         return `
           <div style="display:flex;align-items:stretch;border:1px solid var(--border-mid);border-radius:4px;margin-bottom:8px;overflow:hidden;background:var(--white)">
             <!-- Bloco Data -->
-            <div style="background:var(--navy);color:#fff;width:76px;min-width:76px;text-align:center;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 8px">
-              <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.08em;opacity:0.8;text-transform:uppercase">${mesAta}</div>
-              <div style="font-family:'Cinzel',serif;font-size:30px;font-weight:700;line-height:1.1;color:#fff">${diaAta}</div>
-              <div style="font-size:9px;opacity:0.65;margin-top:1px">${anoAta}</div>
+            <div style="background:#1B3A6B !important;background-color:#1B3A6B !important;color:#ffffff !important;width:76px;min-width:76px;text-align:center;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 8px;box-sizing:border-box">
+              <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.08em;opacity:0.85;text-transform:uppercase;color:#ffffff !important">${mesAta}</div>
+              <div style="font-family:'Cinzel',serif;font-size:30px;font-weight:700;line-height:1.1;color:#ffffff !important">${diaAta}</div>
+              <div style="font-size:9px;opacity:0.7;margin-top:1px;color:#ffffff !important">${anoAta}</div>
             </div>
             <!-- Título -->
             <div style="flex:1;padding:12px 18px;font-family:'Cormorant Garamond',serif;display:flex;flex-direction:column;justify-content:center;min-width:0">
