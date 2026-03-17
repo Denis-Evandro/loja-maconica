@@ -3982,56 +3982,85 @@ function verAta(conteudo, data, titulo) {
 }
 
 async function renderAtas() {
-  // Buscar atas do banco
   const res = await sb.from('atas').select('*').order('data', {ascending:false});
   const atas = res.data || [];
   const hoje = new Date().toISOString().split('T')[0];
-  const proxEvento = DATA.eventos.filter(e => e.data >= hoje)[0];
+  const proxSessoes = DATA.sessoes.filter(s => s.data >= hoje).sort((a,b)=>a.data.localeCompare(b.data)).slice(0,5);
   const canEdit = currentRole === 'secretario' || currentRole === 'veneravel' || currentRole === 'admin';
 
+  // Card de próximas sessões (coluna esquerda)
+  const proxHTML = proxSessoes.length === 0
+    ? `<div style="padding:20px;font-style:italic;color:var(--text-muted);font-size:13px">Nenhuma sessão próxima.</div>`
+    : proxSessoes.map(s => {
+        const mes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][parseInt(s.data?.split('-')[1])-1]||'—';
+        const dia = s.data?.split('-')[2]||'—';
+        return `<div class="ev-card" style="margin-bottom:8px">
+          <div class="ev-date"><div class="ev-month">${mes}</div><div class="ev-day">${dia}</div></div>
+          <div class="ev-body">
+            <div class="ev-name">${s.tipo||'Sessão'}</div>
+            <div class="ev-meta">${s.descricao_local||'Templo'}</div>
+          </div>
+        </div>`;
+      }).join('');
+
+  // Linhas de atas (coluna direita) — layout do esboço
   const atasRows = atas.length === 0
-    ? `<tr><td colspan="4" style="text-align:center;padding:24px;font-style:italic;color:var(--text-muted)">Nenhuma ata registrada ainda.</td></tr>`
+    ? `<div style="padding:24px;font-style:italic;color:var(--text-muted);font-size:13px;text-align:center">Nenhuma ata registrada ainda.</div>`
     : atas.map(a => {
         const sessao = DATA.sessoes.find(s => s.id === a.sessao_id);
         const temArquivo = !!a.arquivo_url;
         const temTexto = !!a.conteudo;
-        return `<tr>
-          <td>${fmtData(a.data)}</td>
-          <td>${a.titulo || (sessao ? sessao.tipo : 'Sessão')}</td>
-          <td style="display:flex;gap:4px;flex-wrap:wrap">
-            ${temTexto ? `<button class="btn" style="padding:3px 10px;font-size:8px" onclick='verAta(${JSON.stringify(a.conteudo||"")}, "${a.data}", ${JSON.stringify(a.titulo||"")})'>📄 Ver</button>` : ''}
-            ${temArquivo ? `<a href="${a.arquivo_url}" target="_blank" class="btn" style="padding:3px 10px;font-size:8px;text-decoration:none">📎 Arquivo</a>` : ''}
-            ${canEdit ? `<button class="btn" style="padding:3px 10px;font-size:8px;color:var(--gold-dark)" onclick='editarAta(${JSON.stringify(a)})'>✎ Editar</button>` : ''}
-            ${!temTexto && !temArquivo ? '<span style="font-style:italic;color:var(--text-muted);font-size:11px">—</span>' : ''}
-          </td>
-        </tr>`;
+        const ataJSON = JSON.stringify(a).replace(/'/g,"&#39;");
+        return `
+          <div style="display:flex;align-items:center;gap:0;border:1px solid var(--border-mid);border-radius:4px;margin-bottom:8px;overflow:hidden;background:var(--white)">
+            <!-- Data -->
+            <div style="background:var(--navy);color:#fff;padding:14px 16px;min-width:90px;text-align:center;flex-shrink:0">
+              <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;opacity:0.75;text-transform:uppercase">
+                ${['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][parseInt((a.data||'').split('-')[1])-1]||'—'}
+              </div>
+              <div style="font-family:'Cinzel',serif;font-size:22px;font-weight:700;line-height:1">${(a.data||'').split('-')[2]||'—'}</div>
+              <div style="font-size:9px;opacity:0.7">${(a.data||'').split('-')[0]||''}</div>
+            </div>
+            <!-- Título -->
+            <div style="flex:1;padding:12px 18px;font-family:'Cormorant Garamond',serif">
+              <div style="font-size:15px;font-weight:700;color:var(--text)">${a.titulo || (sessao ? sessao.tipo : 'Sessão')}</div>
+              ${sessao?`<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${sessao.tipo||''} · ${sessao.descricao_local||'Templo'}</div>`:''}
+              ${!temTexto && !temArquivo ? `<div style="font-size:11px;color:var(--gold-dark);font-style:italic;margin-top:2px">Aguardando texto da ata…</div>` : ''}
+            </div>
+            <!-- Botões -->
+            <div style="display:flex;gap:6px;padding:12px 14px;flex-shrink:0;align-items:center">
+              ${temTexto ? `<button class="btn" style="padding:5px 12px;font-size:9px;font-family:'Cinzel',serif;letter-spacing:0.06em" onclick='verAta(${JSON.stringify(a.conteudo||"")}, "${a.data}", ${JSON.stringify(a.titulo||"")})'>📄 Ver</button>` : ''}
+              ${temArquivo ? `<a href="${a.arquivo_url}" target="_blank" class="btn" style="padding:5px 12px;font-size:9px;font-family:'Cinzel',serif;letter-spacing:0.06em;text-decoration:none">📎 Arquivo</a>` : ''}
+              ${canEdit ? `<button class="btn" style="padding:5px 12px;font-size:9px;font-family:'Cinzel',serif;letter-spacing:0.06em;color:var(--gold-dark);border-color:rgba(184,134,11,0.3)" onclick='editarAta(${ataJSON})'>✎ Editar</button>` : ''}
+              ${canEdit ? `<button class="btn" style="padding:5px 12px;font-size:9px;font-family:'Cinzel',serif;letter-spacing:0.06em;color:var(--red);border-color:rgba(139,32,32,0.3)" onclick="excluirAta('${a.id}','${(a.titulo||'esta ata').replace(/'/g,'')}')">🗑️ Excluir</button>` : ''}
+            </div>
+          </div>`;
       }).join('');
 
-  const proxEv = proxEvento ? `
-    <div class="ev-card">
-      <div class="ev-date"><div class="ev-month">${['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][parseInt(proxEvento.data?.split('-')[1])-1]||'—'}</div>
-        <div class="ev-day">${proxEvento.data?.split('-')[2]||'—'}</div></div>
-      <div class="ev-body"><div class="ev-name">${proxEvento.descricao||'Evento'}</div>
-        <div class="ev-meta">${proxEvento.hora||'—'} · ${proxEvento.local||'Templo'}</div></div>
-    </div>` : `<div style="padding:16px;font-style:italic;color:var(--text-muted)">Nenhum evento próximo.</div>`;
-
   document.getElementById('atas-content').innerHTML = `
-    <div class="two-col">
+    <div class="two-col" style="grid-template-columns:280px 1fr;align-items:start">
+      <!-- Coluna esquerda: próximas sessões -->
       <div class="card">
-        <div class="card-header">
-          <div class="card-title">Próximas Sessões</div>
-        </div>
-        <div style="padding:8px 0">${proxEv}</div>
+        <div class="card-header"><div class="card-title">Próximas Sessões</div></div>
+        <div style="padding:8px 0">${proxHTML}</div>
       </div>
+      <!-- Coluna direita: atas -->
       <div class="card">
         <div class="card-header">
-          <div class="card-title">Atas Registradas</div>
+          <div class="card-title">Atas Registradas <span style="font-size:11px;color:var(--text-muted);font-weight:400">(${atas.length})</span></div>
           ${canEdit?`<button class="btn btn-solid" onclick="abrirModalAta()">+ Nova Ata</button>`:''}
         </div>
-        <table><thead><tr><th>Data</th><th>Título / Sessão</th><th>Arquivo</th></tr></thead>
-        <tbody>${atasRows}</tbody></table>
+        <div style="padding:4px 0">${atasRows}</div>
       </div>
     </div>`;
+}
+
+async function excluirAta(id, titulo) {
+  if (!confirm(`Excluir a ata "${titulo}"?\nEsta ação não pode ser desfeita.`)) return;
+  const res = await sb.from('atas').delete().eq('id', id);
+  if (res.error) { toast('Erro: ' + res.error.message); return; }
+  toast('Ata excluída ✦');
+  await renderAtas();
 }
 
 // ===================== MINHA FREQUÊNCIA =====================
