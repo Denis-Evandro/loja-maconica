@@ -1800,28 +1800,32 @@ function renderDashboard() {
       </div>
       ${(() => {
         const hojeStr = hoje.toISOString().split('T')[0];
-        const prox = DATA.eventos.filter(e=>e.data>=hojeStr).sort((a,b)=>a.data.localeCompare(b.data)).slice(0,5);
         const mesesN = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-        const tipoLabel = {ordinaria:'Sessão Ordinária',instrucao:'Sessão de Instrução',iniciacao:'Cerimônia de Iniciação',elevacao:'Cerimônia de Elevação',exaltacao:'Cerimônia de Exaltação',social:'Evento Social'};
-        const tipoMap = {ordinaria:'b-ord',instrucao:'b-inst',iniciacao:'b-init',elevacao:'b-elev',exaltacao:'b-elev',social:''};
+        // Unir sessões futuras + convites futuros
+        const sessoesFut = DATA.sessoes.filter(s=>s.data>=hojeStr).sort((a,b)=>a.data.localeCompare(b.data)).slice(0,5).map(s=>({
+          data:s.data, titulo:s.descricao||s.tipo||'Sessão', subtitulo:s.tipo||'', local:s.descricao_local||'Templo', isConvite:false
+        }));
+        const convitesFut = DATA.eventos.filter(e=>e.data>=hojeStr).sort((a,b)=>a.data.localeCompare(b.data)).slice(0,3).map(e=>({
+          data:e.data, titulo:e.titulo||e.descricao||'Convite', subtitulo:e.local||'', local:e.local||'', isConvite:true
+        }));
+        const prox = [...sessoesFut, ...convitesFut].sort((a,b)=>a.data.localeCompare(b.data)).slice(0,5);
         if (prox.length === 0) return `<div style="font-style:italic;color:var(--text-muted);font-size:13px;padding:8px 0">Nenhum evento agendado.</div>`;
         return `<div style="display:flex;flex-direction:column;gap:7px">
           ${prox.map(e => {
             const d=(e.data||'').split('-');
             const mesN=mesesN[parseInt(d[1])-1]||'—';
             const diaN=d[2]||'—';
-            const tl=tipoLabel[e.tipo]||e.tipo||'—';
             return `<div style="display:flex;align-items:center;gap:0;background:var(--cream);border:1px solid var(--border-mid);border-radius:5px;overflow:hidden">
               <div style="background-color:#1B3A6B;min-width:68px;width:68px;padding:10px 8px;text-align:center;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
                 <div style="font-family:'Cinzel',serif;font-size:8px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#ffffff;opacity:0.85">${mesN}</div>
                 <div style="font-family:'Cinzel',serif;font-size:28px;font-weight:700;line-height:1;color:#ffffff">${diaN}</div>
               </div>
               <div style="flex:1;padding:10px 18px;font-family:'Cormorant Garamond',serif;border-left:3px solid var(--border-mid)">
-                <span style="font-size:18px;font-weight:700;color:var(--text)">${e.titulo||tl}</span>
-                <span style="font-size:12px;color:var(--text-muted);margin-left:12px">${tl}</span>
+                <div style="font-size:16px;font-weight:700;color:var(--text)">${e.titulo}${e.subtitulo&&e.subtitulo!==e.titulo?` <span style="font-size:11px;color:var(--text-muted);font-weight:400">— ${e.subtitulo}</span>`:''}</div>
+                ${e.local?`<div style="font-size:11px;color:var(--text-muted);margin-top:2px">📍 ${e.local}</div>`:''}
               </div>
-              <div style="padding:0 16px;flex-shrink:0">
-                <span class="badge ${tipoMap[e.tipo]||''}" style="font-size:9px">${tl.split(' ')[0]}</span>
+              <div style="padding:0 14px;flex-shrink:0">
+                <span style="font-family:'Cinzel',serif;font-size:8px;font-weight:700;padding:3px 8px;border-radius:3px;background:${e.isConvite?'rgba(212,168,67,0.15)':'rgba(27,58,107,0.08)'};border:1px solid ${e.isConvite?'rgba(212,168,67,0.4)':'rgba(27,58,107,0.2)'};color:${e.isConvite?'var(--gold-dark)':'var(--navy)'}">${e.isConvite?'✉️ Convite':'🏛️ Sessão'}</span>
               </div>
             </div>`;
           }).join('')}
@@ -2725,31 +2729,70 @@ async function confirmarPresencas(sessaoId) {
 }
 
 async function abrirModalVisitante(sessaoId) {
-  // Buscar lojas já cadastradas para autocomplete
   const { data: lojasSalvas } = await sb.from('lojas_visitantes').select('nome').order('nome');
   const datalistOps = (lojasSalvas||[]).map(l => `<option value="${l.nome}">`).join('');
 
+  // Membros visitantes cadastrados (tipo_membro = visitante)
+  const visitantesCad = DATA.membros.filter(m => m.tipo_membro === 'visitante');
+  const opsVisitantes = visitantesCad.map(m =>
+    `<option value="${m.nome_maconico}|${m.loja_origem||''}|${m.cim||''}">${m.nome_maconico}${m.loja_origem?' — '+m.loja_origem:''}</option>`
+  ).join('');
+
+  const inp = `style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"`;
+  const lb = (t, op='') => `<label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">${t}${op?` <span style="font-weight:400;text-transform:none">(${op})</span>`:''}</label>`;
+
   document.body.insertAdjacentHTML('beforeend', `
     <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center">
-      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;padding:36px 40px;width:460px;position:relative">
+      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;padding:36px 40px;width:480px;position:relative">
         <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gold-dark),var(--gold-rich),var(--gold-light),var(--gold-dark));border-radius:6px 6px 0 0"></div>
-        <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);margin-bottom:24px">+ Irmão Visitante</div>
+        <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);margin-bottom:20px">🤝 Registrar Irmão Visitante</div>
         <datalist id="lojas-list">${datalistOps}</datalist>
-        <div style="display:grid;gap:14px">
-          <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Nome *</label>
-            <input id="vis-nome" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)" placeholder="Ir. Nome do Visitante"></div>
-          <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Loja / Oriente *</label>
-            <input id="vis-loja" list="lojas-list" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)" placeholder="Ex: Loja União Nº 10 — GOB/SP"></div>
-          <div style="font-size:11px;color:var(--gold-dark);font-style:italic">💡 Lojas já visitantes aparecem como sugestão ao digitar</div>
-          <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">CIM (Número Maçônico)</label>
-            <input id="vis-cim" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)" placeholder="Ex: 12345-SP"></div>
+
+        ${visitantesCad.length > 0 ? `
+        <!-- Selecionar visitante já cadastrado -->
+        <div style="margin-bottom:16px">
+          ${lb('Selecionar do Cadastro', 'visitantes cadastrados')}
+          <select id="vis-select-cad" onchange="preencherDadosVisitante()" ${inp}>
+            <option value="">— Selecionar irmão cadastrado —</option>
+            ${opsVisitantes}
+          </select>
+          <div style="font-size:10px;color:var(--text-muted);font-style:italic;margin-top:4px">Ou preencha manualmente abaixo para novo visitante não cadastrado</div>
         </div>
+        <div style="border-top:1px dashed var(--border-mid);margin-bottom:16px;padding-top:14px">
+          <div style="font-family:'Cinzel',serif;font-size:8px;font-weight:700;letter-spacing:0.12em;color:var(--text-muted);text-transform:uppercase;margin-bottom:12px">Ou preenchimento manual</div>
+        ` : ''}
+
+        <div style="display:grid;gap:12px">
+          <div>${lb('Nome do Irmão *')}
+            <input id="vis-nome" ${inp} placeholder="Ir. Nome do Visitante"></div>
+          <div>${lb('Loja / Oriente *')}
+            <input id="vis-loja" list="lojas-list" ${inp} placeholder="Ex: Loja União Nº 10 — GOB/SP"></div>
+          <div style="font-size:11px;color:var(--gold-dark);font-style:italic">💡 Lojas já visitantes aparecem como sugestão ao digitar</div>
+          <div>${lb('CIM', 'opcional')}
+            <input id="vis-cim" ${inp} placeholder="Ex: 12345-SP"></div>
+        </div>
+
+        ${visitantesCad.length > 0 ? '</div>' : ''}
+
         <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:24px">
           <button class="btn" onclick="fecharModal()" style="padding:8px 20px">Cancelar</button>
           <button class="btn btn-solid" onclick="salvarVisitante('${sessaoId}')" style="padding:8px 20px">Registrar Visitante</button>
         </div>
       </div>
     </div>`);
+}
+
+function preencherDadosVisitante() {
+  const sel = document.getElementById('vis-select-cad');
+  const val = sel?.value;
+  if (!val) return;
+  const [nome, loja, cim] = val.split('|');
+  const nomeEl = document.getElementById('vis-nome');
+  const lojaEl = document.getElementById('vis-loja');
+  const cimEl  = document.getElementById('vis-cim');
+  if (nomeEl) nomeEl.value = nome || '';
+  if (lojaEl) lojaEl.value = loja || '';
+  if (cimEl)  cimEl.value  = cim  || '';
 }
 
 async function salvarVisitante(sessaoId) {
@@ -4137,36 +4180,37 @@ async function excluirEvento(id, titulo) {
 // ===================== EVENTOS =====================
 async function salvarEvento() {
   const titulo = document.getElementById('ev-titulo')?.value.trim();
-  const data = document.getElementById('ev-data')?.value;
-  const tipo = document.getElementById('ev-tipo')?.value;
-  const descricao_local = document.getElementById('ev-local')?.value.trim() || 'Templo';
-  const grau = parseInt(document.getElementById('ev-grau')?.value)||3;
-  const descricao = document.getElementById('ev-desc')?.value.trim();
+  const data   = document.getElementById('ev-data')?.value;
+  const tipo   = document.getElementById('ev-tipo')?.value;
+  const local  = document.getElementById('ev-local')?.value.trim() || 'Templo';
+  const grau   = parseInt(document.getElementById('ev-grau')?.value)||3;
+  const obs    = document.getElementById('ev-desc')?.value.trim() || '';
   const registroTipo = document.getElementById('ev-registro-tipo')?.value || 'sessao';
-  // Campos de convite
-  const lojaNome     = document.getElementById('ev-loja-nome')?.value.trim() || null;
-  const lojaEndereco = document.getElementById('ev-loja-endereco')?.value.trim() || null;
-  const respNome     = document.getElementById('ev-resp-nome')?.value.trim() || null;
-  const respTel      = document.getElementById('ev-resp-tel')?.value.trim() || null;
+  const lojaNome     = document.getElementById('ev-loja-nome')?.value.trim() || '';
+  const lojaEndereco = document.getElementById('ev-loja-endereco')?.value.trim() || '';
+  const respNome     = document.getElementById('ev-resp-nome')?.value.trim() || '';
+  const respTel      = document.getElementById('ev-resp-tel')?.value.trim() || '';
 
   if (!titulo || !data) { toast('Preencha título e data'); return; }
   fecharModal();
 
-  // ── 1. Salvar o evento (sempre) ─────────────────────────────────────────
-  const resEv = await sb.from('eventos').insert({
-    titulo,
-    descricao: descricao || titulo,
-    data,
-    tipo: registroTipo === 'convite' ? 'convite' : tipo,
-    grau,
-    local: descricao_local,
-    // Campos extras de convite salvos em descricao se existirem
-    ...(lojaNome ? {descricao: [descricao||titulo, `Loja: ${lojaNome}`, lojaEndereco?`End: ${lojaEndereco}`:'', respNome?`Ir. ${respNome}${respTel?' — '+respTel:''}`:''].filter(Boolean).join(' | ')} : {})
-  });
-  if (resEv.error) { toast('Erro ao criar: ' + resEv.error.message); await loadAllData(); return; }
+  if (registroTipo === 'convite') {
+    // ── CONVITE: só insere em eventos (informativo) ──────────────────────
+    // Monta descrição com dados do convite
+    const partes = [obs, lojaNome?`Loja: ${lojaNome}`:'', lojaEndereco?`End: ${lojaEndereco}`:'', respNome?`Ir. ${respNome}${respTel?' — '+respTel:''}`:''].filter(Boolean);
+    const res = await sb.from('eventos').insert({
+      titulo,
+      descricao: partes.join(' | ') || titulo,
+      data,
+      tipo: 'convite',
+      grau,
+      local
+    });
+    if (res.error) { toast('Erro ao registrar convite: ' + res.error.message); await loadAllData(); return; }
+    toast('✉️ Convite registrado · Aparecerá em Próximos Eventos');
 
-  // ── 2. Se for SESSÃO DA LOJA: criar sessão + presenças + ata ───────────
-  if (registroTipo === 'sessao') {
+  } else {
+    // ── SESSÃO DA LOJA: insere APENAS em sessoes + presencas + atas ──────
     const tipoSessaoMap = {
       ordinaria:'Sessão Ordinária', instrucao:'Sessão de Instrução',
       iniciacao:'Cerimônia de Iniciação', elevacao:'Cerimônia de Elevação',
@@ -4174,25 +4218,26 @@ async function salvarEvento() {
     };
     const tipoSessao = tipoSessaoMap[tipo] || 'Sessão Ordinária';
 
-    const resSess = await sb.from('sessoes').insert({ data, tipo: tipoSessao, grau, descricao_local });
-    if (!resSess.error) {
-      const resBusca = await sb.from('sessoes').select('*').eq('data',data).eq('tipo',tipoSessao).order('criado_em',{ascending:false}).limit(1);
-      const sessaoNova = resBusca.data?.[0];
-      const sessaoId = sessaoNova?.id;
-      if (sessaoNova && !DATA.sessoes.find(s=>s.id===sessaoId)) DATA.sessoes.unshift(sessaoNova);
-      if (sessaoId) {
-        const membrosAtivos = DATA.membros.filter(m=>m.status==='ativo'||m.status==='iniciado');
-        if (membrosAtivos.length) {
-          const resP = await sb.from('presencas').insert(membrosAtivos.map(m=>({sessao_id:sessaoId,membro_id:m.id,situacao:'ausente',presente:false})));
-          if (!resP.error && resP.data) DATA.presencas.push(...resP.data);
-        }
-        await sb.from('atas').insert({sessao_id:sessaoId, titulo, data, conteudo:null, arquivo_url:null});
+    const resSess = await sb.from('sessoes').insert({ data, tipo: tipoSessao, grau, descricao_local: local });
+    if (resSess.error) { toast('Erro ao criar sessão: ' + resSess.error.message); await loadAllData(); return; }
+
+    // Buscar ID da sessão recém-criada
+    const resBusca = await sb.from('sessoes').select('*').eq('data',data).eq('tipo',tipoSessao).order('criado_em',{ascending:false}).limit(1);
+    const sessaoNova = resBusca.data?.[0];
+    const sessaoId = sessaoNova?.id;
+    if (sessaoNova && !DATA.sessoes.find(s=>s.id===sessaoId)) DATA.sessoes.unshift(sessaoNova);
+
+    if (sessaoId) {
+      // Criar presenças automáticas
+      const membrosAtivos = DATA.membros.filter(m=>m.status==='ativo'||m.status==='iniciado');
+      if (membrosAtivos.length) {
+        const resP = await sb.from('presencas').insert(membrosAtivos.map(m=>({sessao_id:sessaoId,membro_id:m.id,situacao:'ausente',presente:false})));
+        if (!resP.error && resP.data) DATA.presencas.push(...resP.data);
       }
+      // Criar ata vazia vinculada
+      await sb.from('atas').insert({ sessao_id:sessaoId, titulo:`${titulo} — ${tipoSessao}`, data, conteudo:null, arquivo_url:null });
     }
-    toast('Sessão criada ✦ · Frequência e Ata abertas automaticamente');
-  } else {
-    // Convite — só informativo
-    toast('Convite registrado ✦ · Aparecerá em Próximos Eventos');
+    toast('🏛️ Sessão criada ✦ · Frequência e Ata abertas automaticamente');
   }
 
   await loadAllData();
@@ -4308,8 +4353,8 @@ function renderEventos(access) {
   let sessFuturas = DATA.sessoes.filter(s=>s.data>=hoje).sort((a,b)=>a.data.localeCompare(b.data));
   let eventosFuturos = DATA.eventos.filter(e=>e.data>=hoje).sort((a,b)=>a.data.localeCompare(b.data));
   let proximos = [
-    ...sessFuturas.map(s=>({id:s.id, data:s.data, titulo:s.tipo||'Sessão', local:s.descricao_local||'Templo', hora:s.hora||'', isConvite:false, isSessao:true})),
-    ...eventosFuturos.map(e=>({id:e.id, data:e.data, titulo:e.titulo||e.descricao||'Evento', local:e.local||'Templo', hora:e.hora||'', isConvite:e.tipo==='convite', isSessao:false, tipo:e.tipo}))
+    ...sessFuturas.map(s=>({id:s.id, data:s.data, titulo:s.descricao||s.tipo||'Sessão', subtitulo:s.tipo||'', local:s.descricao_local||'Templo', hora:s.hora||'', isConvite:false, isSessao:true})),
+    ...eventosFuturos.map(e=>({id:e.id, data:e.data, titulo:e.titulo||e.descricao||'Evento', subtitulo:'', local:e.local||'Templo', hora:e.hora||'', isConvite:e.tipo==='convite', isSessao:false, tipo:e.tipo}))
   ].sort((a,b)=>a.data.localeCompare(b.data));
 
   const temFiltroProx = fProxAte !== '';
@@ -4346,7 +4391,8 @@ function renderEventos(access) {
         return `<div class="ev-card">
           <div class="ev-date"><div class="ev-month">${mes}</div><div class="ev-day">${dia}</div></div>
           <div class="ev-body">
-            <div class="ev-name">${ev.titulo}</div>
+            <div class="ev-name">${ev.titulo}${ev.subtitulo&&ev.subtitulo!==ev.titulo?` <span style="font-size:11px;color:var(--text-muted);font-weight:400">— ${ev.subtitulo}</span>`:''}
+            </div>
             <div class="ev-meta">📍 ${ev.local}${ev.hora?' · ⏰ '+ev.hora:''}</div>
           </div>
           <div class="ev-type" style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
