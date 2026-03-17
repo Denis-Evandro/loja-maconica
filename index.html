@@ -4011,25 +4011,30 @@ async function renderAtas() {
         const temArquivo = !!a.arquivo_url;
         const temTexto = !!a.conteudo;
         const ataJSON = JSON.stringify(a).replace(/'/g,"&#39;");
+        // Usar data da ata ou da sessão vinculada
+        const dataStr = a.data || sessao?.data || '';
+        const partes = dataStr.split('-'); // ['2026','03','16']
+        const anoAta = partes[0] || '';
+        const mesIdx = parseInt(partes[1]||0) - 1;
+        const diaAta = partes[2] || '—';
+        const mesAta = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][mesIdx] || '—';
         return `
-          <div style="display:flex;align-items:center;gap:0;border:1px solid var(--border-mid);border-radius:4px;margin-bottom:8px;overflow:hidden;background:var(--white)">
-            <!-- Data -->
-            <div style="background:var(--navy);color:#fff;padding:14px 16px;min-width:90px;text-align:center;flex-shrink:0">
-              <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;opacity:0.75;text-transform:uppercase">
-                ${['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][parseInt((a.data||'').split('-')[1])-1]||'—'}
-              </div>
-              <div style="font-family:'Cinzel',serif;font-size:22px;font-weight:700;line-height:1">${(a.data||'').split('-')[2]||'—'}</div>
-              <div style="font-size:9px;opacity:0.7">${(a.data||'').split('-')[0]||''}</div>
+          <div style="display:flex;align-items:stretch;gap:0;border:1px solid var(--border-mid);border-radius:4px;margin-bottom:8px;overflow:hidden;background:var(--white)">
+            <!-- Bloco Data (igual ao ev-card das sessões) -->
+            <div style="background:var(--navy);color:#fff;padding:12px 16px;min-width:80px;width:80px;text-align:center;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+              <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;opacity:0.8;text-transform:uppercase;margin-bottom:2px">${mesAta}</div>
+              <div style="font-family:'Cinzel',serif;font-size:28px;font-weight:700;line-height:1">${diaAta}</div>
+              <div style="font-size:9px;opacity:0.6;margin-top:2px">${anoAta}</div>
             </div>
             <!-- Título -->
-            <div style="flex:1;padding:12px 18px;font-family:'Cormorant Garamond',serif">
+            <div style="flex:1;padding:12px 18px;font-family:'Cormorant Garamond',serif;display:flex;flex-direction:column;justify-content:center">
               <div style="font-size:15px;font-weight:700;color:var(--text)">${a.titulo || (sessao ? sessao.tipo : 'Sessão')}</div>
-              ${sessao?`<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${sessao.tipo||''} · ${sessao.descricao_local||'Templo'}</div>`:''}
-              ${!temTexto && !temArquivo ? `<div style="font-size:11px;color:var(--gold-dark);font-style:italic;margin-top:2px">Aguardando texto da ata…</div>` : ''}
+              ${sessao?`<div style="font-size:11px;color:var(--text-muted);margin-top:3px">${sessao.tipo||''} · ${sessao.descricao_local||'Templo'}</div>`:''}
+              ${!temTexto && !temArquivo ? `<div style="font-size:11px;color:var(--gold-dark);font-style:italic;margin-top:3px">✏️ Aguardando texto da ata…</div>` : ''}
             </div>
             <!-- Botões -->
             <div style="display:flex;gap:6px;padding:12px 14px;flex-shrink:0;align-items:center">
-              ${temTexto ? `<button class="btn" style="padding:5px 12px;font-size:9px;font-family:'Cinzel',serif;letter-spacing:0.06em" onclick='verAta(${JSON.stringify(a.conteudo||"")}, "${a.data}", ${JSON.stringify(a.titulo||"")})'>📄 Ver</button>` : ''}
+              ${temTexto ? `<button class="btn" style="padding:5px 12px;font-size:9px;font-family:'Cinzel',serif;letter-spacing:0.06em" onclick='verAta(${JSON.stringify(a.conteudo||"")}, "${dataStr}", ${JSON.stringify(a.titulo||"")})'>📄 Ver</button>` : ''}
               ${temArquivo ? `<a href="${a.arquivo_url}" target="_blank" class="btn" style="padding:5px 12px;font-size:9px;font-family:'Cinzel',serif;letter-spacing:0.06em;text-decoration:none">📎 Arquivo</a>` : ''}
               ${canEdit ? `<button class="btn" style="padding:5px 12px;font-size:9px;font-family:'Cinzel',serif;letter-spacing:0.06em;color:var(--gold-dark);border-color:rgba(184,134,11,0.3)" onclick='editarAta(${ataJSON})'>✎ Editar</button>` : ''}
               ${canEdit ? `<button class="btn" style="padding:5px 12px;font-size:9px;font-family:'Cinzel',serif;letter-spacing:0.06em;color:var(--red);border-color:rgba(139,32,32,0.3)" onclick="excluirAta('${a.id}','${(a.titulo||'esta ata').replace(/'/g,'')}')">🗑️ Excluir</button>` : ''}
