@@ -3117,175 +3117,595 @@ function removerCategoria(slug) {
 function renderFinancas(access) {
   if (access === 'none') { document.getElementById('financas-content').innerHTML = accessDenied('Finanças'); return; }
   const canEdit = access === 'full';
+  const hoje = new Date();
+  const hojeStr = hoje.toISOString().split('T')[0];
+  const mesAtual = String(hoje.getMonth()+1).padStart(2,'0');
+  const anoAtual = hoje.getFullYear();
+  const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
   const lancs = DATA.financas;
+
+  // ── Totais gerais ──────────────────────────────────────────────
   const receitas = lancs.filter(l=>l.tipo==='receita'&&(l.status||'pago')==='pago').reduce((s,l)=>s+parseFloat(l.valor||0),0);
   const despesas = lancs.filter(l=>l.tipo==='despesa'&&(l.status||'pago')==='pago').reduce((s,l)=>s+parseFloat(l.valor||0),0);
   const saldo = receitas - despesas;
   const totalAgendado = lancs.filter(l=>l.status==='agendado').reduce((s,l)=>s+parseFloat(l.valor||0),0);
   const totalAberto = lancs.filter(l=>l.status==='aberto').reduce((s,l)=>s+parseFloat(l.valor||0),0);
 
-  // Débitos pendentes: mensalidades em atraso + lançamentos agendados/abertos
-  const mesAtual = new Date().getMonth()+1;
-  const membrosAtivos = DATA.membros.filter(m=>m.status==='ativo'||m.status==='iniciado');
-  const debitosMens = membrosAtivos.map(m=>{
-    const pags = lancs.filter(l=>l.membro_id===m.id&&l.tipo==='receita'&&(l.status||'pago')==='pago');
-    const totalPago = pags.reduce((s,l)=>s+parseFloat(l.valor||0),0);
+  // ── Totais do mês ──────────────────────────────────────────────
+  const finMes = lancs.filter(l=>l.data?.startsWith(`${anoAtual}-${mesAtual}`));
+  const recMes  = finMes.filter(l=>l.tipo==='receita'&&l.status==='pago').reduce((s,l)=>s+parseFloat(l.valor||0),0);
+  const despMes = finMes.filter(l=>l.tipo==='despesa'&&l.status==='pago').reduce((s,l)=>s+parseFloat(l.valor||0),0);
+
+  // ── Previsão de caixa (próximos 30 dias) ──────────────────────
+  const em30 = new Date(hoje); em30.setDate(em30.getDate()+30);
+  const em30Str = em30.toISOString().split('T')[0];
+  const recPrev  = lancs.filter(l=>l.tipo==='receita'&&l.status==='agendado'&&l.data>=hojeStr&&l.data<=em30Str).reduce((s,l)=>s+parseFloat(l.valor||0),0);
+  const despPrev = lancs.filter(l=>l.tipo==='despesa'&&l.status==='agendado'&&l.data>=hojeStr&&l.data<=em30Str).reduce((s,l)=>s+parseFloat(l.valor||0),0);
+  const saldoPrev = saldo + recPrev - despPrev;
+
+  // ── Inadimplência ─────────────────────────────────────────────
+  const membrosAtivos = DATA.membros.filter(m=>(m.status==='ativo'||m.status==='iniciado')&&m.tipo_membro!=='visitante');
+  const anoIngresso = (m) => m.data_ingresso ? parseInt(m.data_ingresso.split('-')[0]) : anoAtual;
+  const mesIngresso = (m) => m.data_ingresso ? parseInt(m.data_ingresso.split('-')[1]) : 1;
+  const inadimplentes = membrosAtivos.map(m=>{
     const mens = parseFloat(m.mensalidade)||100;
-    const mesesDevidos = Math.max(0, mesAtual - Math.floor(totalPago/mens));
-    return mesesDevidos > 0 ? {
-      nome: m.nome_maconico, cargo: m.cargo, id: m.id,
-      origem: `${mesesDevidos} mês(es) de mensalidade`,
-      valor: mesesDevidos*mens, statusBadge: 'aberto'
-    } : null;
+    if (mens === 0) return null;
+    // Meses desde o ingresso até hoje
+    const ai = anoIngresso(m), mi = mesIngresso(m);
+    const totalMeses = (anoAtual - ai)*12 + (hoje.getMonth()+1 - mi);
+    const esperado = Math.max(0, totalMeses) * mens;
+    const pago = lancs.filter(l=>l.membro_id===m.id&&l.tipo==='receita'&&l.status==='pago'&&l.categoria==='mensalidade').reduce((s,l)=>s+parseFloat(l.valor||0),0);
+    const devia = Math.max(0, esperado - pago);
+    const mesesDev = Math.round(devia/mens);
+    return mesesDev > 0 ? {m, mens, devia, mesesDev, pago, esperado} : null;
   }).filter(Boolean);
+  const pctAdimplente = membrosAtivos.length ? Math.round((membrosAtivos.length-inadimplentes.length)/membrosAtivos.length*100) : 100;
 
-  // Lançamentos com status agendado ou aberto
-  const debitosLancs = lancs
-    .filter(l=>l.status==='agendado'||l.status==='aberto')
-    .map(l=>{
-      const m = DATA.membros.find(mb=>mb.id===l.membro_id);
-      return {
-        nome: m ? m.nome_maconico : '(Loja)',
-        cargo: m ? (m.cargo||'—') : '—',
-        id: m?.id||null,
-        origem: l.descricao||'—',
-        valor: parseFloat(l.valor||0),
-        statusBadge: l.status,
-        lancId: l.id,
-        data: l.data||null
-      };
+  // ── Parcelas em andamento ─────────────────────────────────────
+  const parcelados = (() => {
+    const grupos = {};
+    lancs.filter(l=>l.descricao?.includes('(')).forEach(l=>{
+      const match = l.descricao.match(/^(.+?)\s*\((\d+)\/(\d+)\)$/);
+      if (!match) return;
+      const key = match[1].trim();
+      if (!grupos[key]) grupos[key] = {desc:key, total:parseInt(match[3]), pagas:0, pendentes:0, valorParc:parseFloat(l.valor||0), tipo:l.tipo};
+      if (l.status==='pago') grupos[key].pagas++;
+      else grupos[key].pendentes++;
     });
+    return Object.values(grupos).filter(g=>g.pendentes>0);
+  })();
 
+  // ── Débitos pendentes ─────────────────────────────────────────
+  const debitosMens = inadimplentes.map(({m, devia, mesesDev})=>({
+    nome: m.nome_maconico, cargo: m.cargo||'—', id: m.id,
+    origem: `${mesesDev} mês(es) mensalidade`, valor: devia, statusBadge:'aberto', lancId:null, data:null
+  }));
+  const debitosLancs = lancs.filter(l=>l.status==='agendado'||l.status==='aberto').map(l=>{
+    const mb = DATA.membros.find(mb=>mb.id===l.membro_id);
+    return {nome:mb?mb.nome_maconico:'(Loja)',cargo:mb?mb.cargo||'—':'—',id:mb?.id||null,
+      origem:l.descricao||'—',valor:parseFloat(l.valor||0),statusBadge:l.status,lancId:l.id,data:l.data||null};
+  });
   const todosDebitos = [...debitosMens, ...debitosLancs];
   const totalDebitosGeral = todosDebitos.reduce((s,d)=>s+d.valor,0);
 
+  // ── Orçamento ─────────────────────────────────────────────────
+  const orcamento = JSON.parse(localStorage.getItem('orcamento_anual')||'{"metaRec":0,"metaDesp":0}');
+
+  // ── Helpers ───────────────────────────────────────────────────
+  const inp = `style="border:1px solid var(--border-mid);border-radius:3px;padding:5px 10px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--cream);color:var(--text)"`;
   const statusBadgeHtml = (s) => {
-    const map = {
-      pago:     {label:'✅ Pago',     color:'var(--green)',   bg:'var(--green-bg)'},
-      agendado: {label:'📅 Agendado', color:'#1B5EA0',        bg:'rgba(27,94,160,0.1)'},
-      aberto:   {label:'⚠️ Aberto',  color:'var(--red)',     bg:'var(--red-bg)'}
-    };
-    const b = map[s||'pago'] || map['pago'];
+    const map = {pago:{label:'✅ Pago',color:'var(--green)',bg:'var(--green-bg)'},agendado:{label:'📅 Agendado',color:'#1B5EA0',bg:'rgba(27,94,160,0.1)'},aberto:{label:'⚠️ Aberto',color:'var(--red)',bg:'var(--red-bg)'}};
+    const b = map[s||'pago']||map['pago'];
     return `<span class="badge" style="color:${b.color};background:${b.bg};border-color:${b.color}22">${b.label}</span>`;
   };
-
   const opsMembros = DATA.membros.map(m=>`<option value="${m.id}">${m.nome_maconico}</option>`).join('');
   const opsCats = `<option value="">Todas as categorias</option>${CATEGORIAS_FIN.map(c=>`<option value="${c}">${getCatLabel(c)}</option>`).join('')}`;
 
   const buildRows = (lista) => lista.length === 0
-    ? `<tr><td colspan="6" style="text-align:center;padding:24px;font-style:italic;color:var(--text-muted)">Nenhum lançamento registrado.</td></tr>`
+    ? `<tr><td colspan="7" style="text-align:center;padding:24px;font-style:italic;color:var(--text-muted)">Nenhum lançamento.</td></tr>`
     : lista.slice(0,60).map(l => {
-        const membro = DATA.membros.find(m => m.id === l.membro_id);
+        const mb = DATA.membros.find(m=>m.id===l.membro_id);
         const isRec = l.tipo==='receita';
-        const st = l.status||'pago';
         return `<tr>
           <td>${fmtData(l.data)}</td>
-          <td>${l.descricao||'—'}${membro?`<br><span style="font-size:10px;color:var(--text-muted);font-style:italic">${membro.nome_maconico}</span>`:''}</td>
-          <td style="font-size:11px;font-style:italic;color:var(--text-muted)">${getCatLabel(l.categoria)||'—'}</td>
+          <td>${l.descricao||'—'}${mb?`<br><span style="font-size:10px;color:var(--text-muted)">${mb.nome_maconico}</span>`:''}</td>
+          <td style="font-size:11px;color:var(--text-muted)">${getCatLabel(l.categoria)||'—'}</td>
           <td style="color:${isRec?'var(--green)':'var(--red)'};font-weight:600">${isRec?'+':'-'}${fmtVal(l.valor)}</td>
-          <td><span class="badge" style="color:${isRec?'var(--green)':'var(--red)'};background:${isRec?'var(--green-bg)':'var(--red-bg)'}">${isRec?'↑ Receita':'↓ Despesa'}</span></td>
-          <td>${statusBadgeHtml(st)}</td>
-          <td><button class="btn" style="padding:2px 7px;font-size:10px" title="Editar" onclick="abrirModalEditarLancamento('${l.id}')">✏️</button></td>
+          <td><span class="badge" style="color:${isRec?'var(--green)':'var(--red)'};background:${isRec?'var(--green-bg)':'var(--red-bg)'}">${isRec?'↑ Rec':'↓ Desp'}</span></td>
+          <td>${statusBadgeHtml(l.status)}</td>
+          <td style="display:flex;gap:3px">
+            <button class="btn" style="padding:2px 7px;font-size:10px" onclick="abrirModalEditarLancamento('${l.id}')">✏️</button>
+            <button class="btn" style="padding:2px 7px;font-size:10px;color:var(--red)" onclick="excluirLancamento('${l.id}')">🗑️</button>
+          </td>
         </tr>`;
       }).join('');
 
-  const rowsDebitos = todosDebitos.length === 0
-    ? `<tr><td colspan="6" style="text-align:center;padding:16px;font-style:italic;color:var(--green)">✅ Sem débitos pendentes!</td></tr>`
-    : todosDebitos.map(d=>{
-        const isAgendado = d.statusBadge === 'agendado';
-        const hoje = new Date().toISOString().split('T')[0];
-        const vencido = isAgendado && d.data && d.data <= hoje;
-        return `<tr${vencido?' style="background:rgba(176,90,0,0.04)"':''}>
-          <td>${d.nome}</td>
-          <td>${d.cargo}</td>
-          <td>${d.origem}${vencido?`<br><span style="font-size:9px;color:#B05A00;font-weight:700">📅 ${d.data===hoje?'Vence hoje':'Venceu '+fmtData(d.data)}</span>`:''}
-          </td>
-          <td style="color:var(--red);font-weight:600">${fmtVal(d.valor)}</td>
-          <td>${statusBadgeHtml(d.statusBadge)}</td>
-          <td style="display:flex;gap:4px;flex-wrap:wrap;align-items:center">
-            ${isAgendado && d.lancId ? `
-              <button class="btn" style="padding:2px 8px;font-size:8px;background:linear-gradient(135deg,var(--green),#2A6A3A);color:#fff;border-color:var(--green)"
-                onclick="confirmarPagamentoAgendado('${d.lancId}')">✓ Confirmar</button>
-              <button class="btn" style="padding:2px 8px;font-size:8px"
-                onclick="adiarAgendado('${d.lancId}')">📅 Adiar</button>
-            ` : ''}
-            ${d.id ? `<button class="btn" style="padding:2px 8px;font-size:8px" onclick="abrirModalLancamentoMembro('${d.id}','${d.nome}')">+ Registrar Pag.</button>` : ''}
-            ${d.lancId ? `<button class="btn" style="padding:2px 7px;font-size:10px" title="Editar / Excluir" onclick="abrirModalEditarLancamento('${d.lancId}')">✏️</button>` : ''}
-          </td>
-        </tr>`;
-      }).join('');
+  // ── Gráfico histórico 6 meses ─────────────────────────────────
+  const grafMeses = [];
+  for (let i=5;i>=0;i--) {
+    const d = new Date(anoAtual, hoje.getMonth()-i, 1);
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const aa = d.getFullYear();
+    const pref = `${aa}-${mm}`;
+    const r = lancs.filter(l=>l.data?.startsWith(pref)&&l.tipo==='receita'&&l.status==='pago').reduce((s,l)=>s+parseFloat(l.valor||0),0);
+    const d2 = lancs.filter(l=>l.data?.startsWith(pref)&&l.tipo==='despesa'&&l.status==='pago').reduce((s,l)=>s+parseFloat(l.valor||0),0);
+    grafMeses.push({label:meses[d.getMonth()],rec:r,desp:d2});
+  }
+  const maxG = Math.max(...grafMeses.map(g=>Math.max(g.rec,g.desp)),1);
 
   document.getElementById('financas-content').innerHTML = `
     ${!canEdit ? readOnlyBanner() : ''}
 
-    ${canEdit?`<div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap">
-      <button class="btn btn-solid" onclick="abrirModalLancamento()" style="display:flex;align-items:center;gap:6px">
-        <span style="font-size:15px">＋</span> Novo Lançamento
-      </button>
-      <button class="btn btn-solid" onclick="abrirModalMensalidadeAuto()" style="display:flex;align-items:center;gap:6px;background:linear-gradient(135deg,#1B5EA0,#2A7ACC)">
-        <span>⚡</span> Mensalidades do Mês
-      </button>
-      <button class="btn btn-solid" onclick="abrirModalAgape()" style="display:flex;align-items:center;gap:6px;background:linear-gradient(135deg,#6B3A00,#A05A00)">
-        <span>🍽️</span> Ágape / Rateio
-      </button>
+    <!-- BOTÕES DE AÇÃO -->
+    ${canEdit?`<div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap">
+      <button class="btn btn-solid" onclick="abrirModalLancamento()" style="display:flex;align-items:center;gap:6px">＋ Novo Lançamento</button>
+      <button class="btn btn-solid" onclick="abrirModalMensalidadeAuto()" style="background:linear-gradient(135deg,#1B5EA0,#2A7ACC);display:flex;align-items:center;gap:6px">⚡ Mensalidades do Mês</button>
+      <button class="btn btn-solid" onclick="abrirModalAgape()" style="background:linear-gradient(135deg,#6B3A00,#A05A00);display:flex;align-items:center;gap:6px">🍽️ Ágape / Rateio</button>
+      <button class="btn btn-solid" onclick="abrirModalFecharMes()" style="background:linear-gradient(135deg,#3A006B,#6A2AAC);display:flex;align-items:center;gap:6px">📦 Fechar Mês</button>
+      <button class="btn btn-solid" onclick="abrirModalOrcamento()" style="background:linear-gradient(135deg,#006B3A,#2AAC6A);display:flex;align-items:center;gap:6px">🎯 Orçamento Anual</button>
+      <button class="btn btn-solid" onclick="abrirRelInadimplencia()" style="background:linear-gradient(135deg,#7A1010,#B03030);display:flex;align-items:center;gap:6px">📊 Inadimplência</button>
     </div>`:''}
 
-    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
-      <div class="stat-card"><div class="stat-label">Receitas Pagas</div><div class="stat-value" style="color:var(--green);font-size:18px">${fmtVal(receitas)}</div></div>
-      <div class="stat-card"><div class="stat-label">Despesas Pagas</div><div class="stat-value" style="color:var(--red);font-size:18px">${fmtVal(despesas)}</div></div>
-      <div class="stat-card"><div class="stat-label">Saldo Atual</div><div class="stat-value" style="color:${saldo>=0?'var(--green)':'var(--red)'};font-size:18px">${fmtVal(saldo)}</div></div>
-      <div class="stat-card"><div class="stat-label">A Receber / Pagar</div><div class="stat-value" style="color:#1B5EA0;font-size:18px">${fmtVal(totalAgendado+totalAberto)}</div><div class="stat-change" style="color:#1B5EA0">${totalAgendado>0?`📅 ${fmtVal(totalAgendado)} agendado`:''}${totalAberto>0?` ⚠️ ${fmtVal(totalAberto)} aberto`:''}</div></div>
+    <!-- LINHA 1: KPIs principais -->
+    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px">
+      <div class="stat-card"><div class="stat-label">Receitas Pagas</div><div class="stat-value" style="color:var(--green);font-size:18px">${fmtVal(receitas)}</div><div class="stat-change up">Mês: ${fmtVal(recMes)}</div></div>
+      <div class="stat-card"><div class="stat-label">Despesas Pagas</div><div class="stat-value" style="color:var(--red);font-size:18px">${fmtVal(despesas)}</div><div class="stat-change down">Mês: ${fmtVal(despMes)}</div></div>
+      <div class="stat-card"><div class="stat-label">Saldo Atual</div><div class="stat-value" style="color:${saldo>=0?'var(--green)':'var(--red)'};font-size:18px">${fmtVal(saldo)}</div><div class="stat-change" style="color:${saldoPrev>=0?'var(--green)':'var(--red)'}">Prev. 30d: ${fmtVal(saldoPrev)}</div></div>
+      <div class="stat-card"><div class="stat-label">A Receber/Pagar</div><div class="stat-value" style="color:#1B5EA0;font-size:18px">${fmtVal(totalAgendado+totalAberto)}</div><div class="stat-change" style="color:#1B5EA0">${fmtVal(totalAgendado)} agend. · ${fmtVal(totalAberto)} aberto</div></div>
     </div>
 
-    ${todosDebitos.length>0?`<div class="card" style="margin-bottom:20px;border-color:rgba(139,32,32,0.25)">
-      <div class="card-header" style="background:rgba(139,32,32,0.04)">
-        <div class="card-title" style="color:var(--red)">⚠️ Débitos Pendentes — ${todosDebitos.length} item(ns)</div>
-        <span style="font-size:11px;color:var(--text-muted);font-style:italic">Total: ${fmtVal(totalDebitosGeral)}</span>
+    <!-- LINHA 2: Inadimplência + Orçamento + Previsão + Parcelas -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+
+      <!-- Inadimplência -->
+      <div class="card" style="border-color:${inadimplentes.length>0?'rgba(139,32,32,0.25)':'rgba(58,122,74,0.25)'}">
+        <div class="card-header">
+          <div class="card-title" style="color:${inadimplentes.length>0?'var(--red)':'var(--green)'}">
+            ${inadimplentes.length>0?`⚠️ Inadimplência — ${inadimplentes.length} irmão(s)`:'✅ Adimplência 100%'}
+          </div>
+          <div style="font-size:11px;color:var(--text-muted)">${pctAdimplente}% em dia</div>
+        </div>
+        <!-- Barra de adimplência -->
+        <div style="margin:8px 0 12px">
+          <div style="background:var(--cream-mid);border-radius:3px;height:8px;overflow:hidden">
+            <div style="height:100%;width:${pctAdimplente}%;background:${pctAdimplente>=80?'var(--green)':pctAdimplente>=60?'var(--gold-dark)':'var(--red)'};border-radius:3px;transition:width 0.5s"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text-muted);margin-top:3px">
+            <span>${membrosAtivos.length-inadimplentes.length} em dia</span>
+            <span>${inadimplentes.length} com débito</span>
+          </div>
+        </div>
+        ${inadimplentes.slice(0,4).map(({m,devia,mesesDev})=>`
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-family:'Cormorant Garamond',serif">
+            <div>
+              <span style="font-size:13px;font-weight:700;color:var(--text)">${m.nome_maconico}</span>
+              <span style="font-size:10px;color:var(--text-muted);margin-left:8px">${mesesDev} mês(es)</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:12px;font-weight:700;color:var(--red)">${fmtVal(devia)}</span>
+              ${canEdit?`<button class="btn" style="padding:2px 8px;font-size:8px;white-space:nowrap" onclick="cobrarWhatsapp('${m.nome_maconico}','${m.telefone||''}',${devia},${mesesDev})">📱 Cobrar</button>`:''}
+            </div>
+          </div>`).join('')}
+        ${inadimplentes.length>4?`<div style="text-align:center;padding:8px;font-size:11px;color:var(--text-muted)">+ ${inadimplentes.length-4} outros → <button class="btn" style="font-size:9px;padding:2px 8px" onclick="abrirRelInadimplencia()">Ver todos</button></div>`:''}
       </div>
-      <table><thead><tr><th>Irmão / Origem</th><th>Cargo</th><th>Referência</th><th>Valor</th><th>Status</th><th>Ações</th></tr></thead>
-      <tbody>${rowsDebitos}</tbody></table>
-    </div>`:`<div class="card" style="margin-bottom:20px;border-color:rgba(58,122,74,0.3);padding:16px 22px">
-      <span style="color:var(--green);font-size:13px">✅ Nenhum débito pendente</span>
+
+      <!-- Previsão de Caixa + Orçamento + Parcelas -->
+      <div style="display:flex;flex-direction:column;gap:14px">
+
+        <!-- Previsão 30 dias -->
+        <div class="card">
+          <div class="card-header"><div class="card-title">🔮 Previsão de Caixa — 30 dias</div></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:6px">
+            <div style="text-align:center;padding:8px;background:rgba(34,139,34,0.05);border-radius:4px;border:1px solid rgba(34,139,34,0.15)">
+              <div style="font-size:11px;color:var(--green);font-weight:700;font-family:'Cinzel',serif">${fmtVal(recPrev)}</div>
+              <div style="font-size:8px;color:var(--text-muted);text-transform:uppercase;margin-top:2px">A Receber</div>
+            </div>
+            <div style="text-align:center;padding:8px;background:rgba(139,32,32,0.05);border-radius:4px;border:1px solid rgba(139,32,32,0.15)">
+              <div style="font-size:11px;color:var(--red);font-weight:700;font-family:'Cinzel',serif">${fmtVal(despPrev)}</div>
+              <div style="font-size:8px;color:var(--text-muted);text-transform:uppercase;margin-top:2px">A Pagar</div>
+            </div>
+            <div style="text-align:center;padding:8px;background:${saldoPrev>=0?'rgba(34,139,34,0.05)':'rgba(139,32,32,0.05)'};border-radius:4px;border:1px solid ${saldoPrev>=0?'rgba(34,139,34,0.15)':'rgba(139,32,32,0.15)'}">
+              <div style="font-size:11px;color:${saldoPrev>=0?'var(--green)':'var(--red)'};font-weight:700;font-family:'Cinzel',serif">${fmtVal(saldoPrev)}</div>
+              <div style="font-size:8px;color:var(--text-muted);text-transform:uppercase;margin-top:2px">Saldo Proj.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Orçamento Anual -->
+        ${orcamento.metaRec>0||orcamento.metaDesp>0?`
+        <div class="card">
+          <div class="card-header"><div class="card-title">🎯 Orçamento ${anoAtual}</div>${canEdit?`<button class="btn" style="font-size:9px;padding:3px 8px" onclick="abrirModalOrcamento()">✎ Editar</button>`:''}</div>
+          ${orcamento.metaRec>0?`<div style="margin-bottom:10px">
+            <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px"><span style="color:var(--text-muted)">Receitas</span><span style="color:var(--green)">${fmtVal(receitas)} / ${fmtVal(orcamento.metaRec)}</span></div>
+            <div style="background:var(--cream-mid);border-radius:3px;height:6px;overflow:hidden"><div style="height:100%;width:${Math.min(100,Math.round(receitas/orcamento.metaRec*100))}%;background:var(--green);border-radius:3px"></div></div>
+            <div style="font-size:9px;color:var(--text-muted);margin-top:2px">${Math.round(receitas/orcamento.metaRec*100)}% da meta</div>
+          </div>`:''}
+          ${orcamento.metaDesp>0?`<div>
+            <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px"><span style="color:var(--text-muted)">Despesas</span><span style="color:${despesas>orcamento.metaDesp?'var(--red)':'var(--text)'}">${fmtVal(despesas)} / ${fmtVal(orcamento.metaDesp)}</span></div>
+            <div style="background:var(--cream-mid);border-radius:3px;height:6px;overflow:hidden"><div style="height:100%;width:${Math.min(100,Math.round(despesas/orcamento.metaDesp*100))}%;background:${despesas>orcamento.metaDesp?'var(--red)':'var(--gold-dark)'};border-radius:3px"></div></div>
+            <div style="font-size:9px;color:${despesas>orcamento.metaDesp?'var(--red)':'var(--text-muted)'};margin-top:2px">${Math.round(despesas/orcamento.metaDesp*100)}% do limite${despesas>orcamento.metaDesp?' ⚠️ Acima do orçamento!':''}</div>
+          </div>`:''}
+        </div>`:''}
+
+        <!-- Parcelas em andamento -->
+        ${parcelados.length>0?`<div class="card">
+          <div class="card-header"><div class="card-title">💳 Parcelas em Andamento</div></div>
+          ${parcelados.map(p=>`
+            <div style="padding:6px 0;border-bottom:1px solid var(--border);font-family:'Cormorant Garamond',serif">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span style="font-size:13px;font-weight:700;color:var(--text)">${p.desc}</span>
+                <span style="font-size:11px;color:var(--text-muted)">${p.pagas}/${p.total} pagas</span>
+              </div>
+              <div style="background:var(--cream-mid);border-radius:2px;height:4px;margin:4px 0;overflow:hidden">
+                <div style="height:100%;width:${Math.round(p.pagas/p.total*100)}%;background:var(--navy);border-radius:2px"></div>
+              </div>
+              <div style="font-size:10px;color:var(--text-muted)">${p.pendentes} parcela(s) pendente(s) · ${fmtVal(p.valorParc*p.pendentes)} restante</div>
+            </div>`).join('')}
+        </div>`:''}
+      </div>
+    </div>
+
+    <!-- LINHA 3: Gráfico histórico -->
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-header"><div class="card-title">📈 Histórico — Últimos 6 Meses</div></div>
+      <div style="display:flex;align-items:flex-end;gap:6px;height:80px;padding:0 8px">
+        ${grafMeses.map(g=>`
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
+            <div style="width:100%;display:flex;gap:2px;align-items:flex-end;justify-content:center">
+              <div style="flex:1;background:rgba(34,139,34,0.6);border-radius:2px 2px 0 0;height:${Math.round(g.rec/maxG*64)}px;min-height:${g.rec>0?2:0}px" title="Rec: ${fmtVal(g.rec)}"></div>
+              <div style="flex:1;background:rgba(139,32,32,0.55);border-radius:2px 2px 0 0;height:${Math.round(g.desp/maxG*64)}px;min-height:${g.desp>0?2:0}px" title="Desp: ${fmtVal(g.desp)}"></div>
+            </div>
+          </div>`).join('')}
+      </div>
+      <div style="display:flex;padding:0 8px;border-top:1px solid var(--border);padding-top:6px;margin-top:4px">
+        ${grafMeses.map(g=>`<div style="flex:1;text-align:center;font-size:8px;color:var(--text-muted);font-family:'Cinzel',serif">${g.label}</div>`).join('')}
+      </div>
+      <div style="display:flex;gap:12px;justify-content:center;margin-top:6px">
+        <span style="font-size:9px;color:var(--text-muted);display:flex;align-items:center;gap:3px"><span style="width:10px;height:10px;background:rgba(34,139,34,0.6);border-radius:2px;display:inline-block"></span>Receitas</span>
+        <span style="font-size:9px;color:var(--text-muted);display:flex;align-items:center;gap:3px"><span style="width:10px;height:10px;background:rgba(139,32,32,0.55);border-radius:2px;display:inline-block"></span>Despesas</span>
+      </div>
+    </div>
+
+    <!-- DÉBITOS PENDENTES -->
+    ${todosDebitos.length>0?`<div class="card" style="margin-bottom:14px;border-color:rgba(139,32,32,0.25)">
+      <div class="card-header" style="background:rgba(139,32,32,0.03)">
+        <div class="card-title" style="color:var(--red)">⚠️ Débitos Pendentes — ${todosDebitos.length} item(ns) · ${fmtVal(totalDebitosGeral)}</div>
+        ${canEdit?`<button class="btn" style="font-size:9px;padding:3px 8px" onclick="gerarMsgCobrancaGeral()">📋 Gerar Cobranças</button>`:''}
+      </div>
+      <table><thead><tr><th>Irmão</th><th>Cargo</th><th>Referência</th><th>Valor</th><th>Status</th><th>Ações</th></tr></thead>
+      <tbody>${todosDebitos.map(d=>{
+        const isAg = d.statusBadge==='agendado';
+        const vencido = isAg && d.data && d.data<=hojeStr;
+        return `<tr${vencido?' style="background:rgba(176,90,0,0.04)"':''}>
+          <td style="font-weight:600">${d.nome}</td>
+          <td style="font-size:11px;color:var(--text-muted)">${d.cargo}</td>
+          <td>${d.origem}${vencido?`<br><span style="font-size:9px;color:#B05A00;font-weight:700">📅 ${d.data===hojeStr?'Vence hoje':'Venceu '+fmtData(d.data)}</span>`:''}</td>
+          <td style="color:var(--red);font-weight:600">${fmtVal(d.valor)}</td>
+          <td>${statusBadgeHtml(d.statusBadge)}</td>
+          <td style="display:flex;gap:4px;flex-wrap:wrap">
+            ${isAg&&d.lancId?`<button class="btn" style="padding:2px 8px;font-size:8px;background:var(--green);color:#fff;border-color:var(--green)" onclick="confirmarPagamentoAgendado('${d.lancId}')">✓ Pago</button>
+              <button class="btn" style="padding:2px 8px;font-size:8px" onclick="adiarAgendado('${d.lancId}')">📅 Adiar</button>`:''}
+            ${d.id?`<button class="btn" style="padding:2px 8px;font-size:8px" onclick="cobrarWhatsapp('${d.nome}','',${d.valor},0)">📱 WhatsApp</button>`:''}
+            ${d.id?`<button class="btn" style="padding:2px 8px;font-size:8px" onclick="abrirModalLancamentoMembro('${d.id}','${d.nome}')">+ Registrar Pag.</button>`:''}
+            ${d.lancId?`<button class="btn" style="padding:2px 7px;font-size:10px" onclick="abrirModalEditarLancamento('${d.lancId}')">✏️</button>`:''}
+          </td>
+        </tr>`;
+      }).join('')}</tbody></table>
+    </div>`:`<div class="card" style="margin-bottom:14px;border-color:rgba(58,122,74,0.3);padding:14px 20px">
+      <span style="color:var(--green);font-size:13px">✅ Nenhum débito pendente — todos os irmãos estão em dia!</span>
     </div>`}
 
+    <!-- EXTRATO -->
     <div class="card">
-      <div class="card-header">
+      <div class="card-header" style="flex-wrap:wrap;gap:8px">
         <div class="card-title">Extrato de Lançamentos</div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <select id="fin-filtro-irmao" onchange="filtrarExtrato()" style="border:1px solid var(--border-mid);border-radius:3px;padding:5px 10px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--cream);color:var(--text)">
-            <option value="">Todos os irmãos</option>${opsMembros}
-          </select>
-          <select id="fin-filtro-tipo" onchange="filtrarExtrato()" style="border:1px solid var(--border-mid);border-radius:3px;padding:5px 10px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--cream);color:var(--text)">
-            <option value="">Todos os tipos</option>
-            <option value="receita">Receitas</option>
-            <option value="despesa">Despesas</option>
-          </select>
-          <select id="fin-filtro-cat" onchange="filtrarExtrato()" style="border:1px solid var(--border-mid);border-radius:3px;padding:5px 10px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--cream);color:var(--text)">
-            ${opsCats}
-          </select>
-          <select id="fin-filtro-status" onchange="filtrarExtrato()" style="border:1px solid var(--border-mid);border-radius:3px;padding:5px 10px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--cream);color:var(--text)">
-            <option value="">Todos os status</option>
-            <option value="pago">✅ Pago</option>
-            <option value="agendado">📅 Agendado</option>
-            <option value="aberto">⚠️ Aberto</option>
-          </select>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+          <select id="fin-filtro-irmao" onchange="filtrarExtrato()" ${inp}><option value="">Todos os irmãos</option>${opsMembros}</select>
+          <select id="fin-filtro-tipo" onchange="filtrarExtrato()" ${inp}><option value="">Todos os tipos</option><option value="receita">Receitas</option><option value="despesa">Despesas</option></select>
+          <select id="fin-filtro-cat" onchange="filtrarExtrato()" ${inp}>${opsCats}</select>
+          <select id="fin-filtro-status" onchange="filtrarExtrato()" ${inp}><option value="">Todos status</option><option value="pago">✅ Pago</option><option value="agendado">📅 Agendado</option><option value="aberto">⚠️ Aberto</option></select>
+          <input type="month" id="fin-filtro-mes" onchange="filtrarExtrato()" ${inp}>
+          ${canEdit?`<button class="btn" style="padding:4px 10px;font-size:9px" onclick="imprimirExtrato()">🖨️ Imprimir</button>`:''}
         </div>
       </div>
       <table id="tabela-extrato"><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Valor</th><th>Tipo</th><th>Status</th><th></th></tr></thead>
       <tbody id="tbody-extrato">${buildRows(lancs)}</tbody></table>
-    </div>`;
+    </div>
+
+    <!-- FECHAMENTOS MENSAIS -->
+    ${(() => {
+      const fechamentos = JSON.parse(localStorage.getItem('fechamentos_mensais')||'[]');
+      if (!fechamentos.length) return '';
+      return `<div class="card" style="margin-top:14px">
+        <div class="card-header"><div class="card-title">📦 Histórico de Fechamentos Mensais</div></div>
+        <table><thead><tr><th>Mês/Ano</th><th>Saldo Inicial</th><th>Receitas</th><th>Despesas</th><th>Saldo Final</th><th></th></tr></thead>
+        <tbody>${fechamentos.slice().reverse().map(f=>`<tr>
+          <td style="font-weight:700">${f.mesAno}</td>
+          <td style="color:var(--navy)">${fmtVal(f.saldoInicial)}</td>
+          <td style="color:var(--green)">+${fmtVal(f.receitas)}</td>
+          <td style="color:var(--red)">-${fmtVal(f.despesas)}</td>
+          <td style="font-weight:700;color:${f.saldoFinal>=0?'var(--green)':'var(--red)'}">${fmtVal(f.saldoFinal)}</td>
+          <td><button class="btn" style="padding:2px 8px;font-size:8px" onclick="imprimirFechamento(${JSON.stringify(f).replace(/'/g,'&#39;')})">🖨️</button></td>
+        </tr>`).join('')}</tbody></table>
+      </div>`;
+    })()}`;
+}
+
+// ── Cobrar via WhatsApp ───────────────────────────────────────
+function cobrarWhatsapp(nome, telefone, valor, meses) {
+  const msg = meses > 0
+    ? `Prezado Irmão ${nome}, verificamos que constam ${meses} mensalidade(s) em aberto no valor total de R$ ${parseFloat(valor).toFixed(2).replace('.',',')}. Por favor, entre em contato com a Tesouraria para regularizar sua situação. Fraternalmente, A.R.L.S. Fraternidade Acadêmica de Peruíbe Nº 3524.`
+    : `Prezado Irmão ${nome}, verificamos um débito pendente no valor de R$ ${parseFloat(valor).toFixed(2).replace('.',',')}. Por favor, entre em contato com a Tesouraria. Fraternalmente, A.R.L.S. Fraternidade Acadêmica de Peruíbe Nº 3524.`;
+  const tel = (telefone||'').replace(/\D/g,'');
+  const url = tel
+    ? `https://wa.me/55${tel}?text=${encodeURIComponent(msg)}`
+    : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+  // Mostrar modal com mensagem + botão de copiar + abrir WhatsApp
+  document.body.insertAdjacentHTML('beforeend', `
+    <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px">
+      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;padding:28px 32px;width:500px;position:relative">
+        <div style="height:3px;background:linear-gradient(90deg,#25D366,#128C7E);border-radius:6px 6px 0 0;position:absolute;top:0;left:0;right:0"></div>
+        <div style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;letter-spacing:0.1em;color:#128C7E;margin-bottom:16px">📱 Mensagem de Cobrança — ${nome}</div>
+        <textarea id="msg-whatsapp" rows="6" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:10px;font-family:'Cormorant Garamond',serif;font-size:13px;resize:vertical;background:var(--cream)">${msg}</textarea>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
+          <button class="btn" onclick="fecharModal()" style="padding:8px 20px">Fechar</button>
+          <button class="btn" onclick="navigator.clipboard.writeText(document.getElementById('msg-whatsapp').value);toast('Mensagem copiada!')" style="padding:8px 20px">📋 Copiar</button>
+          <a href="${url}" target="_blank" onclick="fecharModal()" class="btn btn-solid" style="padding:8px 20px;text-decoration:none;background:linear-gradient(135deg,#25D366,#128C7E)">📱 Abrir WhatsApp</a>
+        </div>
+      </div>
+    </div>`);
+}
+
+function gerarMsgCobrancaGeral() {
+  // Cobrar todos inadimplentes de uma vez — abre lista
+  const membrosAtivos = DATA.membros.filter(m=>(m.status==='ativo'||m.status==='iniciado')&&m.tipo_membro!=='visitante');
+  const hoje = new Date();
+  const anoAtual = hoje.getFullYear();
+  const inadimplentes = membrosAtivos.map(m=>{
+    const mens = parseFloat(m.mensalidade)||100;
+    if (!mens) return null;
+    const ai = m.data_ingresso?parseInt(m.data_ingresso.split('-')[0]):anoAtual;
+    const mi = m.data_ingresso?parseInt(m.data_ingresso.split('-')[1]):1;
+    const totalMeses = (anoAtual-ai)*12+(hoje.getMonth()+1-mi);
+    const esperado = Math.max(0,totalMeses)*mens;
+    const pago = DATA.financas.filter(l=>l.membro_id===m.id&&l.tipo==='receita'&&l.status==='pago'&&l.categoria==='mensalidade').reduce((s,l)=>s+parseFloat(l.valor||0),0);
+    const devia = Math.max(0,esperado-pago);
+    return devia>0?{m,devia,mesesDev:Math.round(devia/mens)}:null;
+  }).filter(Boolean);
+  if (!inadimplentes.length) { toast('✅ Nenhum inadimplente!'); return; }
+  document.body.insertAdjacentHTML('beforeend', `
+    <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px">
+      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;padding:28px 32px;width:560px;max-height:85vh;overflow-y:auto;position:relative">
+        <div style="height:3px;background:linear-gradient(90deg,var(--red),#B03030);border-radius:6px 6px 0 0;position:absolute;top:0;left:0;right:0"></div>
+        <div style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;letter-spacing:0.1em;color:var(--red);margin-bottom:16px">📊 Inadimplentes — ${inadimplentes.length} irmão(s)</div>
+        ${inadimplentes.map(({m,devia,mesesDev})=>`
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-family:'Cormorant Garamond',serif">
+            <div>
+              <div style="font-size:14px;font-weight:700;color:var(--text)">${m.nome_maconico}</div>
+              <div style="font-size:11px;color:var(--text-muted)">${mesesDev} mês(es) · ${m.telefone||'sem telefone'}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-weight:700;color:var(--red);font-size:13px">${fmtVal(devia)}</span>
+              <button class="btn" style="padding:3px 10px;font-size:9px;background:linear-gradient(135deg,#25D366,#128C7E);color:#fff;border-color:#128C7E" onclick="fecharModal();cobrarWhatsapp('${m.nome_maconico.replace(/'/g,'')}','${m.telefone||''}',${devia},${mesesDev})">📱 Cobrar</button>
+            </div>
+          </div>`).join('')}
+        <div style="display:flex;justify-content:flex-end;margin-top:16px">
+          <button class="btn" onclick="fecharModal()" style="padding:8px 20px">Fechar</button>
+        </div>
+      </div>
+    </div>`);
+}
+
+// ── Relatório de inadimplência mensal ────────────────────────
+function abrirRelInadimplencia() {
+  const membrosAtivos = DATA.membros.filter(m=>(m.status==='ativo'||m.status==='iniciado')&&m.tipo_membro!=='visitante');
+  const hoje = new Date();
+  const anoAtual = hoje.getFullYear();
+  const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  // Últimos 6 meses
+  const colMeses = [];
+  for (let i=5;i>=0;i--) {
+    const d = new Date(anoAtual, hoje.getMonth()-i, 1);
+    colMeses.push({label:`${meses[d.getMonth()]}/${d.getFullYear()}`, prefix:`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`});
+  }
+  const rows = membrosAtivos.map(m=>{
+    const mens = parseFloat(m.mensalidade)||100;
+    const cols = colMeses.map(cm=>{
+      const pago = DATA.financas.filter(l=>l.membro_id===m.id&&l.tipo==='receita'&&l.status==='pago'&&l.categoria==='mensalidade'&&l.data?.startsWith(cm.prefix)).reduce((s,l)=>s+parseFloat(l.valor||0),0);
+      return pago>=mens
+        ? `<td style="text-align:center;color:var(--green)">✅</td>`
+        : `<td style="text-align:center;color:var(--red)">❌</td>`;
+    }).join('');
+    return `<tr><td style="font-weight:600">${m.nome_maconico}</td><td style="font-size:11px;color:var(--text-muted)">${m.cargo||'—'}</td>${cols}</tr>`;
+  }).join('');
+  document.body.insertAdjacentHTML('beforeend', `
+    <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px">
+      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;padding:28px 32px;width:700px;max-height:88vh;overflow-y:auto;position:relative">
+        <div style="height:3px;background:linear-gradient(90deg,var(--navy),#4A80C4);border-radius:6px 6px 0 0;position:absolute;top:0;left:0;right:0"></div>
+        <div style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;letter-spacing:0.1em;color:var(--navy);margin-bottom:16px">📊 Inadimplência por Período — Últimos 6 Meses</div>
+        <table><thead><tr>
+          <th>Irmão</th><th>Cargo</th>
+          ${colMeses.map(cm=>`<th style="text-align:center;font-size:9px">${cm.label}</th>`).join('')}
+        </tr></thead><tbody>${rows}</tbody></table>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
+          <button class="btn" onclick="fecharModal()" style="padding:8px 20px">Fechar</button>
+          <button class="btn btn-solid" onclick="imprimirRelInadimplencia()" style="padding:8px 20px">🖨️ Imprimir</button>
+        </div>
+      </div>
+    </div>`);
+}
+
+function imprimirRelInadimplencia() {
+  const membrosAtivos = DATA.membros.filter(m=>(m.status==='ativo'||m.status==='iniciado')&&m.tipo_membro!=='visitante');
+  const hoje = new Date();
+  const anoAtual = hoje.getFullYear();
+  const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const colMeses = [];
+  for (let i=5;i>=0;i--) {
+    const d = new Date(anoAtual, hoje.getMonth()-i, 1);
+    colMeses.push({label:`${meses[d.getMonth()]}/${d.getFullYear()}`, prefix:`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`});
+  }
+  const rows = membrosAtivos.map(m=>{
+    const mens = parseFloat(m.mensalidade)||100;
+    const cols = colMeses.map(cm=>{
+      const pago = DATA.financas.filter(l=>l.membro_id===m.id&&l.tipo==='receita'&&l.status==='pago'&&l.categoria==='mensalidade'&&l.data?.startsWith(cm.prefix)).reduce((s,l)=>s+parseFloat(l.valor||0),0);
+      return `<td style="text-align:center">${pago>=mens?'✅':'❌'}</td>`;
+    }).join('');
+    return `<tr><td>${m.nome_maconico}</td><td>${m.cargo||'—'}</td>${cols}</tr>`;
+  }).join('');
+  abrirJanelaPrint(`
+    <div class="print-header"><div class="print-lodge">A.R.L.S. Fraternidade Acadêmica de Peruíbe Nº 3524</div>
+    <div class="print-title">Relatório de Inadimplência</div>
+    <div class="print-date">${new Date().toLocaleDateString('pt-BR')}</div></div>
+    <table class="print-table"><thead><tr><th>Irmão</th><th>Cargo</th>${colMeses.map(cm=>`<th>${cm.label}</th>`).join('')}</tr></thead>
+    <tbody>${rows}</tbody></table>`);
+}
+
+// ── Fechar Mês ────────────────────────────────────────────────
+function abrirModalFecharMes() {
+  const hoje = new Date();
+  const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const mesNome = meses[hoje.getMonth()];
+  const anoAtual = hoje.getFullYear();
+  const mesStr = String(hoje.getMonth()+1).padStart(2,'0');
+  const finMes = DATA.financas.filter(l=>l.data?.startsWith(`${anoAtual}-${mesStr}`));
+  const recMes = finMes.filter(l=>l.tipo==='receita'&&l.status==='pago').reduce((s,l)=>s+parseFloat(l.valor||0),0);
+  const despMes = finMes.filter(l=>l.tipo==='despesa'&&l.status==='pago').reduce((s,l)=>s+parseFloat(l.valor||0),0);
+  const recTotal = DATA.financas.filter(l=>l.tipo==='receita'&&l.status==='pago'&&!l.data?.startsWith(`${anoAtual}-${mesStr}`)).reduce((s,l)=>s+parseFloat(l.valor||0),0);
+  const despTotal = DATA.financas.filter(l=>l.tipo==='despesa'&&l.status==='pago'&&!l.data?.startsWith(`${anoAtual}-${mesStr}`)).reduce((s,l)=>s+parseFloat(l.valor||0),0);
+  const saldoInicial = recTotal - despTotal;
+  const saldoFinal = saldoInicial + recMes - despMes;
+  document.body.insertAdjacentHTML('beforeend', `
+    <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px">
+      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;padding:28px 36px;width:460px;position:relative">
+        <div style="height:3px;background:linear-gradient(90deg,#3A006B,#6A2AAC);border-radius:6px 6px 0 0;position:absolute;top:0;left:0;right:0"></div>
+        <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;letter-spacing:0.1em;color:#3A006B;margin-bottom:20px">📦 Fechar Mês — ${mesNome} ${anoAtual}</div>
+        <div style="display:grid;gap:8px;font-family:'Cormorant Garamond',serif">
+          ${[['Saldo Inicial (antes do mês)',saldoInicial,'var(--navy)'],['Receitas do Mês',recMes,'var(--green)'],['Despesas do Mês',despMes,'var(--red)'],['Saldo Final',saldoFinal,saldoFinal>=0?'var(--green)':'var(--red)']].map(([l,v,c])=>`
+            <div style="display:flex;justify-content:space-between;padding:8px 14px;background:var(--cream);border-radius:3px;border:1px solid var(--border)">
+              <span style="font-size:13px;color:var(--text-muted)">${l}</span>
+              <span style="font-size:14px;font-weight:700;color:${c}">${fmtVal(v)}</span>
+            </div>`).join('')}
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);font-style:italic;margin-top:12px">Ao confirmar, este resumo ficará salvo no histórico de fechamentos.</div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
+          <button class="btn" onclick="fecharModal()" style="padding:8px 20px">Cancelar</button>
+          <button class="btn btn-solid" onclick="confirmarFechamentoMes('${mesNome} ${anoAtual}',${saldoInicial},${recMes},${despMes},${saldoFinal})" style="padding:8px 20px;background:linear-gradient(135deg,#3A006B,#6A2AAC)">📦 Confirmar Fechamento</button>
+        </div>
+      </div>
+    </div>`);
+}
+
+function confirmarFechamentoMes(mesAno, saldoInicial, receitas, despesas, saldoFinal) {
+  const fechamentos = JSON.parse(localStorage.getItem('fechamentos_mensais')||'[]');
+  if (fechamentos.find(f=>f.mesAno===mesAno)) { toast('Este mês já foi fechado!'); fecharModal(); return; }
+  fechamentos.push({mesAno, saldoInicial, receitas, despesas, saldoFinal, fechadoEm: new Date().toISOString()});
+  localStorage.setItem('fechamentos_mensais', JSON.stringify(fechamentos));
+  fecharModal();
+  toast('📦 Mês fechado e registrado com sucesso!');
+  renderFinancas(ROLES[currentRole].access['financas']||'full');
+}
+
+function imprimirFechamento(f) {
+  abrirJanelaPrint(`
+    <div class="print-header"><div class="print-lodge">A.R.L.S. Fraternidade Acadêmica de Peruíbe Nº 3524</div>
+    <div class="print-title">Fechamento Mensal — ${f.mesAno}</div>
+    <div class="print-date">Fechado em: ${new Date(f.fechadoEm).toLocaleDateString('pt-BR')}</div></div>
+    <div class="print-resumo">
+      <div class="print-resumo-item"><div class="print-resumo-valor">${fmtVal(f.saldoInicial)}</div><div class="print-resumo-label">Saldo Inicial</div></div>
+      <div class="print-resumo-item"><div class="print-resumo-valor" style="color:green">+${fmtVal(f.receitas)}</div><div class="print-resumo-label">Receitas</div></div>
+      <div class="print-resumo-item"><div class="print-resumo-valor" style="color:red">-${fmtVal(f.despesas)}</div><div class="print-resumo-label">Despesas</div></div>
+      <div class="print-resumo-item"><div class="print-resumo-valor" style="color:${f.saldoFinal>=0?'green':'red'}">${fmtVal(f.saldoFinal)}</div><div class="print-resumo-label">Saldo Final</div></div>
+    </div>`);
+}
+
+// ── Orçamento Anual ───────────────────────────────────────────
+function abrirModalOrcamento() {
+  const orcamento = JSON.parse(localStorage.getItem('orcamento_anual')||'{"metaRec":0,"metaDesp":0}');
+  const inp = `style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"`;
+  document.body.insertAdjacentHTML('beforeend', `
+    <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px">
+      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;padding:28px 36px;width:420px;position:relative">
+        <div style="height:3px;background:linear-gradient(90deg,#006B3A,#2AAC6A);border-radius:6px 6px 0 0;position:absolute;top:0;left:0;right:0"></div>
+        <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;letter-spacing:0.1em;color:#006B3A;margin-bottom:20px">🎯 Orçamento Anual — ${new Date().getFullYear()}</div>
+        <div style="display:grid;gap:14px">
+          <div>
+            <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">Meta de Receitas (R$)</label>
+            <input id="orc-rec" type="number" min="0" step="100" value="${orcamento.metaRec||0}" ${inp} placeholder="Ex: 12000">
+          </div>
+          <div>
+            <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">Limite de Despesas (R$)</label>
+            <input id="orc-desp" type="number" min="0" step="100" value="${orcamento.metaDesp||0}" ${inp} placeholder="Ex: 8000">
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);font-style:italic;margin-top:10px">Use 0 para desabilitar a meta correspondente.</div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
+          <button class="btn" onclick="fecharModal()" style="padding:8px 20px">Cancelar</button>
+          <button class="btn btn-solid" onclick="salvarOrcamento()" style="padding:8px 20px;background:linear-gradient(135deg,#006B3A,#2AAC6A)">Salvar</button>
+        </div>
+      </div>
+    </div>`);
+}
+
+function salvarOrcamento() {
+  const metaRec  = parseFloat(document.getElementById('orc-rec')?.value)||0;
+  const metaDesp = parseFloat(document.getElementById('orc-desp')?.value)||0;
+  localStorage.setItem('orcamento_anual', JSON.stringify({metaRec, metaDesp}));
+  fecharModal();
+  toast('🎯 Orçamento salvo!');
+  renderFinancas(ROLES[currentRole].access['financas']||'full');
+}
+
+// ── Excluir lançamento ────────────────────────────────────────
+async function excluirLancamento(id) {
+  if (!confirm('Excluir este lançamento? Esta ação não pode ser desfeita.')) return;
+  const res = await sb.from('financas').delete().eq('id', id);
+  if (res.error) { toast('Erro: '+res.error.message); return; }
+  toast('Lançamento excluído ✦');
+  await loadAllData();
+  renderFinancas(ROLES[currentRole].access['financas']||'full');
+}
+
+// ── Imprimir extrato ──────────────────────────────────────────
+function imprimirExtrato() {
+  const irmao  = document.getElementById('fin-filtro-irmao')?.value;
+  const tipo   = document.getElementById('fin-filtro-tipo')?.value;
+  const cat    = document.getElementById('fin-filtro-cat')?.value;
+  const status = document.getElementById('fin-filtro-status')?.value;
+  const mes    = document.getElementById('fin-filtro-mes')?.value;
+  let lancs = DATA.financas;
+  if (irmao)  lancs = lancs.filter(l=>l.membro_id===irmao);
+  if (tipo)   lancs = lancs.filter(l=>l.tipo===tipo);
+  if (cat)    lancs = lancs.filter(l=>l.categoria===cat);
+  if (status) lancs = lancs.filter(l=>(l.status||'pago')===status);
+  if (mes)    lancs = lancs.filter(l=>l.data?.startsWith(mes));
+  const total = lancs.reduce((s,l)=>s+(l.tipo==='receita'?1:-1)*parseFloat(l.valor||0),0);
+  const rows = lancs.map(l=>{
+    const mb = DATA.membros.find(m=>m.id===l.membro_id);
+    const isRec = l.tipo==='receita';
+    return `<tr><td>${fmtData(l.data)}</td><td>${l.descricao||'—'}${mb?` (${mb.nome_maconico})`:''}</td><td>${getCatLabel(l.categoria)||'—'}</td><td style="color:${isRec?'green':'red'};font-weight:600">${isRec?'+':'-'}${fmtVal(l.valor)}</td><td>${l.status||'pago'}</td></tr>`;
+  }).join('');
+  abrirJanelaPrint(`
+    <div class="print-header"><div class="print-lodge">A.R.L.S. Fraternidade Acadêmica de Peruíbe Nº 3524</div>
+    <div class="print-title">Extrato Financeiro</div>
+    <div class="print-date">${new Date().toLocaleDateString('pt-BR')} · ${lancs.length} lançamento(s) · Saldo: ${fmtVal(total)}</div></div>
+    <table class="print-table"><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Valor</th><th>Status</th></tr></thead>
+    <tbody>${rows}</tbody></table>
+    <div style="text-align:right;margin-top:10px;font-weight:bold;font-size:12px">Saldo: ${fmtVal(total)}</div>`);
 }
 
 function filtrarExtrato() {
   const irmao = document.getElementById('fin-filtro-irmao')?.value;
-  const tipo = document.getElementById('fin-filtro-tipo')?.value;
-  const cat = document.getElementById('fin-filtro-cat')?.value;
-  const status = document.getElementById('fin-filtro-status')?.value;
+  const tipo  = document.getElementById('fin-filtro-tipo')?.value;
+  const cat   = document.getElementById('fin-filtro-cat')?.value;
+  const status= document.getElementById('fin-filtro-status')?.value;
+  const mes   = document.getElementById('fin-filtro-mes')?.value;
   let lancs = DATA.financas;
-  if (irmao) lancs = lancs.filter(l=>l.membro_id===irmao);
-  if (tipo) lancs = lancs.filter(l=>l.tipo===tipo);
-  if (cat) lancs = lancs.filter(l=>l.categoria===cat);
+  if (irmao)  lancs = lancs.filter(l=>l.membro_id===irmao);
+  if (tipo)   lancs = lancs.filter(l=>l.tipo===tipo);
+  if (cat)    lancs = lancs.filter(l=>l.categoria===cat);
   if (status) lancs = lancs.filter(l=>(l.status||'pago')===status);
+  if (mes)    lancs = lancs.filter(l=>l.data?.startsWith(mes));
   const tbody = document.getElementById('tbody-extrato');
   if (!tbody) return;
   const statusBadgeHtml = (s) => {
