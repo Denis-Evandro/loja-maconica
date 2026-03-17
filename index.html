@@ -3766,9 +3766,11 @@ function renderEventos(access) {
 
   // Filtrar eventos
   let proximos = DATA.eventos.filter(e => e.data >= hoje);
+  // Default: próximos 6 (se não há filtro de data final)
+  const temFiltroProx = fProxAte !== '';
   if (fProxDe)  proximos = proximos.filter(e => e.data >= fProxDe);
   if (fProxAte) proximos = proximos.filter(e => e.data <= fProxAte);
-  proximos.sort((a,b) => a.data.localeCompare(b.data));
+  const proximosMostrar = temFiltroProx ? proximos : proximos.slice(0, 6);
 
   let passados = DATA.eventos.filter(e => e.data < hoje).sort((a,b) => b.data.localeCompare(a.data));
   // Default: últimos 6 passados (se não há filtro de data)
@@ -3816,33 +3818,20 @@ function renderEventos(access) {
     <!-- PRÓXIMOS EVENTOS -->
     <div class="card" style="margin-bottom:16px">
       <div class="card-header" style="flex-wrap:wrap;gap:8px">
-        <div class="card-title">Próximos Eventos (${proximos.length})</div>
+        <div class="card-title">Próximos Eventos${!temFiltroProx?' <span style="font-size:10px;color:var(--text-muted);font-weight:400">(próximos 6)</span>':` (${proximosMostrar.length})`}</div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           ${filtroLabel('De')} <input type="date" id="filt-prox-de" value="${fProxDe}" onchange="renderEventos('${access}')" ${filtroStyle}>
           ${filtroLabel('Até')} <input type="date" id="filt-prox-ate" value="${fProxAte}" onchange="renderEventos('${access}')" ${filtroStyle}>
           <button class="btn" style="font-size:9px;padding:4px 10px" onclick="limparFiltroEventos('prox','${access}')">✕ Limpar</button>
+          <button class="btn" style="font-size:9px;padding:4px 10px" onclick="mostrarTodosProximos('${access}')">Ver todos</button>
           ${canEdit?`<button class="btn btn-solid" onclick="abrirModalEvento()">+ Novo Evento</button>`:''}
         </div>
       </div>
-      <div style="padding:8px 0">${evCards(proximos)}</div>
-    </div>
-
-    <!-- EVENTOS PASSADOS -->
-    <div class="card" style="margin-bottom:16px">
-      <div class="card-header" style="flex-wrap:wrap;gap:8px">
-        <div class="card-title">Eventos Passados${!temFiltroPass?' <span style="font-size:10px;color:var(--text-muted);font-weight:400">(últimos 6)</span>':` (${passadosMostrar.length})`}</div>
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          ${filtroLabel('De')} <input type="date" id="filt-pass-de" value="${fPassDe}" onchange="renderEventos('${access}')" ${filtroStyle}>
-          ${filtroLabel('Até')} <input type="date" id="filt-pass-ate" value="${fPassAte}" onchange="renderEventos('${access}')" ${filtroStyle}>
-          <button class="btn" style="font-size:9px;padding:4px 10px" onclick="limparFiltroEventos('pass','${access}')">✕ Limpar</button>
-          <button class="btn" style="font-size:9px;padding:4px 10px" onclick="mostrarTodosPassados('${access}')">Ver todos</button>
-        </div>
-      </div>
-      <div style="padding:8px 0">${evCards(passadosMostrar, true)}</div>
+      <div style="padding:8px 0">${evCards(proximosMostrar)}</div>
     </div>
 
     <!-- SESSÕES REGISTRADAS -->
-    <div class="card">
+    <div class="card" style="margin-bottom:16px">
       <div class="card-header" style="flex-wrap:wrap;gap:8px">
         <div class="card-title">Sessões Registradas${!temFiltroSess?' <span style="font-size:10px;color:var(--text-muted);font-weight:400">(últimas 6)</span>':` (${sessoesMostrar.length})`}</div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -3867,6 +3856,20 @@ function renderEventos(access) {
           </td>`:''}
         </tr>`).join('')}
       </tbody></table>
+    </div>
+
+    <!-- EVENTOS PASSADOS -->
+    <div class="card">
+      <div class="card-header" style="flex-wrap:wrap;gap:8px">
+        <div class="card-title">Eventos Passados${!temFiltroPass?' <span style="font-size:10px;color:var(--text-muted);font-weight:400">(últimos 6)</span>':` (${passadosMostrar.length})`}</div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          ${filtroLabel('De')} <input type="date" id="filt-pass-de" value="${fPassDe}" onchange="renderEventos('${access}')" ${filtroStyle}>
+          ${filtroLabel('Até')} <input type="date" id="filt-pass-ate" value="${fPassAte}" onchange="renderEventos('${access}')" ${filtroStyle}>
+          <button class="btn" style="font-size:9px;padding:4px 10px" onclick="limparFiltroEventos('pass','${access}')">✕ Limpar</button>
+          <button class="btn" style="font-size:9px;padding:4px 10px" onclick="mostrarTodosPassados('${access}')">Ver todos</button>
+        </div>
+      </div>
+      <div style="padding:8px 0">${evCards(passadosMostrar, true)}</div>
     </div>`;
 }
 
@@ -3888,6 +3891,14 @@ function limparFiltroEventos(bloco, access) {
     if (de) de.value = '';
     if (ate) ate.value = '';
   }
+  renderEventos(access);
+}
+
+function mostrarTodosProximos(access) {
+  const de = document.getElementById('filt-prox-de');
+  const ate = document.getElementById('filt-prox-ate');
+  if (de) de.value = new Date().toISOString().split('T')[0];
+  if (ate) ate.value = '2099-12-31';
   renderEventos(access);
 }
 
