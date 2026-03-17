@@ -3755,19 +3755,45 @@ function renderEventos(access) {
   if (access === 'none') { document.getElementById('eventos-content').innerHTML = accessDenied('Eventos'); return; }
   const canEdit = access === 'full';
   const hoje = new Date().toISOString().split('T')[0];
-  const proximos = DATA.eventos.filter(e => e.data >= hoje);
-  const passados = DATA.eventos.filter(e => e.data < hoje);
+
+  // Ler filtros ativos (ou defaults)
+  const fProxDe  = document.getElementById('filt-prox-de')?.value  || hoje;
+  const fProxAte = document.getElementById('filt-prox-ate')?.value || '';
+  const fPassDe  = document.getElementById('filt-pass-de')?.value  || '';
+  const fPassAte = document.getElementById('filt-pass-ate')?.value || hoje;
+  const fSessDe  = document.getElementById('filt-sess-de')?.value  || '';
+  const fSessAte = document.getElementById('filt-sess-ate')?.value || '';
+
+  // Filtrar eventos
+  let proximos = DATA.eventos.filter(e => e.data >= hoje);
+  if (fProxDe)  proximos = proximos.filter(e => e.data >= fProxDe);
+  if (fProxAte) proximos = proximos.filter(e => e.data <= fProxAte);
+  proximos.sort((a,b) => a.data.localeCompare(b.data));
+
+  let passados = DATA.eventos.filter(e => e.data < hoje).sort((a,b) => b.data.localeCompare(a.data));
+  // Default: últimos 6 passados (se não há filtro de data)
+  const temFiltroPass = fPassDe || (fPassAte && fPassAte !== hoje);
+  if (fPassDe)  passados = passados.filter(e => e.data >= fPassDe);
+  if (fPassAte) passados = passados.filter(e => e.data <= fPassAte);
+  const passadosMostrar = temFiltroPass ? passados : passados.slice(0, 6);
+
+  // Filtrar sessões
+  let sessoes = [...DATA.sessoes].sort((a,b) => b.data.localeCompare(a.data));
+  const temFiltroSess = fSessDe || fSessAte;
+  if (fSessDe)  sessoes = sessoes.filter(s => s.data >= fSessDe);
+  if (fSessAte) sessoes = sessoes.filter(s => s.data <= fSessAte);
+  const sessoesMostrar = temFiltroSess ? sessoes : sessoes.slice(0, 6);
 
   const tipoMap = {ordinaria:'b-ord',instrucao:'b-inst',iniciacao:'b-init',elevacao:'b-elev'};
   const tipoLabel = {ordinaria:'Ordinária',instrucao:'Instrução',iniciacao:'Iniciação',elevacao:'Elevação',exaltacao:'Exaltação',social:'Social'};
+  const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
   const evCards = (lista, isPast=false) => lista.length === 0
-    ? `<div style="padding:20px;font-style:italic;color:var(--text-muted);text-align:center">Nenhum evento.</div>`
+    ? `<div style="padding:20px;font-style:italic;color:var(--text-muted);text-align:center">Nenhum evento encontrado.</div>`
     : lista.map(e => {
-        const d = e.data ? e.data.split('-') : ['','',''];
-        const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+        const d = (e.data||'').split('-');
         const mes = meses[parseInt(d[1])-1] || '—';
-        return `<div class="ev-card" style="${isPast?'opacity:0.65':''}">
+        return `<div class="ev-card" style="${isPast?'opacity:0.75':''}">
           <div class="ev-date"><div class="ev-month">${mes}</div><div class="ev-day">${d[2]||'—'}</div></div>
           <div class="ev-body"><div class="ev-name">${e.titulo||e.descricao||'—'}</div>
             <div class="ev-meta">${e.hora||'—'} · ${e.local||'Templo'}</div></div>
@@ -3781,36 +3807,104 @@ function renderEventos(access) {
         </div>`;
       }).join('');
 
+  const filtroStyle = `style="border:1px solid var(--border-mid);border-radius:3px;padding:4px 8px;font-family:'Cormorant Garamond',serif;font-size:12px;background:var(--cream);color:var(--text)"`;
+  const filtroLabel = (txt) => `<span style="font-family:'Cinzel',serif;font-size:8px;font-weight:700;letter-spacing:0.1em;color:var(--text-muted);text-transform:uppercase">${txt}</span>`;
+
   document.getElementById('eventos-content').innerHTML = `
     ${!canEdit ? readOnlyBanner() : ''}
-    <div class="card">
-      <div class="card-header">
+
+    <!-- PRÓXIMOS EVENTOS -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-header" style="flex-wrap:wrap;gap:8px">
         <div class="card-title">Próximos Eventos (${proximos.length})</div>
-        ${canEdit?`<button class="btn btn-solid" onclick="abrirModalEvento()">+ Novo Evento</button>`:''}
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          ${filtroLabel('De')} <input type="date" id="filt-prox-de" value="${fProxDe}" onchange="renderEventos('${access}')" ${filtroStyle}>
+          ${filtroLabel('Até')} <input type="date" id="filt-prox-ate" value="${fProxAte}" onchange="renderEventos('${access}')" ${filtroStyle}>
+          <button class="btn" style="font-size:9px;padding:4px 10px" onclick="limparFiltroEventos('prox','${access}')">✕ Limpar</button>
+          ${canEdit?`<button class="btn btn-solid" onclick="abrirModalEvento()">+ Novo Evento</button>`:''}
+        </div>
       </div>
       <div style="padding:8px 0">${evCards(proximos)}</div>
     </div>
-    <div class="card" style="margin-top:20px">
-      <div class="card-header"><div class="card-title">Eventos Passados</div></div>
-      <div style="padding:8px 0">${evCards(passados,true)}</div>
+
+    <!-- EVENTOS PASSADOS -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-header" style="flex-wrap:wrap;gap:8px">
+        <div class="card-title">Eventos Passados${!temFiltroPass?' <span style="font-size:10px;color:var(--text-muted);font-weight:400">(últimos 6)</span>':` (${passadosMostrar.length})`}</div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          ${filtroLabel('De')} <input type="date" id="filt-pass-de" value="${fPassDe}" onchange="renderEventos('${access}')" ${filtroStyle}>
+          ${filtroLabel('Até')} <input type="date" id="filt-pass-ate" value="${fPassAte}" onchange="renderEventos('${access}')" ${filtroStyle}>
+          <button class="btn" style="font-size:9px;padding:4px 10px" onclick="limparFiltroEventos('pass','${access}')">✕ Limpar</button>
+          <button class="btn" style="font-size:9px;padding:4px 10px" onclick="mostrarTodosPassados('${access}')">Ver todos</button>
+        </div>
+      </div>
+      <div style="padding:8px 0">${evCards(passadosMostrar, true)}</div>
     </div>
-    <div class="card" style="margin-top:20px">
-      <div class="card-header">
-        <div class="card-title">Sessões Registradas</div>
-        ${canEdit?`<button class="btn btn-solid" onclick="abrirModalSessao()">+ Nova Sessão</button>`:''}
+
+    <!-- SESSÕES REGISTRADAS -->
+    <div class="card">
+      <div class="card-header" style="flex-wrap:wrap;gap:8px">
+        <div class="card-title">Sessões Registradas${!temFiltroSess?' <span style="font-size:10px;color:var(--text-muted);font-weight:400">(últimas 6)</span>':` (${sessoesMostrar.length})`}</div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          ${filtroLabel('De')} <input type="date" id="filt-sess-de" value="${fSessDe}" onchange="renderEventos('${access}')" ${filtroStyle}>
+          ${filtroLabel('Até')} <input type="date" id="filt-sess-ate" value="${fSessAte}" onchange="renderEventos('${access}')" ${filtroStyle}>
+          <button class="btn" style="font-size:9px;padding:4px 10px" onclick="limparFiltroEventos('sess','${access}')">✕ Limpar</button>
+          <button class="btn" style="font-size:9px;padding:4px 10px" onclick="mostrarTodasSessoes('${access}')">Ver todas</button>
+          ${canEdit?`<button class="btn btn-solid" onclick="abrirModalSessao()">+ Nova Sessão</button>`:''}
+        </div>
       </div>
       <table><thead><tr><th>Data</th><th>Tipo</th><th>Grau</th><th>Local</th>${canEdit?'<th></th>':''}</tr></thead>
-      <tbody>${DATA.sessoes.slice(0,20).map(s=>`<tr>
-        <td>${fmtData(s.data)}</td>
-        <td>${s.tipo||'—'}</td>
-        <td>${degreeBadge(s.grau||3)}</td>
-        <td>${s.descricao_local||'Templo'}</td>
-        ${canEdit?`<td style="display:flex;gap:4px">
-          <button class="btn" style="padding:2px 8px;font-size:8px" onclick="abrirModalEditarSessao('${s.id}')">✏️</button>
-          <button class="btn" style="padding:2px 8px;font-size:8px;color:var(--red)" onclick="excluirSessao('${s.id}','${s.tipo||''}')">🗑️</button>
-        </td>`:''}
-      </tr>`).join('')}</tbody></table>
+      <tbody>${sessoesMostrar.length === 0
+        ? `<tr><td colspan="5" style="text-align:center;padding:20px;font-style:italic;color:var(--text-muted)">Nenhuma sessão encontrada.</td></tr>`
+        : sessoesMostrar.map(s=>`<tr>
+          <td>${fmtData(s.data)}</td>
+          <td>${s.tipo||'—'}</td>
+          <td>${degreeBadge(s.grau||3)}</td>
+          <td>${s.descricao_local||'Templo'}</td>
+          ${canEdit?`<td style="display:flex;gap:4px">
+            <button class="btn" style="padding:2px 8px;font-size:8px" onclick="abrirModalEditarSessao('${s.id}')">✏️</button>
+            <button class="btn" style="padding:2px 8px;font-size:8px;color:var(--red)" onclick="excluirSessao('${s.id}','${(s.tipo||'').replace(/'/g,'')}')">🗑️</button>
+          </td>`:''}
+        </tr>`).join('')}
+      </tbody></table>
     </div>`;
+}
+
+function limparFiltroEventos(bloco, access) {
+  if (bloco === 'prox') {
+    const hoje = new Date().toISOString().split('T')[0];
+    const de = document.getElementById('filt-prox-de');
+    const ate = document.getElementById('filt-prox-ate');
+    if (de) de.value = hoje;
+    if (ate) ate.value = '';
+  } else if (bloco === 'pass') {
+    const de = document.getElementById('filt-pass-de');
+    const ate = document.getElementById('filt-pass-ate');
+    if (de) de.value = '';
+    if (ate) ate.value = new Date().toISOString().split('T')[0];
+  } else {
+    const de = document.getElementById('filt-sess-de');
+    const ate = document.getElementById('filt-sess-ate');
+    if (de) de.value = '';
+    if (ate) ate.value = '';
+  }
+  renderEventos(access);
+}
+
+function mostrarTodosPassados(access) {
+  const de = document.getElementById('filt-pass-de');
+  const ate = document.getElementById('filt-pass-ate');
+  if (de) de.value = '2020-01-01';
+  if (ate) ate.value = new Date().toISOString().split('T')[0];
+  renderEventos(access);
+}
+
+function mostrarTodasSessoes(access) {
+  const de = document.getElementById('filt-sess-de');
+  const ate = document.getElementById('filt-sess-ate');
+  if (de) de.value = '2020-01-01';
+  if (ate) ate.value = '';
+  renderEventos(access);
 }
 
 // ===================== ATAS =====================
