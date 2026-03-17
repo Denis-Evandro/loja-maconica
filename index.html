@@ -1155,8 +1155,8 @@ tr:hover td { background:rgba(184,134,11,0.03); }
       <!-- ===== EVENTOS ===== -->
       <div class="panel" id="panel-eventos">
         <div class="section-header">
-          <div class="section-title">Sessão / Eventos</div>
-          <div class="section-subtitle">Agenda das sessões, rituais e trabalhos da Loja</div>
+          <div class="section-title">Sessão / Convites</div>
+          <div class="section-subtitle">Agenda das sessões da Loja e convites de outras lojas para visitar</div>
           <div class="gold-rule"></div>
         </div>
         <div id="eventos-content"></div>
@@ -1288,7 +1288,7 @@ tr:hover td { background:rgba(184,134,11,0.03); }
             </div>
 
             <div class="perm-row" style="grid-template-columns:1fr 70px 70px 70px 70px 70px 70px">
-              <div class="perm-module">📅 Sessão / Eventos</div>
+              <div class="perm-module">📅 Sessão / Convites</div>
               <div class="perm-cell"><div class="perm-check on" onclick="cyclePerm(this)">✓</div></div>
               <div class="perm-cell"><div class="perm-check on" onclick="cyclePerm(this)">✓</div></div>
               <div class="perm-cell"><div class="perm-check partial" onclick="cyclePerm(this)">◐</div></div>
@@ -1413,7 +1413,7 @@ const NAV_ITEMS = [
   { id:'membros', label:'Membros / Irmãos', icon:`<circle cx="9" cy="7" r="4" stroke-width="1.5"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2" stroke-width="1.5"/><path d="M16 3a4 4 0 010 7.75M21 21v-2a4 4 0 00-3-3.87" stroke-width="1.5"/>`, hideFor:['irmao'] },
   { id:'frequencia', label:'Frequência', icon:`<path d="M9 11l3 3L22 4" stroke-width="1.5"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke-width="1.5"/>`, hideFor:['irmao'] },
   { id:'financas', label:'Finanças / Tesouraria', icon:`<line x1="12" y1="1" x2="12" y2="23" stroke-width="1.5"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" stroke-width="1.5"/>`, hideFor:['irmao'] },
-  { id:'eventos', label:'Sessão / Eventos', icon:`<rect x="3" y="4" width="18" height="18" rx="2" stroke-width="1.5"/><line x1="16" y1="2" x2="16" y2="6" stroke-width="1.5"/><line x1="8" y1="2" x2="8" y2="6" stroke-width="1.5"/><line x1="3" y1="10" x2="21" y2="10" stroke-width="1.5"/>`, hideFor:['irmao'] },
+  { id:'eventos', label:'Sessão / Convites', icon:`<rect x="3" y="4" width="18" height="18" rx="2" stroke-width="1.5"/><line x1="16" y1="2" x2="16" y2="6" stroke-width="1.5"/><line x1="8" y1="2" x2="8" y2="6" stroke-width="1.5"/><line x1="3" y1="10" x2="21" y2="10" stroke-width="1.5"/>`, hideFor:['irmao'] },
   { id:'comissoes', label:'Comissões', icon:`<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke-width="1.5"/><circle cx="9" cy="7" r="4" stroke-width="1.5"/><path d="M23 21v-2a4 4 0 00-3-3.87" stroke-width="1.5"/><path d="M16 3.13a4 4 0 010 7.75" stroke-width="1.5"/>` },
   { id:'relatorios', label:'Relatórios', icon:`<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke-width="1.5"/><polyline points="14,2 14,8 20,8" stroke-width="1.5"/><line x1="16" y1="13" x2="8" y2="13" stroke-width="1.5"/><line x1="16" y1="17" x2="8" y2="17" stroke-width="1.5"/><polyline points="10,9 9,9 8,9" stroke-width="1.5"/>`, hideFor:['irmao'] },
   { id:'atas', label:'Atas & Eventos', icon:`<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke-width="1.5"/><polyline points="14,2 14,8 20,8" stroke-width="1.5"/>`, section:'pessoal' },
@@ -1425,7 +1425,7 @@ const NAV_ITEMS = [
 const PANEL_TITLES = {
   dashboard:'Painel Geral', membros:'Membros / Irmãos',
   frequencia:'Frequência / Presenças', financas:'Finanças / Tesouraria',
-  eventos:'Sessão / Eventos', permissoes:'Gestão de Permissões',
+  eventos:'Sessão / Convites', permissoes:'Gestão de Permissões',
   comissoes:'Comissões da Loja',
   'minha-frequencia':'Minha Frequência', 'meu-financeiro':'Meu Financeiro', atas:'Atas & Eventos', relatorios:'Relatórios'
 };
@@ -2317,13 +2317,22 @@ function renderMembros(access) {
   // Filtros ativos
   const fNome = document.getElementById('filtro-membros-nome')?.value || '';
   const fStatus = document.getElementById('filtro-membros-status')?.value || '';
-  const fTipo = document.getElementById('filtro-membros-tipo')?.value || '';
   const fLoja = document.getElementById('filtro-membros-loja')?.value || '';
+  // Tipo: usa variável global, padrão = 'quadro' (membro + filiado)
+  const tipoFiltro = window._filtroTipoMembros !== undefined ? window._filtroTipoMembros : 'quadro';
+  // Alias para uso no template HTML dos botões
+  const filtroTipoAtivo = tipoFiltro;
+
   let filtered = membros;
   if (fNome) filtered = filtered.filter(m=>(m.nome_maconico+m.nome_civil).toLowerCase().includes(fNome.toLowerCase()));
   if (fStatus) filtered = filtered.filter(m=>m.status===fStatus);
-  if (fTipo) filtered = filtered.filter(m=>(m.tipo_membro||'membro')===fTipo);
   if (fLoja) filtered = filtered.filter(m=>(m.loja_origem||'').toLowerCase().includes(fLoja.toLowerCase()));
+  // Aplicar filtro de tipo
+  if (tipoFiltro === 'quadro') {
+    filtered = filtered.filter(m=>(m.tipo_membro||'membro')==='membro'||(m.tipo_membro||'membro')==='filiado');
+  } else if (tipoFiltro) {
+    filtered = filtered.filter(m=>(m.tipo_membro||'membro')===tipoFiltro);
+  }
 
   const rows = filtered.length === 0
     ? `<tr><td colspan="9" style="text-align:center;padding:24px;font-style:italic;color:var(--text-muted)">Nenhum membro encontrado.</td></tr>`
@@ -2395,21 +2404,34 @@ function renderMembros(access) {
             <option value="ativo">Ativo</option><option value="inativo">Inativo</option>
             <option value="licenciado">Licenciado</option><option value="iniciado">Iniciado</option>
           </select>
-          <select id="filtro-membros-tipo" onchange="renderMembros('${access}')"
-            style="border:1px solid var(--border-mid);border-radius:3px;padding:5px 10px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--cream);color:var(--text)">
-            <option value="">Todos tipos</option>
-            <option value="membro">🏛️ Membros</option>
-            <option value="filiado">🔗 Filiados</option>
-            <option value="visitante">🤝 Visitantes</option>
-          </select>
           <input id="filtro-membros-loja" type="text" placeholder="Loja..." oninput="renderMembros('${access}')"
             style="border:1px solid var(--border-mid);border-radius:3px;padding:5px 10px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--cream);color:var(--text);width:110px">
-          ${canEdit?`<button class="btn btn-solid" onclick="abrirModalMembro()">+ Novo Membro</button>`:''}
+          ${canEdit?`<button class="btn btn-solid" onclick="abrirModalMembro()">+ Novo</button>`:''}
         </div>
+      </div>
+      <!-- Botões de seleção de tipo -->
+      <div style="display:flex;gap:6px;padding:10px 0 4px;flex-wrap:wrap" id="filtro-tipo-btns">
+        ${[
+          {val:'quadro', label:'🏛️ + 🔗 Quadro (padrão)', cor:'var(--navy)'},
+          {val:'membro', label:'🏛️ Membros', cor:'var(--navy)'},
+          {val:'filiado', label:'🔗 Filiados', cor:'#1B5EA0'},
+          {val:'visitante', label:'🤝 Visitantes', cor:'#7A4A00'},
+          {val:'', label:'👥 Todos', cor:'var(--text-muted)'},
+        ].map(b=>{
+          const ativo = (filtroTipoAtivo||'quadro') === b.val;
+          return `<button onclick="setFiltroTipoMembros('${b.val}','${access}')"
+            style="padding:5px 12px;font-family:'Cinzel',serif;font-size:8px;font-weight:700;letter-spacing:0.08em;cursor:pointer;border-radius:3px;border:1px solid ${ativo?b.cor:'var(--border-mid)'};background:${ativo?b.cor+'22':'var(--cream)'};color:${ativo?b.cor:'var(--text-muted)'};transition:all 0.15s">
+            ${b.label}</button>`;
+        }).join('')}
       </div>
       <table><thead><tr><th>Nº</th><th>Nome Maçônico</th><th>Nome Civil</th><th>Grau</th><th>Cargo</th><th>Aniversário</th><th>Tipo</th><th>Status</th><th></th></tr></thead>
       <tbody id="tbody-membros">${rows}</tbody></table>
     </div>`;
+}
+
+function setFiltroTipoMembros(val, access) {
+  window._filtroTipoMembros = val;
+  renderMembros(access);
 }
 
 function abrirFichaMembro(m) {
@@ -2634,7 +2656,6 @@ function renderFrequencia(access) {
     <div class="card">
       <div class="card-header">
         <div class="card-title">Sessões Realizadas</div>
-        ${canEdit?`<button class="btn btn-solid" onclick="abrirModalSessao()">+ Nova Sessão</button>`:''}
       </div>
       <table><thead><tr><th>Data</th><th>Tipo</th><th>Grau</th><th>Local</th><th>Presenças</th><th></th></tr></thead>
       <tbody>${rows}</tbody></table>
@@ -4121,218 +4142,255 @@ async function salvarEvento() {
   const descricao_local = document.getElementById('ev-local')?.value.trim() || 'Templo';
   const grau = parseInt(document.getElementById('ev-grau')?.value)||3;
   const descricao = document.getElementById('ev-desc')?.value.trim();
+  const registroTipo = document.getElementById('ev-registro-tipo')?.value || 'sessao';
+  // Campos de convite
+  const lojaNome     = document.getElementById('ev-loja-nome')?.value.trim() || null;
+  const lojaEndereco = document.getElementById('ev-loja-endereco')?.value.trim() || null;
+  const respNome     = document.getElementById('ev-resp-nome')?.value.trim() || null;
+  const respTel      = document.getElementById('ev-resp-tel')?.value.trim() || null;
+
   if (!titulo || !data) { toast('Preencha título e data'); return; }
-
-  // Mapa tipo evento → tipo sessão (mesmos valores aceitos pela tabela sessoes)
-  const tipoSessaoMap = {
-    ordinaria: 'Sessão Ordinária',
-    instrucao: 'Sessão de Instrução',
-    iniciacao: 'Cerimônia de Iniciação',
-    elevacao: 'Cerimônia de Elevação',
-    exaltacao: 'Cerimônia de Exaltação',
-    social: 'Sessão Ordinária'
-  };
-  const tipoSessao = tipoSessaoMap[tipo] || 'Sessão Ordinária';
-
   fecharModal();
 
-  // ── 1. Criar o evento ──────────────────────────────────────────────────
+  // ── 1. Salvar o evento (sempre) ─────────────────────────────────────────
   const resEv = await sb.from('eventos').insert({
-    titulo, descricao: descricao || titulo, data, tipo, grau
-  });
-  if (resEv.error) { toast('Erro ao criar evento: ' + resEv.error.message); return; }
-
-  // ── 2. Criar sessão — usando EXATAMENTE os mesmos campos de salvarSessao ─
-  const resSess = await sb.from('sessoes').insert({
+    titulo,
+    descricao: descricao || titulo,
     data,
-    tipo: tipoSessao,
+    tipo: registroTipo === 'convite' ? 'convite' : tipo,
     grau,
-    descricao_local
+    local: descricao_local,
+    // Campos extras de convite salvos em descricao se existirem
+    ...(lojaNome ? {descricao: [descricao||titulo, `Loja: ${lojaNome}`, lojaEndereco?`End: ${lojaEndereco}`:'', respNome?`Ir. ${respNome}${respTel?' — '+respTel:''}`:''].filter(Boolean).join(' | ')} : {})
   });
-  if (resSess.error) {
-    toast('Evento criado, mas erro na sessão: ' + resSess.error.message);
-    await loadAllData();
-    return;
-  }
+  if (resEv.error) { toast('Erro ao criar: ' + resEv.error.message); await loadAllData(); return; }
 
-  // Buscar a sessão recém-criada (igual salvarSessao)
-  const resBusca = await sb.from('sessoes')
-    .select('*').eq('data', data).eq('tipo', tipoSessao)
-    .order('criado_em', {ascending: false}).limit(1);
-  const sessaoNova = resBusca.data?.[0];
-  const sessaoId = sessaoNova?.id;
+  // ── 2. Se for SESSÃO DA LOJA: criar sessão + presenças + ata ───────────
+  if (registroTipo === 'sessao') {
+    const tipoSessaoMap = {
+      ordinaria:'Sessão Ordinária', instrucao:'Sessão de Instrução',
+      iniciacao:'Cerimônia de Iniciação', elevacao:'Cerimônia de Elevação',
+      exaltacao:'Cerimônia de Exaltação', social:'Sessão Ordinária'
+    };
+    const tipoSessao = tipoSessaoMap[tipo] || 'Sessão Ordinária';
 
-  // Atualizar DATA.sessoes imediatamente (igual salvarSessao)
-  if (sessaoNova && !DATA.sessoes.find(s => s.id === sessaoId)) {
-    DATA.sessoes.unshift(sessaoNova);
-  }
-
-  // ── 3. Criar presenças automáticas (igual salvarSessao) ────────────────
-  const tiposNaoRituais = ['Evento Social', 'social'];
-  if (sessaoId && !tiposNaoRituais.includes(tipo)) {
-    const membrosAtivos = DATA.membros.filter(m => m.status === 'ativo' || m.status === 'iniciado');
-    if (membrosAtivos.length > 0) {
-      const presRows = membrosAtivos.map(m => ({
-        sessao_id: sessaoId, membro_id: m.id, situacao: 'ausente', presente: false
-      }));
-      const resP = await sb.from('presencas').insert(presRows);
-      if (!resP.error && resP.data) DATA.presencas.push(...resP.data);
+    const resSess = await sb.from('sessoes').insert({ data, tipo: tipoSessao, grau, descricao_local });
+    if (!resSess.error) {
+      const resBusca = await sb.from('sessoes').select('*').eq('data',data).eq('tipo',tipoSessao).order('criado_em',{ascending:false}).limit(1);
+      const sessaoNova = resBusca.data?.[0];
+      const sessaoId = sessaoNova?.id;
+      if (sessaoNova && !DATA.sessoes.find(s=>s.id===sessaoId)) DATA.sessoes.unshift(sessaoNova);
+      if (sessaoId) {
+        const membrosAtivos = DATA.membros.filter(m=>m.status==='ativo'||m.status==='iniciado');
+        if (membrosAtivos.length) {
+          const resP = await sb.from('presencas').insert(membrosAtivos.map(m=>({sessao_id:sessaoId,membro_id:m.id,situacao:'ausente',presente:false})));
+          if (!resP.error && resP.data) DATA.presencas.push(...resP.data);
+        }
+        await sb.from('atas').insert({sessao_id:sessaoId, titulo, data, conteudo:null, arquivo_url:null});
+      }
     }
+    toast('Sessão criada ✦ · Frequência e Ata abertas automaticamente');
+  } else {
+    // Convite — só informativo
+    toast('Convite registrado ✦ · Aparecerá em Próximos Eventos');
   }
 
-  // ── 4. Criar entrada de ata vinculada (pronta para redigir em Atas) ────
-  if (sessaoId) {
-    await sb.from('atas').insert({
-      sessao_id: sessaoId,
-      titulo: titulo,
-      data: data,
-      conteudo: null,
-      arquivo_url: null
-    });
-  }
-
-  toast('Evento criado ✦  |  Sessão aberta em Frequência  |  Ata disponível em Atas & Eventos');
-
-  // Recarregar tudo do servidor
   await loadAllData();
 }
 
 function abrirModalEvento() {
   const hoje = new Date().toISOString().split('T')[0];
+  const inp = `style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"`;
+  const lb = (t,op='') => `<label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">${t}${op?` <span style="font-weight:400;text-transform:none;letter-spacing:0">(${op})</span>`:''}</label>`;
   document.body.insertAdjacentHTML('beforeend', `
-    <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center">
-      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;padding:36px 40px;width:480px;position:relative">
-        <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gold-dark),var(--gold-rich),var(--gold-light),var(--gold-dark));border-radius:6px 6px 0 0"></div>
-        <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);margin-bottom:24px">+ Novo Evento</div>
-        <div style="display:grid;gap:14px">
-          <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Título *</label>
-            <input id="ev-titulo" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)" placeholder="Ex: Sessão Ordinária de Março"></div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Data *</label>
-              <input id="ev-data" type="date" value="${hoje}" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"></div>
-            <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Horário</label>
-              <input id="ev-hora" type="time" value="19:30" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"></div>
+    <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px">
+      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:8px;width:560px;max-height:92vh;overflow-y:auto;position:relative">
+        <div style="height:3px;background:linear-gradient(90deg,var(--gold-dark),var(--gold-rich),var(--gold-light),var(--gold-dark));border-radius:8px 8px 0 0"></div>
+        <div style="padding:28px 32px">
+          <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);margin-bottom:20px">📅 Novo Evento / Convite</div>
+
+          <!-- Tipo de registro -->
+          <div style="margin-bottom:18px">
+            ${lb('Tipo de Registro')}
+            <div style="display:flex;border:1px solid var(--border-mid);border-radius:3px;overflow:hidden">
+              <button type="button" id="btn-ev-sessao" onclick="setTipoEvento('sessao')"
+                style="flex:1;padding:9px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.08em;cursor:pointer;border:none;border-right:1px solid var(--border-mid);background:rgba(27,58,107,0.12);color:var(--text);outline:2px solid var(--navy);outline-offset:-2px;position:relative">
+                🏛️ Sessão da Loja</button>
+              <button type="button" id="btn-ev-convite" onclick="setTipoEvento('convite')"
+                style="flex:1;padding:9px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.08em;cursor:pointer;border:none;background:var(--cream);color:var(--text);position:relative">
+                ✉️ Convite de Outra Loja</button>
+            </div>
+            <input type="hidden" id="ev-registro-tipo" value="sessao">
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Tipo</label>
-              <select id="ev-tipo" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)">
-                <option value="ordinaria">Sessão Ordinária</option><option value="instrucao">Sessão de Instrução</option>
-                <option value="iniciacao">Cerimônia de Iniciação</option><option value="elevacao">Cerimônia de Elevação</option>
-                <option value="exaltacao">Cerimônia de Exaltação</option><option value="social">Evento Social</option></select></div>
-            <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Grau</label>
-              <select id="ev-grau" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)">
-                <option value="1">1º Grau</option><option value="2">2º Grau</option><option value="3" selected>3º Grau</option></select></div>
+
+          <div style="display:grid;gap:13px">
+            <div>${lb('Título *')}
+              <input id="ev-titulo" placeholder="Ex: Sessão Ordinária de Abril" ${inp}></div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div>${lb('Data *')}<input id="ev-data" type="date" value="${hoje}" ${inp}></div>
+              <div>${lb('Horário')} <input id="ev-hora" type="time" value="19:30" ${inp}></div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div>${lb('Tipo do Evento')}
+                <select id="ev-tipo" ${inp}>
+                  <option value="ordinaria">Sessão Ordinária</option>
+                  <option value="instrucao">Sessão de Instrução</option>
+                  <option value="iniciacao">Cerimônia de Iniciação</option>
+                  <option value="elevacao">Cerimônia de Elevação</option>
+                  <option value="exaltacao">Cerimônia de Exaltação</option>
+                  <option value="social">Evento Social</option>
+                  <option value="convite">Convite de Visita</option>
+                </select></div>
+              <div>${lb('Grau')}
+                <select id="ev-grau" ${inp}>
+                  <option value="1">1º Grau</option><option value="2">2º Grau</option><option value="3" selected>3º Grau</option>
+                </select></div>
+            </div>
+
+            <div>${lb('Local / Templo')}
+              <input id="ev-local" value="Templo Maçônico" ${inp} placeholder="Nome do local"></div>
+
+            <!-- Campos extras para convite -->
+            <div id="campos-convite" style="display:none;border:1px solid rgba(212,168,67,0.3);border-radius:5px;padding:14px 16px;background:rgba(212,168,67,0.03)">
+              <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--gold-dark);text-transform:uppercase;margin-bottom:12px">✉️ Dados do Convite</div>
+              <div style="display:grid;gap:11px">
+                <div>${lb('Nome da Loja Convidante','opcional')}
+                  <input id="ev-loja-nome" ${inp} placeholder="Ex: A.R.L.S. União Nº 100 — G.O.B./SP"></div>
+                <div>${lb('Endereço da Loja','opcional')}
+                  <input id="ev-loja-endereco" ${inp} placeholder="Rua, número, cidade"></div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                  <div>${lb('Irmão Responsável','opcional')}
+                    <input id="ev-resp-nome" ${inp} placeholder="Nome do irmão"></div>
+                  <div>${lb('Telefone','opcional')}
+                    <input id="ev-resp-tel" ${inp} placeholder="(11) 99999-9999"></div>
+                </div>
+              </div>
+            </div>
+
+            <div>${lb('Observações','opcional')}
+              <textarea id="ev-desc" rows="2" ${inp} style="resize:vertical"></textarea></div>
           </div>
-          <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Local</label>
-            <input id="ev-local" value="Templo" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"></div>
-          <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Observações</label>
-            <textarea id="ev-desc" rows="2" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text);resize:vertical"></textarea></div>
         </div>
-        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:24px">
+        <div style="padding:14px 32px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px">
           <button class="btn" onclick="fecharModal()" style="padding:8px 20px">Cancelar</button>
-          <button class="btn btn-solid" onclick="salvarEvento()" style="padding:8px 20px">Criar Evento</button>
+          <button class="btn btn-solid" onclick="salvarEvento()" style="padding:8px 20px">📅 Criar Evento</button>
         </div>
       </div>
     </div>`);
 }
 
+function setTipoEvento(tipo) {
+  document.getElementById('ev-registro-tipo').value = tipo;
+  const isSessao = tipo === 'sessao';
+  document.getElementById('btn-ev-sessao').style.background = isSessao ? 'rgba(27,58,107,0.12)' : 'var(--cream)';
+  document.getElementById('btn-ev-sessao').style.outline = isSessao ? '2px solid var(--navy)' : 'none';
+  document.getElementById('btn-ev-convite').style.background = !isSessao ? 'rgba(212,168,67,0.12)' : 'var(--cream)';
+  document.getElementById('btn-ev-convite').style.outline = !isSessao ? '2px solid var(--gold-dark)' : 'none';
+  document.getElementById('campos-convite').style.display = !isSessao ? 'block' : 'none';
+  // Ajustar tipo padrão
+  if (!isSessao) document.getElementById('ev-tipo').value = 'convite';
+  else if (document.getElementById('ev-tipo').value === 'convite') document.getElementById('ev-tipo').value = 'ordinaria';
+}
+
 function renderEventos(access) {
-  if (access === 'none') { document.getElementById('eventos-content').innerHTML = accessDenied('Eventos'); return; }
+  if (access === 'none') { document.getElementById('eventos-content').innerHTML = accessDenied('Sessão / Convites'); return; }
   const canEdit = access === 'full';
   const hoje = new Date().toISOString().split('T')[0];
 
-  // Ler filtros ativos (ou defaults)
   const fProxDe  = document.getElementById('filt-prox-de')?.value  || hoje;
   const fProxAte = document.getElementById('filt-prox-ate')?.value || '';
-  const fPassDe  = document.getElementById('filt-pass-de')?.value  || '';
-  const fPassAte = document.getElementById('filt-pass-ate')?.value || hoje;
   const fSessDe  = document.getElementById('filt-sess-de')?.value  || '';
   const fSessAte = document.getElementById('filt-sess-ate')?.value || '';
 
-  // Filtrar eventos
-  let proximos = DATA.eventos.filter(e => e.data >= hoje);
-  // Default: próximos 6 (se não há filtro de data final)
+  // Sessões futuras + convites futuros unificados
+  let sessFuturas = DATA.sessoes.filter(s=>s.data>=hoje).sort((a,b)=>a.data.localeCompare(b.data));
+  let eventosFuturos = DATA.eventos.filter(e=>e.data>=hoje).sort((a,b)=>a.data.localeCompare(b.data));
+  let proximos = [
+    ...sessFuturas.map(s=>({id:s.id, data:s.data, titulo:s.tipo||'Sessão', local:s.descricao_local||'Templo', hora:s.hora||'', isConvite:false, isSessao:true})),
+    ...eventosFuturos.map(e=>({id:e.id, data:e.data, titulo:e.titulo||e.descricao||'Evento', local:e.local||'Templo', hora:e.hora||'', isConvite:e.tipo==='convite', isSessao:false, tipo:e.tipo}))
+  ].sort((a,b)=>a.data.localeCompare(b.data));
+
   const temFiltroProx = fProxAte !== '';
-  if (fProxDe)  proximos = proximos.filter(e => e.data >= fProxDe);
-  if (fProxAte) proximos = proximos.filter(e => e.data <= fProxAte);
-  const proximosMostrar = temFiltroProx ? proximos : proximos.slice(0, 6);
+  if (fProxDe)  proximos = proximos.filter(e=>e.data>=fProxDe);
+  if (fProxAte) proximos = proximos.filter(e=>e.data<=fProxAte);
+  const proximosMostrar = temFiltroProx ? proximos : proximos.slice(0,6);
 
-  let passados = DATA.eventos.filter(e => e.data < hoje).sort((a,b) => b.data.localeCompare(a.data));
-  // Default: últimos 6 passados (se não há filtro de data)
-  const temFiltroPass = fPassDe || (fPassAte && fPassAte !== hoje);
-  if (fPassDe)  passados = passados.filter(e => e.data >= fPassDe);
-  if (fPassAte) passados = passados.filter(e => e.data <= fPassAte);
-  const passadosMostrar = temFiltroPass ? passados : passados.slice(0, 6);
-
-  // Filtrar sessões
-  let sessoes = [...DATA.sessoes].sort((a,b) => b.data.localeCompare(a.data));
+  // Sessões realizadas (passadas)
+  let sessoes = DATA.sessoes.filter(s=>s.data<hoje).sort((a,b)=>b.data.localeCompare(a.data));
   const temFiltroSess = fSessDe || fSessAte;
-  if (fSessDe)  sessoes = sessoes.filter(s => s.data >= fSessDe);
-  if (fSessAte) sessoes = sessoes.filter(s => s.data <= fSessAte);
-  const sessoesMostrar = temFiltroSess ? sessoes : sessoes.slice(0, 6);
+  if (fSessDe)  sessoes = sessoes.filter(s=>s.data>=fSessDe);
+  if (fSessAte) sessoes = sessoes.filter(s=>s.data<=fSessAte);
+  const sessoesMostrar = temFiltroSess ? sessoes : sessoes.slice(0,6);
 
-  const tipoMap = {ordinaria:'b-ord',instrucao:'b-inst',iniciacao:'b-init',elevacao:'b-elev'};
-  const tipoLabel = {ordinaria:'Ordinária',instrucao:'Instrução',iniciacao:'Iniciação',elevacao:'Elevação',exaltacao:'Exaltação',social:'Social'};
   const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const filtroStyle = `style="border:1px solid var(--border-mid);border-radius:3px;padding:4px 8px;font-family:'Cormorant Garamond',serif;font-size:12px;background:var(--cream);color:var(--text)"`;
+  const filtroLabel = (txt) => `<span style="font-family:'Cinzel',serif;font-size:8px;font-weight:700;letter-spacing:0.1em;color:var(--text-muted);text-transform:uppercase">${txt}</span>`;
 
-  const evCards = (lista, isPast=false) => lista.length === 0
-    ? `<div style="padding:20px;font-style:italic;color:var(--text-muted);text-align:center">Nenhum evento encontrado.</div>`
-    : lista.map(e => {
-        const d = (e.data||'').split('-');
-        const mes = meses[parseInt(d[1])-1] || '—';
-        return `<div class="ev-card" style="${isPast?'opacity:0.75':''}">
-          <div class="ev-date"><div class="ev-month">${mes}</div><div class="ev-day">${d[2]||'—'}</div></div>
-          <div class="ev-body"><div class="ev-name">${e.titulo||e.descricao||'—'}</div>
-            <div class="ev-meta">${e.hora||'—'} · ${e.local||'Templo'}</div></div>
+  const proxCards = proximosMostrar.length === 0
+    ? `<div style="padding:20px;font-style:italic;color:var(--text-muted);text-align:center">Nenhum evento ou sessão agendado.</div>`
+    : proximosMostrar.map(ev => {
+        const d = (ev.data||'').split('-');
+        const mes = meses[parseInt(d[1])-1]||'--';
+        const dia = d[2]||'--';
+        const badge = ev.isSessao ? '🏛️ Sessão da Loja' : ev.isConvite ? '✉️ Convite' : '📅 Evento';
+        const corBg = ev.isSessao ? 'rgba(27,58,107,0.08)' : ev.isConvite ? 'rgba(212,168,67,0.15)' : 'rgba(27,94,160,0.1)';
+        const corBorda = ev.isSessao ? 'rgba(27,58,107,0.2)' : ev.isConvite ? 'rgba(212,168,67,0.4)' : 'rgba(27,94,160,0.2)';
+        const corTexto = ev.isSessao ? 'var(--navy)' : ev.isConvite ? 'var(--gold-dark)' : '#1B5EA0';
+        const editBtn = ev.isSessao
+          ? (canEdit ? `<button class="btn" style="padding:2px 8px;font-size:8px" onclick="abrirModalEditarSessao('${ev.id}')">✏️</button>
+              <button class="btn" style="padding:2px 8px;font-size:8px;color:var(--red)" onclick="excluirSessao('${ev.id}','${ev.titulo.replace(/'/g,'')}')">🗑️</button>` : '')
+          : (canEdit ? `<button class="btn" style="padding:2px 8px;font-size:8px" onclick="abrirModalEditarEvento('${ev.id}')">✏️</button>
+              <button class="btn" style="padding:2px 8px;font-size:8px;color:var(--red)" onclick="excluirEvento('${ev.id}','${ev.titulo.replace(/'/g,'')}')">🗑️</button>` : '');
+        return `<div class="ev-card">
+          <div class="ev-date"><div class="ev-month">${mes}</div><div class="ev-day">${dia}</div></div>
+          <div class="ev-body">
+            <div class="ev-name">${ev.titulo}</div>
+            <div class="ev-meta">📍 ${ev.local}${ev.hora?' · ⏰ '+ev.hora:''}</div>
+          </div>
           <div class="ev-type" style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
-            <span class="badge ${tipoMap[e.tipo]||''}">${tipoLabel[e.tipo]||e.tipo||'—'}</span>
-            ${canEdit?`<div style="display:flex;gap:4px">
-              <button class="btn" style="padding:2px 8px;font-size:8px" onclick="abrirModalEditarEvento('${e.id}')">✏️</button>
-              <button class="btn" style="padding:2px 8px;font-size:8px;color:var(--red)" onclick="excluirEvento('${e.id}','${(e.titulo||e.descricao||'').replace(/'/g,'')}')">🗑️</button>
-            </div>`:''}
+            <span style="font-family:'Cinzel',serif;font-size:8px;font-weight:700;padding:3px 8px;border-radius:3px;background:${corBg};border:1px solid ${corBorda};color:${corTexto};white-space:nowrap">${badge}</span>
+            ${editBtn ? `<div style="display:flex;gap:4px">${editBtn}</div>` : ''}
           </div>
         </div>`;
       }).join('');
 
-  const filtroStyle = `style="border:1px solid var(--border-mid);border-radius:3px;padding:4px 8px;font-family:'Cormorant Garamond',serif;font-size:12px;background:var(--cream);color:var(--text)"`;
-  const filtroLabel = (txt) => `<span style="font-family:'Cinzel',serif;font-size:8px;font-weight:700;letter-spacing:0.1em;color:var(--text-muted);text-transform:uppercase">${txt}</span>`;
-
   document.getElementById('eventos-content').innerHTML = `
     ${!canEdit ? readOnlyBanner() : ''}
-
-    <!-- PRÓXIMOS EVENTOS -->
     <div class="card" style="margin-bottom:16px">
       <div class="card-header" style="flex-wrap:wrap;gap:8px">
-        <div class="card-title">Próximos Eventos${!temFiltroProx?' <span style="font-size:10px;color:var(--text-muted);font-weight:400">(próximos 6)</span>':` (${proximosMostrar.length})`}</div>
+        <div class="card-title">Próximos Eventos & Convites${!temFiltroProx?` <span style="font-size:10px;color:var(--text-muted);font-weight:400">(próximos 6)</span>`:` (${proximosMostrar.length})`}</div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           ${filtroLabel('De')} <input type="date" id="filt-prox-de" value="${fProxDe}" onchange="renderEventos('${access}')" ${filtroStyle}>
           ${filtroLabel('Até')} <input type="date" id="filt-prox-ate" value="${fProxAte}" onchange="renderEventos('${access}')" ${filtroStyle}>
           <button class="btn" style="font-size:9px;padding:4px 10px" onclick="limparFiltroEventos('prox','${access}')">✕ Limpar</button>
           <button class="btn" style="font-size:9px;padding:4px 10px" onclick="mostrarTodosProximos('${access}')">Ver todos</button>
-          ${canEdit?`<button class="btn btn-solid" onclick="abrirModalEvento()">+ Novo Evento</button>`:''}
+          ${canEdit?`<button class="btn btn-solid" onclick="abrirModalEvento()" style="white-space:nowrap">+ Novo</button>`:''}
         </div>
       </div>
-      <div style="padding:8px 0">${evCards(proximosMostrar)}</div>
+      <div style="padding:8px 0">
+        <div style="display:flex;gap:16px;margin-bottom:10px">
+          <span style="font-size:10px;color:var(--text-muted);font-family:'Cinzel',serif;letter-spacing:0.06em">🏛️ Sessões da Loja &nbsp;·&nbsp; ✉️ Convites de outras lojas</span>
+        </div>
+        ${proxCards}
+      </div>
     </div>
-
-    <!-- SESSÕES REGISTRADAS -->
-    <div class="card" style="margin-bottom:16px">
+    <div class="card">
       <div class="card-header" style="flex-wrap:wrap;gap:8px">
-        <div class="card-title">Sessões Registradas${!temFiltroSess?' <span style="font-size:10px;color:var(--text-muted);font-weight:400">(últimas 6)</span>':` (${sessoesMostrar.length})`}</div>
+        <div class="card-title">Sessões Realizadas${!temFiltroSess?` <span style="font-size:10px;color:var(--text-muted);font-weight:400">(últimas 6)</span>`:` (${sessoesMostrar.length})`}</div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           ${filtroLabel('De')} <input type="date" id="filt-sess-de" value="${fSessDe}" onchange="renderEventos('${access}')" ${filtroStyle}>
           ${filtroLabel('Até')} <input type="date" id="filt-sess-ate" value="${fSessAte}" onchange="renderEventos('${access}')" ${filtroStyle}>
           <button class="btn" style="font-size:9px;padding:4px 10px" onclick="limparFiltroEventos('sess','${access}')">✕ Limpar</button>
           <button class="btn" style="font-size:9px;padding:4px 10px" onclick="mostrarTodasSessoes('${access}')">Ver todas</button>
-          ${canEdit?`<button class="btn btn-solid" onclick="abrirModalSessao()">+ Nova Sessão</button>`:''}
         </div>
       </div>
       <table><thead><tr><th>Data</th><th>Tipo</th><th>Grau</th><th>Local</th>${canEdit?'<th></th>':''}</tr></thead>
       <tbody>${sessoesMostrar.length === 0
         ? `<tr><td colspan="5" style="text-align:center;padding:20px;font-style:italic;color:var(--text-muted)">Nenhuma sessão encontrada.</td></tr>`
         : sessoesMostrar.map(s=>`<tr>
-          <td>${fmtData(s.data)}</td>
-          <td>${s.tipo||'—'}</td>
+          <td>${fmtData(s.data)}</td><td>${s.tipo||'--'}</td>
           <td>${degreeBadge(s.grau||3)}</td>
           <td>${s.descricao_local||'Templo'}</td>
           ${canEdit?`<td style="display:flex;gap:4px">
@@ -4341,23 +4399,8 @@ function renderEventos(access) {
           </td>`:''}
         </tr>`).join('')}
       </tbody></table>
-    </div>
-
-    <!-- EVENTOS PASSADOS -->
-    <div class="card">
-      <div class="card-header" style="flex-wrap:wrap;gap:8px">
-        <div class="card-title">Eventos Passados${!temFiltroPass?' <span style="font-size:10px;color:var(--text-muted);font-weight:400">(últimos 6)</span>':` (${passadosMostrar.length})`}</div>
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          ${filtroLabel('De')} <input type="date" id="filt-pass-de" value="${fPassDe}" onchange="renderEventos('${access}')" ${filtroStyle}>
-          ${filtroLabel('Até')} <input type="date" id="filt-pass-ate" value="${fPassAte}" onchange="renderEventos('${access}')" ${filtroStyle}>
-          <button class="btn" style="font-size:9px;padding:4px 10px" onclick="limparFiltroEventos('pass','${access}')">✕ Limpar</button>
-          <button class="btn" style="font-size:9px;padding:4px 10px" onclick="mostrarTodosPassados('${access}')">Ver todos</button>
-        </div>
-      </div>
-      <div style="padding:8px 0">${evCards(passadosMostrar, true)}</div>
     </div>`;
 }
-
 function limparFiltroEventos(bloco, access) {
   if (bloco === 'prox') {
     const hoje = new Date().toISOString().split('T')[0];
