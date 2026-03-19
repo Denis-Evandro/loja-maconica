@@ -3544,17 +3544,23 @@ function renderFinancas(access) {
         ${inadimplentes.length===0
           ? `<div style="padding:12px 22px;color:var(--green);font-size:14px;font-style:italic">✅ Nenhum inadimplente!</div>`
           : inadimplentes.slice(0,6).map(({m,devia})=>`
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 22px;border-top:1px solid var(--border)">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 22px;border-top:1px solid var(--border)">
               <div>
                 <span style="font-size:15px;font-weight:700;font-family:'Cormorant Garamond',serif;color:var(--text)">${m.nome_maconico}</span>
-                <span style="font-size:11px;color:var(--text-muted);margin-left:10px">${m.cargo||''}</span>
+                <span style="font-size:12px;color:var(--text-muted);margin-left:10px">${m.cargo||''}</span>
               </div>
               <div style="display:flex;align-items:center;gap:8px">
                 <span style="font-size:14px;font-weight:700;color:var(--red);font-family:'Cinzel',serif">${fmtVal(devia)}</span>
                 ${canEdit?`<button class="btn" style="padding:3px 8px;font-size:9px;background:linear-gradient(135deg,#25D366,#128C7E);color:#fff;border-color:#128C7E" onclick="cobrarWhatsapp('${m.nome_maconico.replace(/'/g,'')}','${m.telefone||''}',${devia},0)">📱</button>`:''}
               </div>
             </div>`).join('')}
-        ${inadimplentes.length>6?`<div style="padding:8px 22px;font-size:12px;color:var(--text-muted);border-top:1px solid var(--border)">+ ${inadimplentes.length-6} outros — clique em <strong>📊 Inadimplência</strong> para ver todos</div>`:''}
+        ${inadimplentes.length>6?`<div style="padding:7px 22px;font-size:12px;color:var(--text-muted);border-top:1px solid var(--border);font-style:italic">+ ${inadimplentes.length-6} outros — clique em 📊 Inadimplência para ver todos</div>`:''}
+        <!-- Linha de TOTAL -->
+        ${inadimplentes.length>0?`
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 22px;border-top:2px solid rgba(139,32,32,0.2);background:rgba(139,32,32,0.04)">
+          <span style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;letter-spacing:0.12em;color:var(--red);text-transform:uppercase">Total em Débito</span>
+          <span style="font-family:'Cinzel',serif;font-size:16px;font-weight:700;color:var(--red)">${fmtVal(inadimplentes.reduce((s,i)=>s+i.devia,0))}</span>
+        </div>`:''}
       </div>
 
       <!-- Previsão de Caixa mês corrente + Parcelas -->
