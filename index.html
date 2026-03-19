@@ -444,14 +444,14 @@ body {
 
 .section-title {
   font-family:'Cinzel', serif;
-  font-size:20px; font-weight:700;
+  font-size:22px; font-weight:700;
   color: var(--brown);
   letter-spacing:0.06em;
   margin-bottom:3px;
 }
 
 .section-subtitle {
-  font-size:14px; font-style:italic;
+  font-size:15px; font-style:italic;
   color: var(--text-muted);
 }
 
@@ -490,8 +490,8 @@ body {
 
 .stat-label {
   font-family:'Cinzel', serif;
-  font-size:8px; font-weight:700;
-  letter-spacing:0.25em;
+  font-size:10px; font-weight:700;
+  letter-spacing:0.2em;
   color: var(--text-muted);
   text-transform:uppercase;
   margin-bottom:8px;
@@ -505,13 +505,49 @@ body {
   margin-bottom:5px;
 }
 
-.stat-change { font-size:12px; font-style:italic; color:var(--text-muted); }
+.stat-change { font-size:13px; font-style:italic; color:var(--text-muted); }
 .stat-change.up { color:var(--green); }
 .stat-change.down { color:var(--red); }
 
 .stat-icon-bg {
   position:absolute; right:14px; bottom:14px;
   opacity:0.07; width:44px; height:44px;
+}
+
+/* CARDS */
+.card {
+  background:var(--white);
+  border:1px solid var(--border);
+  border-radius:4px;
+  overflow:hidden;
+  margin-bottom:20px;
+  box-shadow:var(--shadow);
+}
+
+.card-header {
+  padding:16px 24px;
+  border-bottom:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between;
+  background: linear-gradient(90deg, var(--cream), var(--white));
+}
+
+/* BADGES */
+.degree-badge {
+  display:inline-flex; align-items:center; justify-content:center;
+  width:24px; height:24px; border-radius:50%;
+  font-family:'Cinzel', serif;
+  font-size:10px; font-weight:700; border:1px solid;
+}
+
+.d1 { color:var(--blue); border-color:rgba(30,74,122,0.4); background:var(--blue-bg); }
+.d2 { color:#7A4A00; border-color:rgba(122,74,0,0.4); background:rgba(122,74,0,0.08); }
+.d3 { color:var(--gold-dark); border-color:var(--border-dark); background:rgba(184,134,11,0.1); }
+
+.badge {
+  display:inline-block; padding:4px 10px; border-radius:2px;
+  font-family:'Cinzel', serif;
+  font-size:9px; font-weight:700;
+  letter-spacing:0.08em; text-transform:uppercase;
 }
 
 /* CARDS */
@@ -533,8 +569,8 @@ body {
 
 .card-title {
   font-family:'Cinzel', serif;
-  font-size:10px; font-weight:700;
-  letter-spacing:0.2em;
+  font-size:12px; font-weight:700;
+  letter-spacing:0.16em;
   color: var(--gold-dark);
   text-transform:uppercase;
 }
@@ -542,10 +578,10 @@ body {
 /* BUTTONS */
 .btn {
   font-family:'Cinzel', serif;
-  font-size:9px; font-weight:700;
-  letter-spacing:0.18em;
+  font-size:10px; font-weight:700;
+  letter-spacing:0.14em;
   text-transform:uppercase;
-  padding:7px 14px;
+  padding:8px 16px;
   border:1px solid var(--border-dark);
   background:var(--cream);
   color:var(--gold-dark);
@@ -575,19 +611,19 @@ table { width:100%; border-collapse:collapse; }
 
 th {
   font-family:'Cinzel', serif;
-  font-size:8px; font-weight:700;
-  letter-spacing:0.22em;
+  font-size:10px; font-weight:700;
+  letter-spacing:0.18em;
   color:var(--text-muted);
   text-transform:uppercase;
-  padding:11px 22px;
+  padding:12px 22px;
   text-align:left;
   border-bottom:1px solid var(--border);
   background:var(--cream);
 }
 
 td {
-  padding:11px 22px;
-  font-size:14px;
+  padding:13px 22px;
+  font-size:15px;
   color:var(--text);
   border-bottom:1px solid rgba(184,134,11,0.08);
   vertical-align:middle;
@@ -1482,8 +1518,11 @@ const statusBadge = (s) => {
   const map = {
     ativo:'<span class="badge b-active">Ativo</span>',
     inativo:'<span class="badge b-inactive">Inativo</span>',
-    licenciado:`<span class="badge" style="color:var(--gold-dark);background:rgba(184,134,11,0.1);border-color:rgba(184,134,11,0.3)">Licenc.</span>`,
-    iniciado:'<span class="badge b-pending">Iniciado</span>'
+    licenciado:`<span class="badge" style="color:var(--gold-dark);background:rgba(184,134,11,0.1);border-color:rgba(184,134,11,0.3)">Licenciado</span>`,
+    suspenso:`<span class="badge" style="color:#8B2020;background:rgba(139,32,32,0.12);border-color:rgba(139,32,32,0.35)">⛔ Suspenso</span>`,
+    adormecido:`<span class="badge" style="color:#5A5A8A;background:rgba(90,90,138,0.1);border-color:rgba(90,90,138,0.3)">💤 Adormecido</span>`,
+    profano:`<span class="badge" style="color:#1B5EA0;background:rgba(27,94,160,0.1);border-color:rgba(27,94,160,0.3)">🔵 Em Iniciação</span>`,
+    iniciado:`<span class="badge" style="color:#1B5EA0;background:rgba(27,94,160,0.1);border-color:rgba(27,94,160,0.3)">🔵 Iniciado</span>`
   };
   return map[s] || `<span class="badge">${s||'—'}</span>`;
 };
@@ -1995,7 +2034,9 @@ function abrirModalMembro(membro=null) {
                   <option value="ativo" ${membro?.status=='ativo'||!membro?'selected':''}>Regular Ativo</option>
                   <option value="inativo" ${membro?.status=='inativo'?'selected':''}>Inativo</option>
                   <option value="licenciado" ${membro?.status=='licenciado'?'selected':''}>Licenciado</option>
-                  <option value="iniciado" ${membro?.status=='iniciado'?'selected':''}>Recém Iniciado</option></select></div>
+                  <option value="suspenso" ${membro?.status=='suspenso'?'selected':''}>Suspenso</option>
+                  <option value="adormecido" ${membro?.status=='adormecido'?'selected':''}>Adormecido</option>
+                  <option value="profano" ${membro?.status=='profano'?'selected':''}>Profano (em iniciação)</option></select></div>
             </div>
 
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
@@ -2421,7 +2462,10 @@ function renderMembros(access) {
             style="border:1px solid var(--border-mid);border-radius:3px;padding:5px 10px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--cream);color:var(--text)">
             <option value="">Todos status</option>
             <option value="ativo">Ativo</option><option value="inativo">Inativo</option>
-            <option value="licenciado">Licenciado</option><option value="iniciado">Iniciado</option>
+            <option value="licenciado">Licenciado</option>
+            <option value="suspenso">Suspenso</option>
+            <option value="adormecido">Adormecido</option>
+            <option value="profano">Em Iniciação</option>
           </select>
           <input id="filtro-membros-loja" type="text" placeholder="Loja..." oninput="renderMembros('${access}')"
             style="border:1px solid var(--border-mid);border-radius:3px;padding:5px 10px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--cream);color:var(--text);width:110px">
@@ -2664,6 +2708,8 @@ function renderFrequencia(access) {
           <td style="display:flex;gap:4px;flex-wrap:wrap">
             ${canEdit?`<button class="btn" style="padding:3px 9px;font-size:8px" onclick="abrirModalPresenca('${s.id}','${s.data}','${s.tipo}')">✓ Pres.</button>
             <button class="btn" style="padding:3px 9px;font-size:8px" onclick="abrirModalVisitante('${s.id}')">+ Visit.</button>`:''}
+            <button class="btn" style="padding:3px 9px;font-size:8px" onclick="verListaPresenca('${s.id}','${s.data}','${s.tipo}')">👁️ Ver</button>
+            <button class="btn" style="padding:3px 9px;font-size:8px" onclick="imprimirListaPresenca('${s.id}','${s.data}','${s.tipo}','${s.descricao_local||'Templo'}')">🖨️</button>
           </td>
         </tr>`;
       }).join('');
@@ -2677,6 +2723,106 @@ function renderFrequencia(access) {
       <table><thead><tr><th>Data</th><th>Tipo</th><th>Grau</th><th>Local</th><th>Presenças</th><th></th></tr></thead>
       <tbody>${rows}</tbody></table>
     </div>`;
+}
+
+function verListaPresenca(sessaoId, data, tipo) {
+  const membros = DATA.membros.filter(m=>m.status==='ativo'||m.status==='iniciado');
+  const presencas = DATA.presencas.filter(p=>p.sessao_id===sessaoId);
+  const presentes = presencas.filter(p=>p.presente||p.situacao==='presente');
+  const visitantes = presencas.filter(p=>!p.membro_id&&(p.presente||p.situacao==='presente'));
+  const presentesMembros = presentes.filter(p=>p.membro_id);
+
+  const rowsMembros = membros.map(m=>{
+    const p = presencas.find(x=>x.membro_id===m.id);
+    const pres = p&&(p.presente||p.situacao==='presente');
+    return `<tr style="${pres?'':'opacity:0.5'}">
+      <td style="width:32px;text-align:center">${pres?'<span style="color:var(--green);font-size:16px">✓</span>':'<span style="color:var(--red);font-size:14px">✗</span>'}</td>
+      <td style="font-size:14px;font-family:\'Cormorant Garamond\',serif;font-weight:${pres?700:400}">${m.nome_maconico}</td>
+      <td style="font-size:12px;color:var(--text-muted)">${m.cargo||'—'}</td>
+      <td>${degreeBadge(m.grau||3)}</td>
+    </tr>`;
+  }).join('');
+
+  const rowsVisit = visitantes.map(v=>{
+    const info = (v.justificativa||'').replace('VISITANTE | ','');
+    return `<tr><td colspan="4" style="font-family:\'Cormorant Garamond\',serif;font-size:13px;padding:6px 8px">🤝 ${info}</td></tr>`;
+  }).join('');
+
+  document.body.insertAdjacentHTML('beforeend', `
+    <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px">
+      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;width:560px;max-height:88vh;overflow-y:auto;position:relative">
+        <div style="height:3px;background:linear-gradient(90deg,var(--gold-dark),var(--gold-rich),var(--gold-light),var(--gold-dark));border-radius:6px 6px 0 0"></div>
+        <div style="padding:24px 28px">
+          <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);margin-bottom:4px">📋 Lista de Presença</div>
+          <div style="font-style:italic;color:var(--text-muted);font-size:13px;margin-bottom:16px">${tipo} — ${fmtData(data)}</div>
+          <div style="display:flex;gap:12px;margin-bottom:16px">
+            <div style="background:rgba(34,139,34,0.08);border:1px solid rgba(34,139,34,0.2);border-radius:4px;padding:8px 16px;text-align:center">
+              <div style="font-size:22px;font-weight:700;color:var(--green)">${presentesMembros.length}</div>
+              <div style="font-size:9px;color:var(--text-muted);text-transform:uppercase;font-family:'Cinzel',serif">Obreiros</div>
+            </div>
+            <div style="background:rgba(212,168,67,0.08);border:1px solid rgba(212,168,67,0.2);border-radius:4px;padding:8px 16px;text-align:center">
+              <div style="font-size:22px;font-weight:700;color:var(--gold-dark)">${visitantes.length}</div>
+              <div style="font-size:9px;color:var(--text-muted);text-transform:uppercase;font-family:'Cinzel',serif">Visitantes</div>
+            </div>
+            <div style="background:rgba(27,58,107,0.06);border:1px solid rgba(27,58,107,0.15);border-radius:4px;padding:8px 16px;text-align:center">
+              <div style="font-size:22px;font-weight:700;color:var(--navy)">${membros.length-presentesMembros.length}</div>
+              <div style="font-size:9px;color:var(--text-muted);text-transform:uppercase;font-family:'Cinzel',serif">Ausentes</div>
+            </div>
+          </div>
+          <table style="width:100%">
+            <thead><tr><th style="width:32px"></th><th>Irmão</th><th>Cargo</th><th>Grau</th></tr></thead>
+            <tbody>${rowsMembros}${rowsVisit?`<tr><td colspan="4" style="padding:8px 0;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--text-muted)">VISITANTES</td></tr>${rowsVisit}`:''}</tbody>
+          </table>
+        </div>
+        <div style="padding:14px 28px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px">
+          <button class="btn" onclick="fecharModal()" style="padding:8px 20px">Fechar</button>
+          <button class="btn btn-solid" onclick="fecharModal();imprimirListaPresenca('${sessaoId}','${data}','${tipo}','')" style="padding:8px 20px">🖨️ Imprimir</button>
+        </div>
+      </div>
+    </div>`);
+}
+
+function imprimirListaPresenca(sessaoId, data, tipo, local) {
+  const membros = DATA.membros.filter(m=>m.status==='ativo'||m.status==='iniciado');
+  const presencas = DATA.presencas.filter(p=>p.sessao_id===sessaoId);
+  const visitantes = presencas.filter(p=>!p.membro_id&&(p.presente||p.situacao==='presente'));
+  let rows = membros.map((m,i)=>{
+    const p = presencas.find(x=>x.membro_id===m.id);
+    const pres = p&&(p.presente||p.situacao==='presente');
+    return `<tr>
+      <td style="text-align:center">${i+1}</td>
+      <td>${m.nome_maconico}</td>
+      <td>${m.cargo||'—'}</td>
+      <td style="text-align:center">${m.grau}º</td>
+      <td style="text-align:center;font-weight:bold;color:${pres?'green':'red'}">${pres?'✓':'✗'}</td>
+    </tr>`;
+  }).join('');
+  if (visitantes.length) {
+    rows += `<tr><td colspan="5" style="background:#f5f0e8;font-weight:bold;padding:6px 8px">Visitantes</td></tr>`;
+    visitantes.forEach(v=>{
+      rows += `<tr><td></td><td colspan="4">${(v.justificativa||'').replace('VISITANTE | ','')}</td></tr>`;
+    });
+  }
+  const presentes = presencas.filter(p=>p.presente||p.situacao==='presente'&&p.membro_id).length;
+  abrirJanelaPrint(`
+    <div class="print-header">
+      <div class="print-lodge">A.R.L.S. Fraternidade Acadêmica de Peruíbe Nº 3524</div>
+      <div class="print-title">Lista de Presença</div>
+      <div class="print-date">${tipo} — ${fmtData(data)}${local?' · '+local:''}</div>
+    </div>
+    <div class="print-resumo">
+      <div class="print-resumo-item"><div class="print-resumo-valor">${presentes}</div><div class="print-resumo-label">Presentes</div></div>
+      <div class="print-resumo-item"><div class="print-resumo-valor">${visitantes.length}</div><div class="print-resumo-label">Visitantes</div></div>
+      <div class="print-resumo-item"><div class="print-resumo-valor">${membros.length-presentes}</div><div class="print-resumo-label">Ausentes</div></div>
+    </div>
+    <table class="print-table">
+      <thead><tr><th>Nº</th><th>Nome Maçônico</th><th>Cargo</th><th>Grau</th><th>Presença</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div style="margin-top:40px;display:flex;justify-content:space-between;font-size:11px">
+      <div style="text-align:center;width:45%"><div style="border-top:1px solid #333;padding-top:4px">Secretário</div></div>
+      <div style="text-align:center;width:45%"><div style="border-top:1px solid #333;padding-top:4px">Venerável Mestre</div></div>
+    </div>`);
 }
 
 async function abrirModalPresenca(sessaoId, dataSessao, tipoSessao) {
@@ -3213,28 +3359,38 @@ function renderFinancas(access) {
   const recMes  = finMes.filter(l=>l.tipo==='receita'&&l.status==='pago').reduce((s,l)=>s+parseFloat(l.valor||0),0);
   const despMes = finMes.filter(l=>l.tipo==='despesa'&&l.status==='pago').reduce((s,l)=>s+parseFloat(l.valor||0),0);
 
-  // ── Previsão de caixa (próximos 30 dias) ──────────────────────
-  const em30 = new Date(hoje); em30.setDate(em30.getDate()+30);
-  const em30Str = em30.toISOString().split('T')[0];
-  const recPrev  = lancs.filter(l=>l.tipo==='receita'&&l.status==='agendado'&&l.data>=hojeStr&&l.data<=em30Str).reduce((s,l)=>s+parseFloat(l.valor||0),0);
-  const despPrev = lancs.filter(l=>l.tipo==='despesa'&&l.status==='agendado'&&l.data>=hojeStr&&l.data<=em30Str).reduce((s,l)=>s+parseFloat(l.valor||0),0);
-  const saldoPrev = saldo + recPrev - despPrev;
+  // ── Previsão de caixa — MÊS CORRENTE ─────────────────────────
+  const fimMes = new Date(anoAtual, hoje.getMonth()+1, 0).toISOString().split('T')[0];
+  const recPrevMes  = lancs.filter(l=>l.tipo==='receita'&&l.status==='agendado'&&l.data>=hojeStr&&l.data<=fimMes).reduce((s,l)=>s+parseFloat(l.valor||0),0);
+  const despPrevMes = lancs.filter(l=>l.tipo==='despesa'&&l.status==='agendado'&&l.data>=hojeStr&&l.data<=fimMes).reduce((s,l)=>s+parseFloat(l.valor||0),0);
+  const saldoPrev = saldo + recPrevMes - despPrevMes;
 
-  // ── Inadimplência ─────────────────────────────────────────────
+  // ── Inadimplência — TODAS as dívidas por membro ───────────────
   const membrosAtivos = DATA.membros.filter(m=>(m.status==='ativo'||m.status==='iniciado')&&m.tipo_membro!=='visitante');
   const anoIngresso = (m) => m.data_ingresso ? parseInt(m.data_ingresso.split('-')[0]) : anoAtual;
   const mesIngresso = (m) => m.data_ingresso ? parseInt(m.data_ingresso.split('-')[1]) : 1;
   const inadimplentes = membrosAtivos.map(m=>{
     const mens = parseFloat(m.mensalidade)||100;
-    if (mens === 0) return null;
-    // Meses desde o ingresso até hoje
-    const ai = anoIngresso(m), mi = mesIngresso(m);
-    const totalMeses = (anoAtual - ai)*12 + (hoje.getMonth()+1 - mi);
-    const esperado = Math.max(0, totalMeses) * mens;
-    const pago = lancs.filter(l=>l.membro_id===m.id&&l.tipo==='receita'&&l.status==='pago'&&l.categoria==='mensalidade').reduce((s,l)=>s+parseFloat(l.valor||0),0);
-    const devia = Math.max(0, esperado - pago);
-    const mesesDev = Math.round(devia/mens);
-    return mesesDev > 0 ? {m, mens, devia, mesesDev, pago, esperado} : null;
+    // Dívida de mensalidade
+    let debitoMensalidade = 0, mesesDev = 0;
+    if (mens > 0) {
+      const ai = anoIngresso(m), mi = mesIngresso(m);
+      const totalMeses = Math.max(0, (anoAtual-ai)*12+(hoje.getMonth()+1-mi));
+      const esperado = totalMeses * mens;
+      const pago = lancs.filter(l=>l.membro_id===m.id&&l.tipo==='receita'&&l.status==='pago'&&l.categoria==='mensalidade').reduce((s,l)=>s+parseFloat(l.valor||0),0);
+      debitoMensalidade = Math.max(0, esperado-pago);
+      mesesDev = Math.round(debitoMensalidade/mens);
+    }
+    // Outros débitos em aberto/agendado vinculados ao membro
+    const outrosDebitos = lancs.filter(l=>l.membro_id===m.id&&(l.status==='aberto'||l.status==='agendado')&&l.tipo==='receita'&&l.categoria!=='mensalidade');
+    const totalOutros = outrosDebitos.reduce((s,l)=>s+parseFloat(l.valor||0),0);
+    const totalDevia = debitoMensalidade + totalOutros;
+    if (totalDevia <= 0) return null;
+    // Montar detalhes das dívidas
+    const detalhes = [];
+    if (mesesDev > 0) detalhes.push({cat:'Mensalidade', valor:debitoMensalidade, detalhe:`${mesesDev} mês(es)`});
+    outrosDebitos.forEach(l=>detalhes.push({cat:getCatLabel(l.categoria)||l.descricao, valor:parseFloat(l.valor||0), detalhe:l.descricao, lancId:l.id}));
+    return {m, devia:totalDevia, mesesDev, detalhes};
   }).filter(Boolean);
   const pctAdimplente = membrosAtivos.length ? Math.round((membrosAtivos.length-inadimplentes.length)/membrosAtivos.length*100) : 100;
 
@@ -3253,20 +3409,20 @@ function renderFinancas(access) {
   })();
 
   // ── Débitos pendentes ─────────────────────────────────────────
-  const debitosMens = inadimplentes.map(({m, devia, mesesDev})=>({
+  const debitosMens = inadimplentes.map(({m, devia})=>({
     nome: m.nome_maconico, cargo: m.cargo||'—', id: m.id,
-    origem: `${mesesDev} mês(es) mensalidade`, valor: devia, statusBadge:'aberto', lancId:null, data:null
+    origem: 'Ver detalhes abaixo', valor: devia, statusBadge:'aberto', lancId:null, data:null
   }));
-  const debitosLancs = lancs.filter(l=>l.status==='agendado'||l.status==='aberto').map(l=>{
+  const debitosLancs = lancs.filter(l=>l.status==='agendado'||l.status==='aberto').filter(l=>{
+    // Excluir lançamentos de membros inadimplentes já contabilizados acima
+    return !inadimplentes.find(i=>i.m.id===l.membro_id);
+  }).map(l=>{
     const mb = DATA.membros.find(mb=>mb.id===l.membro_id);
     return {nome:mb?mb.nome_maconico:'(Loja)',cargo:mb?mb.cargo||'—':'—',id:mb?.id||null,
       origem:l.descricao||'—',valor:parseFloat(l.valor||0),statusBadge:l.status,lancId:l.id,data:l.data||null};
   });
   const todosDebitos = [...debitosMens, ...debitosLancs];
   const totalDebitosGeral = todosDebitos.reduce((s,d)=>s+d.valor,0);
-
-  // ── Orçamento ─────────────────────────────────────────────────
-  const orcamento = JSON.parse(localStorage.getItem('orcamento_anual')||'{"metaRec":0,"metaDesp":0}');
 
   // ── Helpers ───────────────────────────────────────────────────
   const inp = `style="border:1px solid var(--border-mid);border-radius:3px;padding:5px 10px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--cream);color:var(--text)"`;
@@ -3319,7 +3475,6 @@ function renderFinancas(access) {
       <button class="btn btn-solid" onclick="abrirModalMensalidadeAuto()" style="background:linear-gradient(135deg,#1B5EA0,#2A7ACC);display:flex;align-items:center;gap:6px">⚡ Mensalidades do Mês</button>
       <button class="btn btn-solid" onclick="abrirModalAgape()" style="background:linear-gradient(135deg,#6B3A00,#A05A00);display:flex;align-items:center;gap:6px">🍽️ Ágape / Rateio</button>
       <button class="btn btn-solid" onclick="abrirModalFecharMes()" style="background:linear-gradient(135deg,#3A006B,#6A2AAC);display:flex;align-items:center;gap:6px">📦 Fechar Mês</button>
-      <button class="btn btn-solid" onclick="abrirModalOrcamento()" style="background:linear-gradient(135deg,#006B3A,#2AAC6A);display:flex;align-items:center;gap:6px">🎯 Orçamento Anual</button>
       <button class="btn btn-solid" onclick="abrirRelInadimplencia()" style="background:linear-gradient(135deg,#7A1010,#B03030);display:flex;align-items:center;gap:6px">📊 Inadimplência</button>
     </div>`:''}
 
@@ -3331,78 +3486,94 @@ function renderFinancas(access) {
       <div class="stat-card"><div class="stat-label">A Receber/Pagar</div><div class="stat-value" style="color:#1B5EA0;font-size:18px">${fmtVal(totalAgendado+totalAberto)}</div><div class="stat-change" style="color:#1B5EA0">${fmtVal(totalAgendado)} agend. · ${fmtVal(totalAberto)} aberto</div></div>
     </div>
 
-    <!-- LINHA 2: Inadimplência + Orçamento + Previsão + Parcelas -->
+    <!-- LINHA 2: Inadimplência + Previsão + Parcelas -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
 
-      <!-- Inadimplência -->
+      <!-- Inadimplência — tabela completa estilo F5 -->
       <div class="card" style="border-color:${inadimplentes.length>0?'rgba(139,32,32,0.25)':'rgba(58,122,74,0.25)'}">
-        <div class="card-header">
-          <div class="card-title" style="color:${inadimplentes.length>0?'var(--red)':'var(--green)'}">
-            ${inadimplentes.length>0?`⚠️ Inadimplência — ${inadimplentes.length} irmão(s)`:'✅ Adimplência 100%'}
+        <div class="card-header" style="flex-wrap:wrap;gap:8px">
+          <div>
+            <div class="card-title" style="color:${inadimplentes.length>0?'var(--red)':'var(--green)'}">
+              ${inadimplentes.length>0?`⚠️ Inadimplência — ${inadimplentes.length} irmão(s)`:'✅ Todos em dia'}
+            </div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${pctAdimplente}% do quadro em dia</div>
           </div>
-          <div style="font-size:11px;color:var(--text-muted)">${pctAdimplente}% em dia</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <select id="filtro-inadimp" onchange="renderInadimplenciaFiltrada()" style="border:1px solid var(--border-mid);border-radius:3px;padding:5px 10px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--cream);color:var(--text)">
+              <option value="">Todos os inadimplentes</option>
+              ${inadimplentes.map(({m})=>`<option value="${m.id}">${m.nome_maconico}</option>`).join('')}
+            </select>
+            ${canEdit?`<button class="btn" style="font-size:10px;padding:5px 12px" onclick="imprimirInadimplencia()">🖨️ Imprimir</button>`:''}
+            <button class="btn" style="font-size:10px;padding:5px 12px" onclick="abrirRelInadimplencia()">📊 Rel. Mensal</button>
+          </div>
         </div>
         <!-- Barra de adimplência -->
-        <div style="margin:8px 0 12px">
-          <div style="background:var(--cream-mid);border-radius:3px;height:8px;overflow:hidden">
-            <div style="height:100%;width:${pctAdimplente}%;background:${pctAdimplente>=80?'var(--green)':pctAdimplente>=60?'var(--gold-dark)':'var(--red)'};border-radius:3px;transition:width 0.5s"></div>
+        <div style="padding:10px 24px 4px">
+          <div style="background:var(--cream-mid);border-radius:3px;height:7px;overflow:hidden">
+            <div style="height:100%;width:${pctAdimplente}%;background:${pctAdimplente>=80?'var(--green)':pctAdimplente>=60?'var(--gold-dark)':'var(--red)'};border-radius:3px"></div>
           </div>
-          <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text-muted);margin-top:3px">
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-top:3px">
             <span>${membrosAtivos.length-inadimplentes.length} em dia</span>
-            <span>${inadimplentes.length} com débito</span>
+            <span>${inadimplentes.length} com débito · Total: ${fmtVal(inadimplentes.reduce((s,i)=>s+i.devia,0))}</span>
           </div>
         </div>
-        ${inadimplentes.slice(0,4).map(({m,devia,mesesDev})=>`
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-family:'Cormorant Garamond',serif">
-            <div>
-              <span style="font-size:13px;font-weight:700;color:var(--text)">${m.nome_maconico}</span>
-              <span style="font-size:10px;color:var(--text-muted);margin-left:8px">${mesesDev} mês(es)</span>
-            </div>
-            <div style="display:flex;align-items:center;gap:8px">
-              <span style="font-size:12px;font-weight:700;color:var(--red)">${fmtVal(devia)}</span>
-              ${canEdit?`<button class="btn" style="padding:2px 8px;font-size:8px;white-space:nowrap" onclick="cobrarWhatsapp('${m.nome_maconico}','${m.telefone||''}',${devia},${mesesDev})">📱 Cobrar</button>`:''}
-            </div>
-          </div>`).join('')}
-        ${inadimplentes.length>4?`<div style="text-align:center;padding:8px;font-size:11px;color:var(--text-muted)">+ ${inadimplentes.length-4} outros → <button class="btn" style="font-size:9px;padding:2px 8px" onclick="abrirRelInadimplencia()">Ver todos</button></div>`:''}
+        <!-- Tabela F5 -->
+        <div id="inadimp-tabela">
+          ${inadimplentes.length === 0
+            ? `<div style="padding:16px 24px;font-style:italic;color:var(--green);font-size:14px">✅ Nenhum inadimplente!</div>`
+            : inadimplentes.map(({m,devia,detalhes})=>`
+              <div style="border-top:1px solid var(--border);padding:12px 24px">
+                <table style="width:100%;border-collapse:collapse;margin-bottom:0">
+                  <thead>
+                    <tr style="background:rgba(27,58,107,0.06)">
+                      <th style="padding:8px 12px;text-align:left;font-family:'Cinzel',serif;font-size:10px;letter-spacing:0.12em;color:var(--navy);border-bottom:1px solid var(--border-mid);min-width:140px">Nome</th>
+                      <th style="padding:8px 12px;text-align:left;font-family:'Cinzel',serif;font-size:10px;letter-spacing:0.12em;color:var(--navy);border-bottom:1px solid var(--border-mid)">Descrição da Dívida</th>
+                      <th style="padding:8px 12px;text-align:right;font-family:'Cinzel',serif;font-size:10px;letter-spacing:0.12em;color:var(--navy);border-bottom:1px solid var(--border-mid)">Valor</th>
+                      <th style="padding:8px 12px;text-align:right;width:90px;border-bottom:1px solid var(--border-mid)"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${detalhes.map((d,i)=>`
+                      <tr>
+                        <td style="padding:7px 12px;font-family:'Cormorant Garamond',serif;font-size:15px;font-weight:${i===0?700:400};color:var(--text);border-bottom:1px solid rgba(0,0,0,0.04)">${i===0?m.nome_maconico:''}</td>
+                        <td style="padding:7px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;color:var(--text-muted);border-bottom:1px solid rgba(0,0,0,0.04)">${d.cat}${d.detalhe&&d.detalhe!==d.cat?' — '+d.detalhe:''}</td>
+                        <td style="padding:7px 12px;font-family:'Cinzel',serif;font-size:13px;color:var(--red);font-weight:700;text-align:right;border-bottom:1px solid rgba(0,0,0,0.04)">${fmtVal(d.valor)}</td>
+                        <td style="padding:7px 12px;text-align:right;border-bottom:1px solid rgba(0,0,0,0.04)">${i===0&&canEdit?`<button class="btn" style="padding:3px 8px;font-size:9px;background:linear-gradient(135deg,#25D366,#128C7E);color:#fff;border-color:#128C7E" onclick="cobrarWhatsapp('${m.nome_maconico.replace(/'/g,'')}','${m.telefone||''}',${devia},0)">📱</button>`:''}
+                        </td>
+                      </tr>`).join('')}
+                    <tr style="background:rgba(139,32,32,0.04)">
+                      <td colspan="2" style="padding:8px 12px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.1em;color:var(--red);text-transform:uppercase">Total Devido</td>
+                      <td style="padding:8px 12px;font-family:'Cinzel',serif;font-size:14px;font-weight:700;color:var(--red);text-align:right">${fmtVal(devia)}</td>
+                      <td></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>`).join('')}
+        </div>
       </div>
 
-      <!-- Previsão de Caixa + Orçamento + Parcelas -->
+      <!-- Previsão de Caixa mês corrente + Parcelas -->
       <div style="display:flex;flex-direction:column;gap:14px">
 
-        <!-- Previsão 30 dias -->
+        <!-- Previsão mês corrente -->
         <div class="card">
-          <div class="card-header"><div class="card-title">🔮 Previsão de Caixa — 30 dias</div></div>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:6px">
+          <div class="card-header"><div class="card-title">🔮 Previsão de Caixa — ${['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][hoje.getMonth()]}/${anoAtual}</div></div>
+          <div style="font-size:10px;color:var(--text-muted);font-style:italic;margin-bottom:8px">Lançamentos agendados até ${fmtData(fimMes)}</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
             <div style="text-align:center;padding:8px;background:rgba(34,139,34,0.05);border-radius:4px;border:1px solid rgba(34,139,34,0.15)">
-              <div style="font-size:11px;color:var(--green);font-weight:700;font-family:'Cinzel',serif">${fmtVal(recPrev)}</div>
+              <div style="font-size:12px;color:var(--green);font-weight:700;font-family:'Cinzel',serif">${fmtVal(recPrevMes)}</div>
               <div style="font-size:8px;color:var(--text-muted);text-transform:uppercase;margin-top:2px">A Receber</div>
             </div>
             <div style="text-align:center;padding:8px;background:rgba(139,32,32,0.05);border-radius:4px;border:1px solid rgba(139,32,32,0.15)">
-              <div style="font-size:11px;color:var(--red);font-weight:700;font-family:'Cinzel',serif">${fmtVal(despPrev)}</div>
+              <div style="font-size:12px;color:var(--red);font-weight:700;font-family:'Cinzel',serif">${fmtVal(despPrevMes)}</div>
               <div style="font-size:8px;color:var(--text-muted);text-transform:uppercase;margin-top:2px">A Pagar</div>
             </div>
             <div style="text-align:center;padding:8px;background:${saldoPrev>=0?'rgba(34,139,34,0.05)':'rgba(139,32,32,0.05)'};border-radius:4px;border:1px solid ${saldoPrev>=0?'rgba(34,139,34,0.15)':'rgba(139,32,32,0.15)'}">
-              <div style="font-size:11px;color:${saldoPrev>=0?'var(--green)':'var(--red)'};font-weight:700;font-family:'Cinzel',serif">${fmtVal(saldoPrev)}</div>
+              <div style="font-size:12px;color:${saldoPrev>=0?'var(--green)':'var(--red)'};font-weight:700;font-family:'Cinzel',serif">${fmtVal(saldoPrev)}</div>
               <div style="font-size:8px;color:var(--text-muted);text-transform:uppercase;margin-top:2px">Saldo Proj.</div>
             </div>
           </div>
         </div>
-
-        <!-- Orçamento Anual -->
-        ${orcamento.metaRec>0||orcamento.metaDesp>0?`
-        <div class="card">
-          <div class="card-header"><div class="card-title">🎯 Orçamento ${anoAtual}</div>${canEdit?`<button class="btn" style="font-size:9px;padding:3px 8px" onclick="abrirModalOrcamento()">✎ Editar</button>`:''}</div>
-          ${orcamento.metaRec>0?`<div style="margin-bottom:10px">
-            <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px"><span style="color:var(--text-muted)">Receitas</span><span style="color:var(--green)">${fmtVal(receitas)} / ${fmtVal(orcamento.metaRec)}</span></div>
-            <div style="background:var(--cream-mid);border-radius:3px;height:6px;overflow:hidden"><div style="height:100%;width:${Math.min(100,Math.round(receitas/orcamento.metaRec*100))}%;background:var(--green);border-radius:3px"></div></div>
-            <div style="font-size:9px;color:var(--text-muted);margin-top:2px">${Math.round(receitas/orcamento.metaRec*100)}% da meta</div>
-          </div>`:''}
-          ${orcamento.metaDesp>0?`<div>
-            <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px"><span style="color:var(--text-muted)">Despesas</span><span style="color:${despesas>orcamento.metaDesp?'var(--red)':'var(--text)'}">${fmtVal(despesas)} / ${fmtVal(orcamento.metaDesp)}</span></div>
-            <div style="background:var(--cream-mid);border-radius:3px;height:6px;overflow:hidden"><div style="height:100%;width:${Math.min(100,Math.round(despesas/orcamento.metaDesp*100))}%;background:${despesas>orcamento.metaDesp?'var(--red)':'var(--gold-dark)'};border-radius:3px"></div></div>
-            <div style="font-size:9px;color:${despesas>orcamento.metaDesp?'var(--red)':'var(--text-muted)'};margin-top:2px">${Math.round(despesas/orcamento.metaDesp*100)}% do limite${despesas>orcamento.metaDesp?' ⚠️ Acima do orçamento!':''}</div>
-          </div>`:''}
-        </div>`:''}
 
         <!-- Parcelas em andamento -->
         ${parcelados.length>0?`<div class="card">
@@ -3410,13 +3581,13 @@ function renderFinancas(access) {
           ${parcelados.map(p=>`
             <div style="padding:6px 0;border-bottom:1px solid var(--border);font-family:'Cormorant Garamond',serif">
               <div style="display:flex;justify-content:space-between;align-items:center">
-                <span style="font-size:13px;font-weight:700;color:var(--text)">${p.desc}</span>
+                <span style="font-size:14px;font-weight:700;color:var(--text)">${p.desc}</span>
                 <span style="font-size:11px;color:var(--text-muted)">${p.pagas}/${p.total} pagas</span>
               </div>
               <div style="background:var(--cream-mid);border-radius:2px;height:4px;margin:4px 0;overflow:hidden">
                 <div style="height:100%;width:${Math.round(p.pagas/p.total*100)}%;background:var(--navy);border-radius:2px"></div>
               </div>
-              <div style="font-size:10px;color:var(--text-muted)">${p.pendentes} parcela(s) pendente(s) · ${fmtVal(p.valorParc*p.pendentes)} restante</div>
+              <div style="font-size:11px;color:var(--text-muted)">${p.pendentes} parcela(s) · ${fmtVal(p.valorParc*p.pendentes)} restante</div>
             </div>`).join('')}
         </div>`:''}
       </div>
@@ -3574,6 +3745,95 @@ function gerarMsgCobrancaGeral() {
 }
 
 // ── Relatório de inadimplência mensal ────────────────────────
+function renderInadimplenciaFiltrada() {
+  const filtroId = document.getElementById('filtro-inadimp')?.value || '';
+  const container = document.getElementById('inadimp-tabela');
+  if (!container) return;
+  // Recalcular inadimplentes (igual ao renderFinancas)
+  const hoje = new Date();
+  const anoAtual = hoje.getFullYear();
+  const lancs = DATA.financas;
+  const membrosAtivos = DATA.membros.filter(m=>(m.status==='ativo'||m.status==='iniciado'||m.status==='profano')&&m.tipo_membro!=='visitante');
+  let inadimplentes = membrosAtivos.map(m=>{
+    const mens = parseFloat(m.mensalidade)||100;
+    let debitoMensalidade = 0;
+    if (mens > 0) {
+      const ai = m.data_ingresso?parseInt(m.data_ingresso.split('-')[0]):anoAtual;
+      const mi = m.data_ingresso?parseInt(m.data_ingresso.split('-')[1]):1;
+      const totalMeses = Math.max(0,(anoAtual-ai)*12+(hoje.getMonth()+1-mi));
+      const esperado = totalMeses*mens;
+      const pago = lancs.filter(l=>l.membro_id===m.id&&l.tipo==='receita'&&l.status==='pago'&&l.categoria==='mensalidade').reduce((s,l)=>s+parseFloat(l.valor||0),0);
+      debitoMensalidade = Math.max(0,esperado-pago);
+    }
+    const outrosDebitos = lancs.filter(l=>l.membro_id===m.id&&(l.status==='aberto'||l.status==='agendado')&&l.tipo==='receita'&&l.categoria!=='mensalidade');
+    const totalOutros = outrosDebitos.reduce((s,l)=>s+parseFloat(l.valor||0),0);
+    const totalDevia = debitoMensalidade+totalOutros;
+    if (totalDevia<=0) return null;
+    const mesesDev = mens>0?Math.round(debitoMensalidade/mens):0;
+    const detalhes = [];
+    if (mesesDev>0) detalhes.push({cat:'Mensalidade',valor:debitoMensalidade,detalhe:`${mesesDev} mês(es) em atraso`});
+    outrosDebitos.forEach(l=>detalhes.push({cat:getCatLabel(l.categoria)||l.descricao,valor:parseFloat(l.valor||0),detalhe:l.descricao,lancId:l.id}));
+    return {m,devia:totalDevia,mesesDev,detalhes};
+  }).filter(Boolean);
+  if (filtroId) inadimplentes = inadimplentes.filter(i=>i.m.id===filtroId);
+  const canEdit = ROLES[currentRole].access['financas']==='full';
+  container.innerHTML = inadimplentes.length===0
+    ? `<div style="padding:16px 24px;font-style:italic;color:var(--green);font-size:14px">✅ Nenhum inadimplente!</div>`
+    : inadimplentes.map(({m,devia,detalhes})=>`
+        <div style="border-top:1px solid var(--border);padding:12px 24px">
+          <table style="width:100%;border-collapse:collapse">
+            <thead><tr style="background:rgba(27,58,107,0.06)">
+              <th style="padding:8px 12px;text-align:left;font-family:'Cinzel',serif;font-size:10px;letter-spacing:0.12em;color:var(--navy);border-bottom:1px solid var(--border-mid);min-width:140px">Nome</th>
+              <th style="padding:8px 12px;text-align:left;font-family:'Cinzel',serif;font-size:10px;letter-spacing:0.12em;color:var(--navy);border-bottom:1px solid var(--border-mid)">Descrição da Dívida</th>
+              <th style="padding:8px 12px;text-align:right;font-family:'Cinzel',serif;font-size:10px;letter-spacing:0.12em;color:var(--navy);border-bottom:1px solid var(--border-mid)">Valor</th>
+              <th style="padding:8px 12px;width:80px;border-bottom:1px solid var(--border-mid)"></th>
+            </tr></thead>
+            <tbody>
+              ${detalhes.map((d,i)=>`<tr>
+                <td style="padding:7px 12px;font-family:'Cormorant Garamond',serif;font-size:15px;font-weight:${i===0?700:400};color:var(--text);border-bottom:1px solid rgba(0,0,0,0.04)">${i===0?m.nome_maconico:''}</td>
+                <td style="padding:7px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;color:var(--text-muted);border-bottom:1px solid rgba(0,0,0,0.04)">${d.cat}${d.detalhe&&d.detalhe!==d.cat?' — '+d.detalhe:''}</td>
+                <td style="padding:7px 12px;font-family:'Cinzel',serif;font-size:13px;color:var(--red);font-weight:700;text-align:right;border-bottom:1px solid rgba(0,0,0,0.04)">${fmtVal(d.valor)}</td>
+                <td style="padding:7px 12px;text-align:right;border-bottom:1px solid rgba(0,0,0,0.04)">${i===0&&canEdit?`<button class="btn" style="padding:3px 8px;font-size:9px;background:linear-gradient(135deg,#25D366,#128C7E);color:#fff;border-color:#128C7E" onclick="cobrarWhatsapp('${m.nome_maconico.replace(/'/g,'')}','${m.telefone||''}',${devia},0)">📱</button>`:''}
+                </td>
+              </tr>`).join('')}
+              <tr style="background:rgba(139,32,32,0.04)">
+                <td colspan="2" style="padding:8px 12px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.1em;color:var(--red);text-transform:uppercase">Total Devido</td>
+                <td style="padding:8px 12px;font-family:'Cinzel',serif;font-size:14px;font-weight:700;color:var(--red);text-align:right">${fmtVal(devia)}</td>
+                <td></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>`).join('');
+}
+
+function imprimirInadimplencia() {
+  const filtroId = document.getElementById('filtro-inadimp')?.value||'';
+  const hoje = new Date(); const anoAtual=hoje.getFullYear(); const lancs=DATA.financas;
+  const membrosAtivos = DATA.membros.filter(m=>(m.status==='ativo'||m.status==='iniciado'||m.status==='profano')&&m.tipo_membro!=='visitante');
+  let inadimplentes = membrosAtivos.map(m=>{
+    const mens=parseFloat(m.mensalidade)||100; let deb=0,mesesDev=0;
+    if(mens>0){const ai=m.data_ingresso?parseInt(m.data_ingresso.split('-')[0]):anoAtual;const mi=m.data_ingresso?parseInt(m.data_ingresso.split('-')[1]):1;const tot=Math.max(0,(anoAtual-ai)*12+(hoje.getMonth()+1-mi));const esp=tot*mens;const pago=lancs.filter(l=>l.membro_id===m.id&&l.tipo==='receita'&&l.status==='pago'&&l.categoria==='mensalidade').reduce((s,l)=>s+parseFloat(l.valor||0),0);deb=Math.max(0,esp-pago);mesesDev=Math.round(deb/mens);}
+    const outros=lancs.filter(l=>l.membro_id===m.id&&(l.status==='aberto'||l.status==='agendado')&&l.tipo==='receita'&&l.categoria!=='mensalidade');
+    const totOutros=outros.reduce((s,l)=>s+parseFloat(l.valor||0),0);const totalDevia=deb+totOutros;if(totalDevia<=0)return null;
+    const det=[];if(mesesDev>0)det.push({cat:'Mensalidade',valor:deb,detalhe:`${mesesDev} mês(es) em atraso`});
+    outros.forEach(l=>det.push({cat:getCatLabel(l.categoria)||l.descricao,valor:parseFloat(l.valor||0),detalhe:l.descricao}));
+    return {m,devia:totalDevia,detalhes:det};
+  }).filter(Boolean);
+  if(filtroId) inadimplentes=inadimplentes.filter(i=>i.m.id===filtroId);
+  const totalGeral = inadimplentes.reduce((s,i)=>s+i.devia,0);
+  const rows = inadimplentes.map(({m,devia,detalhes})=>
+    detalhes.map((d,i)=>`<tr><td>${i===0?m.nome_maconico:''}</td><td>${d.cat}${d.detalhe&&d.detalhe!==d.cat?' — '+d.detalhe:''}</td><td style="text-align:right;color:red;font-weight:600">${fmtVal(d.valor)}</td></tr>`).join('')
+    + `<tr style="background:#f5eeee"><td colspan="2" style="font-weight:700">Total Devido — ${m.nome_maconico}</td><td style="text-align:right;font-weight:700;color:red">${fmtVal(devia)}</td></tr>`
+  ).join('');
+  abrirJanelaPrint(`
+    <div class="print-header"><div class="print-lodge">A.R.L.S. Fraternidade Acadêmica de Peruíbe Nº 3524</div>
+    <div class="print-title">Relatório de Inadimplência${filtroId?` — ${inadimplentes[0]?.m?.nome_maconico||''}`:''}</div>
+    <div class="print-date">${new Date().toLocaleDateString('pt-BR')} · ${inadimplentes.length} irmão(s) · Total: ${fmtVal(totalGeral)}</div></div>
+    <table class="print-table"><thead><tr><th>Nome</th><th>Descrição da Dívida</th><th style="text-align:right">Valor</th></tr></thead>
+    <tbody>${rows}</tbody></table>
+    <div style="margin-top:12px;text-align:right;font-size:12px;font-weight:bold">Total Geral: ${fmtVal(totalGeral)}</div>`);
+}
+
 function abrirRelInadimplencia() {
   const membrosAtivos = DATA.membros.filter(m=>(m.status==='ativo'||m.status==='iniciado')&&m.tipo_membro!=='visitante');
   const hoje = new Date();
@@ -3838,10 +4098,10 @@ function abrirModalAgape() {
               <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Tipo de Rateio</label>
               <div style="display:flex;border:1px solid var(--border-mid);border-radius:3px;overflow:hidden">
                 <button type="button" id="btn-agape-sessao" onclick="setTipoAgape('sessao')"
-                  style="flex:1;padding:10px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;cursor:pointer;border:none;background:var(--navy);color:#fff">
+                  style="flex:1;padding:10px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;cursor:pointer;border:none;border-right:1px solid var(--border-mid);background:rgba(27,58,107,0.12);color:var(--text);outline:2px solid var(--navy);outline-offset:-2px;position:relative">
                   🍽️ Ágape — Presentes da Sessão</button>
                 <button type="button" id="btn-agape-todos" onclick="setTipoAgape('todos')"
-                  style="flex:1;padding:10px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;cursor:pointer;border:none;border-left:1px solid var(--border-mid);background:var(--cream);color:var(--text)">
+                  style="flex:1;padding:10px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;cursor:pointer;border:none;background:var(--cream);color:var(--text);position:relative">
                   🎉 Evento — Todos Obreiros</button>
               </div>
               <input type="hidden" id="agape-tipo" value="sessao">
@@ -3887,10 +4147,17 @@ function abrirModalAgape() {
 
 function setTipoAgape(tipo) {
   document.getElementById('agape-tipo').value = tipo;
-  document.getElementById('btn-agape-sessao').style.background = tipo==='sessao'?'var(--navy)':'var(--cream)';
-  document.getElementById('btn-agape-sessao').style.color = tipo==='sessao'?'#fff':'var(--text)';
-  document.getElementById('btn-agape-todos').style.background = tipo==='todos'?'var(--navy)':'var(--cream)';
-  document.getElementById('btn-agape-todos').style.color = tipo==='todos'?'#fff':'var(--text)';
+  ['sessao','todos'].forEach(t => {
+    const btn = document.getElementById('btn-agape-'+t);
+    if (!btn) return;
+    const ativo = t === tipo;
+    btn.style.background = ativo ? 'rgba(27,58,107,0.12)' : 'var(--cream)';
+    btn.style.color = 'var(--text)';
+    btn.style.outline = ativo ? '2px solid var(--navy)' : 'none';
+    btn.style.outlineOffset = '-2px';
+    btn.innerHTML = (t==='sessao'?'🍽️ Ágape — Presentes da Sessão':'🎉 Evento — Todos Obreiros')
+      + (ativo?'<span style="position:absolute;top:3px;right:6px;font-size:9px;color:var(--navy)">✓</span>':'');
+  });
   document.getElementById('campo-agape-sessao').style.display = tipo==='sessao'?'block':'none';
   calcularRateio();
 }
@@ -4403,13 +4670,17 @@ function renderEventos(access) {
         return `<div class="ev-card">
           <div class="ev-date"><div class="ev-month">${mes}</div><div class="ev-day">${dia}</div></div>
           <div class="ev-body">
-            <div class="ev-name">${ev.titulo}${ev.subtitulo&&ev.subtitulo!==ev.titulo?` <span style="font-size:11px;color:var(--text-muted);font-weight:400">— ${ev.subtitulo}</span>`:''}
+            <div class="ev-name" style="font-size:15px">${ev.titulo}${ev.subtitulo&&ev.subtitulo!==ev.titulo?` <span style="font-size:12px;color:var(--text-muted);font-weight:400">— ${ev.subtitulo}</span>`:''}
             </div>
-            <div class="ev-meta">📍 ${ev.local}${ev.hora?' · ⏰ '+ev.hora:''}</div>
+            <div class="ev-meta" style="font-size:12px">📍 ${ev.local}${ev.hora&&ev.hora!=='--'?' · ⏰ '+ev.hora:''}</div>
           </div>
-          <div class="ev-type" style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
-            <span style="font-family:'Cinzel',serif;font-size:8px;font-weight:700;padding:3px 8px;border-radius:3px;background:${corBg};border:1px solid ${corBorda};color:${corTexto};white-space:nowrap">${badge}</span>
-            ${editBtn ? `<div style="display:flex;gap:4px">${editBtn}</div>` : ''}
+          <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;min-width:110px">
+            <span style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;padding:4px 10px;border-radius:3px;background:${corBg};border:1px solid ${corBorda};color:${corTexto};white-space:nowrap">${badge}</span>
+            <div style="display:flex;gap:4px">
+              ${ev.isSessao?`<button class="btn" style="padding:3px 9px;font-size:9px" onclick="verDetalhesCard('sessao','${ev.id}')">🔍 Detalhes</button>`:''}
+              ${!ev.isSessao?`<button class="btn" style="padding:3px 9px;font-size:9px" onclick="verDetalhesCard('evento','${ev.id}')">🔍 Detalhes</button>`:''}
+              ${editBtn ? `${editBtn}` : ''}
+            </div>
           </div>
         </div>`;
       }).join('');
@@ -4459,6 +4730,61 @@ function renderEventos(access) {
       </tbody></table>
     </div>`;
 }
+function verDetalhesCard(tipo, id) {
+  const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  let titulo, data, linhas = [];
+  if (tipo === 'sessao') {
+    const s = DATA.sessoes.find(x=>x.id===id);
+    if (!s) { toast('Sessão não encontrada'); return; }
+    titulo = s.tipo||'Sessão'; data = s.data;
+    linhas = [
+      ['📅 Data', fmtData(s.data)],
+      ['🏛️ Tipo', s.tipo||'—'],
+      ['🎓 Grau', `${s.grau||3}º Grau`],
+      ['📍 Local', s.descricao_local||'Templo'],
+    ];
+    // Presenças
+    const pres = DATA.presencas.filter(p=>p.sessao_id===id&&(p.presente||p.situacao==='presente'));
+    const membPres = pres.filter(p=>p.membro_id).map(p=>DATA.membros.find(m=>m.id===p.membro_id)?.nome_maconico).filter(Boolean);
+    const visitPres = pres.filter(p=>!p.membro_id).map(p=>(p.justificativa||'').replace('VISITANTE | ',''));
+    if (membPres.length) linhas.push(['✅ Presentes', membPres.join(', ')]);
+    if (visitPres.length) linhas.push(['🤝 Visitantes', visitPres.join(' | ')]);
+  } else {
+    const e = DATA.eventos.find(x=>x.id===id);
+    if (!e) { toast('Evento não encontrado'); return; }
+    titulo = e.titulo||'Evento'; data = e.data;
+    const desc = (e.descricao||'').replace('CONVITE | ','');
+    linhas = [
+      ['📅 Data', fmtData(e.data)],
+      ['⏰ Horário', e.hora||'—'],
+      ['📍 Local', e.local||'—'],
+    ];
+    if (desc && desc !== e.titulo) {
+      desc.split(' | ').forEach(p=>{ const [k,...v] = p.split(': '); if(v.length) linhas.push([k,v.join(': ')]); });
+    }
+  }
+  document.body.insertAdjacentHTML('beforeend', `
+    <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px">
+      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;width:460px;position:relative">
+        <div style="height:3px;background:linear-gradient(90deg,var(--gold-dark),var(--gold-rich),var(--gold-light),var(--gold-dark));border-radius:6px 6px 0 0"></div>
+        <div style="padding:24px 28px">
+          <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);margin-bottom:4px">🔍 ${titulo}</div>
+          <div style="font-style:italic;color:var(--text-muted);font-size:13px;margin-bottom:18px">${fmtData(data)}</div>
+          <div style="display:grid;gap:10px">
+            ${linhas.map(([k,v])=>`
+              <div style="display:flex;gap:12px;align-items:flex-start">
+                <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;color:var(--text-muted);text-transform:uppercase;min-width:90px;padding-top:2px">${k}</div>
+                <div style="font-family:'Cormorant Garamond',serif;font-size:14px;color:var(--text);flex:1">${v||'—'}</div>
+              </div>`).join('')}
+          </div>
+        </div>
+        <div style="padding:14px 28px;border-top:1px solid var(--border);display:flex;justify-content:flex-end">
+          <button class="btn btn-solid" onclick="fecharModal()" style="padding:8px 20px">Fechar</button>
+        </div>
+      </div>
+    </div>`);
+}
+
 function limparFiltroEventos(bloco, access) {
   if (bloco === 'prox') {
     const hoje = new Date().toISOString().split('T')[0];
@@ -4600,23 +4926,28 @@ function editarAta(ata) {
     `<option value="${s.id}" ${s.id===ata.sessao_id?'selected':''}>${fmtData(s.data)} — ${s.tipo||'Sessão'}</option>`).join('');
   document.body.insertAdjacentHTML('beforeend', `
     <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px">
-      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;padding:36px 40px;width:600px;max-height:90vh;overflow-y:auto;position:relative">
+      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;padding:36px 40px;width:700px;max-height:90vh;overflow-y:auto;position:relative">
         <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gold-dark),var(--gold-rich),var(--gold-light),var(--gold-dark));border-radius:6px 6px 0 0"></div>
         <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);margin-bottom:24px">✎ Editar Ata</div>
         <div style="display:grid;gap:16px">
           <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Sessão Referente</label>
-            <select id="edit-ata-sessao" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)">
+            <select id="edit-ata-sessao" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:15px;background:var(--cream);color:var(--text)">
               <option value="">— Selecione a sessão —</option>${opsSessoes}</select></div>
           <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Título</label>
-            <input id="edit-ata-titulo" value="${(ata.titulo||'').replace(/"/g,'&quot;')}" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"></div>
+            <input id="edit-ata-titulo" value="${(ata.titulo||'').replace(/"/g,'&quot;')}" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:15px;background:var(--cream);color:var(--text)"></div>
           <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Texto da Ata</label>
-            <textarea id="edit-ata-texto" rows="12" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:10px 14px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text);resize:vertical;line-height:1.8">${ata.conteudo||''}</textarea></div>
-          ${ata.arquivo_url ? `<div style="padding:10px 14px;background:var(--cream);border:1px solid var(--border-mid);border-radius:3px;font-size:12px;font-style:italic;color:var(--text-muted)">
-            📎 Arquivo atual: <a href="${ata.arquivo_url}" target="_blank" style="color:var(--gold-dark)">ver arquivo</a>
-            <div style="margin-top:6px;font-size:11px">Para substituir o arquivo, selecione um novo abaixo:</div>
-          </div>` : ''}
-          <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">📎 Novo Arquivo (opcional)</label>
-            <input id="edit-ata-arquivo" type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"></div>
+            <textarea id="edit-ata-texto" rows="14" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:12px 16px;font-family:'Cormorant Garamond',serif;font-size:16px;background:var(--cream);color:var(--text);resize:vertical;line-height:1.9">${ata.conteudo||''}</textarea></div>
+          <div>
+            <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">📎 Arquivo</label>
+            ${ata.arquivo_url ? `
+              <div id="arquivo-atual-box" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--cream);border:1px solid var(--border-mid);border-radius:3px;margin-bottom:8px">
+                <span style="font-size:13px;flex:1">📎 <a href="${ata.arquivo_url}" target="_blank" style="color:var(--gold-dark)">Ver arquivo atual</a></span>
+                <button type="button" class="btn" style="padding:3px 10px;font-size:10px;color:var(--red);border-color:rgba(139,32,32,0.3)" onclick="removerArquivoAta()">🗑️ Remover</button>
+              </div>
+              <input type="hidden" id="edit-ata-remover" value="nao">` : ''}
+            <input id="edit-ata-arquivo" type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)">
+            <div style="font-size:11px;color:var(--text-muted);font-style:italic;margin-top:4px">${ata.arquivo_url?'Selecione um novo arquivo para substituir, ou remova o atual.':'Selecione um arquivo para anexar (PDF, Word, imagem).'}</div>
+          </div>
         </div>
         <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:24px">
           <button class="btn" onclick="fecharModal()" style="padding:8px 20px">Cancelar</button>
@@ -4626,14 +4957,23 @@ function editarAta(ata) {
     </div>`);
 }
 
+function removerArquivoAta() {
+  const box = document.getElementById('arquivo-atual-box');
+  const inp = document.getElementById('edit-ata-remover');
+  if (box) box.style.display = 'none';
+  if (inp) inp.value = 'sim';
+  toast('Arquivo será removido ao salvar');
+}
+
 async function confirmarEditarAta(ataId, arquivoAtual) {
   const sessao_id = document.getElementById('edit-ata-sessao')?.value || null;
   const titulo = document.getElementById('edit-ata-titulo')?.value.trim();
   const conteudo = document.getElementById('edit-ata-texto')?.value.trim();
   const fileInput = document.getElementById('edit-ata-arquivo');
   const file = fileInput?.files?.[0];
+  const remover = document.getElementById('edit-ata-remover')?.value === 'sim';
 
-  let arquivo_url = arquivoAtual || null;
+  let arquivo_url = remover ? null : (arquivoAtual || null);
 
   if (file) {
     const path = `atas/${Date.now()}_${file.name.replace(/\s/g,'_')}`;
@@ -4842,14 +5182,10 @@ async function renderMeuFinanceiro() {
         <td>${m.nome_maconico}</td>
         <td>${fmtVal(mensalidade)}/mês</td>
         <td>${fmtVal(totalPago)}</td>
-        <td>${emDia
-          ? `<span class="badge b-paid">Em dia</span>`
-          : `<span class="badge b-late">Pendente</span>`}
-        </td>
+        <td>${emDia?`<span class="badge b-paid">Em dia</span>`:`<span class="badge b-late">Pendente</span>`}</td>
         <td><button class="btn" style="padding:3px 9px;font-size:8px" onclick="abrirModalLancamentoMembro('${m.id}','${m.nome_maconico}')">+ Pagamento</button></td>
       </tr>`;
     }).join('') || `<tr><td colspan="5" style="text-align:center;padding:20px;font-style:italic;color:var(--text-muted)">Nenhum membro ativo.</td></tr>`;
-
     el.innerHTML = `
       <div class="card">
         <div class="card-header"><div class="card-title">Situação Financeira — Todos os Irmãos</div>
@@ -4857,43 +5193,92 @@ async function renderMeuFinanceiro() {
         <table><thead><tr><th>Irmão</th><th>Mensalidade</th><th>Total Pago</th><th>Situação</th><th></th></tr></thead>
         <tbody>${rows}</tbody></table>
       </div>`;
-  } else {
-    // Irmão vê seus próprios pagamentos
-    const name = ROLES[currentRole].name;
-    const membro = DATA.membros.find(m => m.nome_maconico === name) || DATA.membros[0];
-    const lancs = membro ? DATA.financas.filter(l => l.membro_id === membro.id) : [];
-    const totalPago = lancs.filter(l=>l.tipo==='receita').reduce((s,l)=>s+parseFloat(l.valor||0),0);
-    const mensalidade = membro?.mensalidade || 100;
-    const mesAtual = new Date().getMonth()+1;
-    const mesesPagos = Math.floor(totalPago/mensalidade);
-    const emDia = mesesPagos >= mesAtual;
+    return;
+  }
 
-    const rows = lancs.slice(0,12).map(l => `<tr>
-      <td>${fmtData(l.data)}</td>
-      <td>${l.descricao||'—'}</td>
-      <td>${fmtVal(l.valor)}</td>
-      <td><span class="badge ${l.tipo==='receita'?'b-paid':'b-late'}">${l.tipo==='receita'?'Pago':'Débito'}</span></td>
-    </tr>`).join('') || `<tr><td colspan="4" style="text-align:center;padding:20px;font-style:italic;color:var(--text-muted)">Nenhum lançamento encontrado.</td></tr>`;
+  // ── IRMÃO: vê APENAS seu próprio extrato ────────────────────
+  const name = ROLES[currentRole].name;
+  const membro = DATA.membros.find(m => m.nome_maconico === name) || DATA.membros[0];
+  if (!membro) { el.innerHTML = `<div style="padding:20px;font-style:italic;color:var(--text-muted)">Membro não encontrado.</div>`; return; }
 
-    el.innerHTML = `
-      <div style="background:${emDia?'rgba(58,122,74,0.07)':'rgba(139,32,32,0.07)'};border:1px solid ${emDia?'rgba(58,122,74,0.25)':'rgba(139,32,32,0.25)'};border-radius:4px;padding:16px 22px;margin-bottom:20px;display:flex;align-items:center;gap:12px;">
-        <div style="font-size:28px">${emDia?'✅':'⚠️'}</div>
-        <div>
-          <div style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.2em;color:${emDia?'var(--green)':'var(--red)'};text-transform:uppercase">${emDia?'Situação Regularizada':'Situação Pendente'}</div>
-          <div style="font-size:13px;font-style:italic;color:var(--text-muted);margin-top:2px">${name} — ${emDia?'mensalidades em dia':'verifique seus pagamentos'}</div>
+  // Filtros ativos
+  const filtroStatus = el.querySelector('#mf-filtro-status')?.value || '';
+  const filtroCat    = el.querySelector('#mf-filtro-cat')?.value || '';
+  const filtroMes    = el.querySelector('#mf-filtro-mes')?.value || '';
+
+  let lancs = DATA.financas.filter(l => l.membro_id === membro.id);
+  if (filtroStatus) lancs = lancs.filter(l=>(l.status||'pago')===filtroStatus);
+  if (filtroCat)    lancs = lancs.filter(l=>l.categoria===filtroCat);
+  if (filtroMes)    lancs = lancs.filter(l=>l.data?.startsWith(filtroMes));
+
+  // Totais
+  const totalPago   = DATA.financas.filter(l=>l.membro_id===membro.id&&l.tipo==='receita'&&l.status==='pago').reduce((s,l)=>s+parseFloat(l.valor||0),0);
+  const totalAberto = DATA.financas.filter(l=>l.membro_id===membro.id&&(l.status==='aberto'||l.status==='agendado')).reduce((s,l)=>s+parseFloat(l.valor||0),0);
+  const mensalidade = membro?.mensalidade || 100;
+  const hoje = new Date();
+  const anoAtual = hoje.getFullYear();
+  const anoIng = membro.data_ingresso ? parseInt(membro.data_ingresso.split('-')[0]) : anoAtual;
+  const mesIng  = membro.data_ingresso ? parseInt(membro.data_ingresso.split('-')[1]) : 1;
+  const totalMeses = Math.max(0, (anoAtual-anoIng)*12+(hoje.getMonth()+1-mesIng));
+  const esperado = totalMeses * mensalidade;
+  const devia = Math.max(0, esperado - totalPago);
+  const emDia = devia <= 0 && totalAberto <= 0;
+
+  const inp = `style="border:1px solid var(--border-mid);border-radius:3px;padding:5px 10px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--cream);color:var(--text)"`;
+  const statusBadge = (s) => {
+    const m={pago:'✅ Pago',agendado:'📅 Agendado',aberto:'⚠️ Em Aberto'};
+    return `<span style="font-size:11px">${m[s||'pago']||s}</span>`;
+  };
+
+  const rows = lancs.length === 0
+    ? `<tr><td colspan="5" style="text-align:center;padding:20px;font-style:italic;color:var(--text-muted)">Nenhum lançamento encontrado.</td></tr>`
+    : lancs.map(l=>`<tr>
+        <td style="font-size:13px">${fmtData(l.data)}</td>
+        <td style="font-size:14px;font-family:'Cormorant Garamond',serif">${l.descricao||'—'}</td>
+        <td style="font-size:12px;color:var(--text-muted)">${getCatLabel(l.categoria)||'—'}</td>
+        <td style="font-size:14px;font-weight:600;color:${l.tipo==='receita'?'var(--green)':'var(--red)'}">${l.tipo==='receita'?'+':'-'}${fmtVal(l.valor)}</td>
+        <td>${statusBadge(l.status)}</td>
+      </tr>`).join('');
+
+  el.innerHTML = `
+    <!-- Status banner -->
+    <div style="background:${emDia?'rgba(58,122,74,0.07)':'rgba(139,32,32,0.07)'};border:1px solid ${emDia?'rgba(58,122,74,0.25)':'rgba(139,32,32,0.25)'};border-radius:4px;padding:14px 22px;margin-bottom:16px;display:flex;align-items:center;gap:12px">
+      <div style="font-size:28px">${emDia?'✅':'⚠️'}</div>
+      <div>
+        <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;letter-spacing:0.15em;color:${emDia?'var(--green)':'var(--red)'};text-transform:uppercase">${emDia?'Situação Regularizada':'Situação Pendente'}</div>
+        <div style="font-size:14px;font-family:'Cormorant Garamond',serif;color:var(--text-muted);margin-top:2px">${membro.nome_maconico} — ${emDia?'mensalidades em dia':'verifique seus débitos abaixo'}</div>
+      </div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">
+      <div class="stat-card"><div class="stat-label">Mensalidade</div><div class="stat-value" style="font-size:20px">${fmtVal(mensalidade)}</div><div class="stat-change">Por mês</div></div>
+      <div class="stat-card"><div class="stat-label">Total Pago</div><div class="stat-value" style="font-size:20px;color:var(--green)">${fmtVal(totalPago)}</div><div class="stat-change up">Histórico</div></div>
+      <div class="stat-card"><div class="stat-label">Em Aberto</div><div class="stat-value" style="font-size:20px;color:${totalAberto>0?'var(--red)':'var(--green)'}">${fmtVal(totalAberto+devia)}</div><div class="stat-change ${totalAberto+devia>0?'down':'up'}">${totalAberto+devia>0?'Pendente':'Sem pendências'}</div></div>
+      <div class="stat-card"><div class="stat-label">Situação</div><div class="stat-value" style="font-size:16px;color:${emDia?'var(--green)':'var(--red)'}">${emDia?'Em dia':'Pendente'}</div></div>
+    </div>
+
+    <!-- Extrato com filtros -->
+    <div class="card">
+      <div class="card-header" style="flex-wrap:wrap;gap:8px">
+        <div class="card-title">Meu Extrato — ${membro.nome_maconico}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <select id="mf-filtro-status" onchange="renderMeuFinanceiro()" ${inp}>
+            <option value="">Todos status</option>
+            <option value="pago" ${filtroStatus==='pago'?'selected':''}>✅ Pago</option>
+            <option value="agendado" ${filtroStatus==='agendado'?'selected':''}>📅 Agendado</option>
+            <option value="aberto" ${filtroStatus==='aberto'?'selected':''}>⚠️ Em Aberto</option>
+          </select>
+          <select id="mf-filtro-cat" onchange="renderMeuFinanceiro()" ${inp}>
+            <option value="">Todas categorias</option>
+            ${CATEGORIAS_FIN.map(c=>`<option value="${c}" ${filtroCat===c?'selected':''}>${getCatLabel(c)}</option>`).join('')}
+          </select>
+          <input type="month" id="mf-filtro-mes" value="${filtroMes}" onchange="renderMeuFinanceiro()" ${inp}>
         </div>
       </div>
-      <div class="stats-grid" style="grid-template-columns:repeat(3,1fr)">
-        <div class="stat-card"><div class="stat-label">Mensalidade</div><div class="stat-value" style="font-size:22px">${fmtVal(mensalidade)}</div><div class="stat-change">Valor mensal</div></div>
-        <div class="stat-card"><div class="stat-label">Total Pago</div><div class="stat-value" style="font-size:22px">${fmtVal(totalPago)}</div><div class="stat-change up">${mesesPagos} meses</div></div>
-        <div class="stat-card"><div class="stat-label">Situação</div><div class="stat-value" style="font-size:16px;color:${emDia?'var(--green)':'var(--red)'}">${emDia?'Em dia':'Pendente'}</div></div>
-      </div>
-      <div class="card">
-        <div class="card-header"><div class="card-title">Meu Extrato — ${name}</div></div>
-        <table><thead><tr><th>Data</th><th>Descrição</th><th>Valor</th><th>Situação</th></tr></thead>
-        <tbody>${rows}</tbody></table>
-      </div>`;
-  }
+      <table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Valor</th><th>Status</th></tr></thead>
+      <tbody>${rows}</tbody></table>
+    </div>`;
 }
 
 function abrirModalLancamentoMembro(membroId, nomeM) {
