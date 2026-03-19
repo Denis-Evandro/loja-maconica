@@ -2825,34 +2825,62 @@ async function abrirModalPresenca(sessaoId, dataSessao, tipoSessao) {
   const membros = DATA.membros.filter(m => m.status==='ativo'||m.status==='iniciado');
   const presExist = DATA.presencas.filter(p => p.sessao_id === sessaoId);
 
-  const linhas = membros.map(m => {
+  // Lista de cargos maçônicos para o select
+  const CARGOS_MASONICOS = [
+    'Venerável Mestre','1º Vigilante','2º Vigilante','Orador','Secretário','Tesoureiro',
+    'Chanceler','Mestre de Cerimônias','Porta-Bandeira','Hospitaleiro','1º Diácono','2º Diácono',
+    'Arquiteto','Experto','Membro','Diácono','Cobridor Interno','Cobridor Externo'
+  ];
+  const opsCargos = CARGOS_MASONICOS.map(c=>`<option value="${c}">${c}</option>`).join('');
+
+  const linhas = membros.map((m,idx) => {
     const p = presExist.find(x => x.membro_id === m.id);
     const pres = p ? (p.presente || p.situacao==='presente') : false;
-    const justif = p?.justificativa || '';
+    const cargoAtual = m.cargo || 'Membro';
     return `<tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:8px 4px">${m.nome_maconico}</td>
-      <td style="padding:8px 4px;font-size:12px;color:var(--text-muted)">${m.cargo||'—'}</td>
-      <td style="padding:8px 4px;text-align:center">
-        <button onclick="togglePresenca(this,'${m.id}')" data-presente="${pres}" 
-          style="width:32px;height:32px;border-radius:50%;border:2px solid ${pres?'var(--green)':'var(--border-dark)'};background:${pres?'var(--green-bg)':'transparent'};cursor:pointer;font-size:14px;transition:all 0.15s">
+      <td style="padding:8px 10px;font-size:15px;font-family:'Cormorant Garamond',serif;font-weight:600">${m.nome_maconico}</td>
+      <td style="padding:8px 10px">
+        <select id="cargo-${m.id}" style="border:1px solid var(--border-mid);border-radius:3px;padding:4px 8px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--cream);color:var(--text);width:100%">
+          ${CARGOS_MASONICOS.map(c=>`<option value="${c}" ${c===cargoAtual?'selected':''}>${c}</option>`).join('')}
+          ${!CARGOS_MASONICOS.includes(cargoAtual)?`<option value="${cargoAtual}" selected>${cargoAtual}</option>`:''}
+        </select>
+      </td>
+      <td style="padding:8px 10px;text-align:center">
+        <button onclick="togglePresenca(this,'${m.id}')" data-presente="${pres}"
+          style="width:36px;height:36px;border-radius:50%;border:2px solid ${pres?'var(--green)':'var(--border-dark)'};background:${pres?'var(--green-bg)':'transparent'};cursor:pointer;font-size:16px;transition:all 0.15s;font-weight:700;color:${pres?'var(--green)':'var(--text-muted)'}">
           ${pres?'✓':'○'}
         </button>
       </td>
     </tr>`;
   }).join('');
 
+  const presentes = presExist.filter(p=>p.presente||p.situacao==='presente').length;
+
   document.body.insertAdjacentHTML('beforeend', `
     <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px">
-      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;padding:36px 40px;width:520px;max-height:80vh;overflow-y:auto;position:relative">
+      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;width:600px;max-height:85vh;overflow-y:auto;position:relative">
         <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gold-dark),var(--gold-rich),var(--gold-light),var(--gold-dark));border-radius:6px 6px 0 0"></div>
-        <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);margin-bottom:4px">Registro de Presenças</div>
-        <div style="font-style:italic;color:var(--text-muted);font-size:13px;margin-bottom:20px">${tipoSessao} — ${fmtData(dataSessao)}</div>
-        <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px;font-style:italic">Clique no círculo para marcar presença</div>
-        <table style="width:100%"><thead><tr><th>Irmão</th><th>Cargo</th><th style="text-align:center">Presente</th></tr></thead>
-        <tbody id="lista-presencas">${linhas}</tbody></table>
-        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:24px">
-          <button class="btn" onclick="fecharModal()" style="padding:8px 20px">Fechar</button>
-          <button class="btn btn-solid" onclick="confirmarPresencas('${sessaoId}')" style="padding:8px 20px">Salvar Presenças</button>
+        <div style="padding:24px 28px">
+          <div style="font-family:'Cinzel',serif;font-size:14px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);margin-bottom:4px">✓ Registro de Presenças</div>
+          <div style="font-style:italic;color:var(--text-muted);font-size:13px;margin-bottom:6px">${tipoSessao} — ${fmtData(dataSessao)}</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px">Cargo para a sessão pode ser alterado aqui sem afetar o cadastro permanente. Clique no círculo para marcar presença.</div>
+          <table style="width:100%">
+            <thead><tr>
+              <th>Irmão</th>
+              <th>Cargo na Sessão</th>
+              <th style="text-align:center;width:70px">Presente</th>
+            </tr></thead>
+            <tbody id="lista-presencas">${linhas}</tbody>
+          </table>
+        </div>
+        <div style="padding:14px 28px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+          <div style="font-size:13px;color:var(--text-muted);font-style:italic" id="cont-presentes">
+            ${presentes} presente(s) de ${membros.length}
+          </div>
+          <div style="display:flex;gap:10px">
+            <button class="btn" onclick="fecharModal()" style="padding:8px 20px">Fechar</button>
+            <button class="btn btn-solid" onclick="confirmarPresencas('${sessaoId}')" style="padding:8px 20px">💾 Salvar Presenças</button>
+          </div>
         </div>
       </div>
     </div>`);
@@ -2865,6 +2893,12 @@ function togglePresenca(btn, membroId) {
   btn.textContent = novo ? '✓' : '○';
   btn.style.borderColor = novo ? 'var(--green)' : 'var(--border-dark)';
   btn.style.background = novo ? 'var(--green-bg)' : 'transparent';
+  btn.style.color = novo ? 'var(--green)' : 'var(--text-muted)';
+  // Atualizar contador
+  const total = document.querySelectorAll('#lista-presencas button[data-presente]').length;
+  const count = document.querySelectorAll('#lista-presencas button[data-presente="true"]').length;
+  const cont = document.getElementById('cont-presentes');
+  if (cont) cont.textContent = `${count} presente(s) de ${total}`;
 }
 
 async function confirmarPresencas(sessaoId) {
@@ -2874,7 +2908,8 @@ async function confirmarPresencas(sessaoId) {
     sessao_id: sessaoId,
     membro_id: m.id,
     presente: btns[i]?.dataset.presente === 'true',
-    situacao: btns[i]?.dataset.presente === 'true' ? 'presente' : 'ausente'
+    situacao: btns[i]?.dataset.presente === 'true' ? 'presente' : 'ausente',
+    justificativa: `cargo_sessao:${document.getElementById('cargo-'+m.id)?.value||m.cargo||'Membro'}`
   }));
   const res = await sb.from('presencas').upsert(upserts, { onConflict: 'sessao_id,membro_id' });
   if (res.error) { toast('Erro: ' + res.error.message); return; }
@@ -3471,7 +3506,7 @@ function renderFinancas(access) {
       <button class="btn btn-solid" onclick="abrirModalMensalidadeAuto()" style="background:linear-gradient(135deg,#1B5EA0,#2A7ACC);display:flex;align-items:center;gap:6px">⚡ Mensalidades do Mês</button>
       <button class="btn btn-solid" onclick="abrirModalAgape()" style="background:linear-gradient(135deg,#6B3A00,#A05A00);display:flex;align-items:center;gap:6px">🍽️ Ágape / Rateio</button>
       <button class="btn btn-solid" onclick="abrirModalFecharMes()" style="background:linear-gradient(135deg,#3A006B,#6A2AAC);display:flex;align-items:center;gap:6px">📦 Fechar Mês</button>
-      <button class="btn btn-solid" onclick="abrirRelInadimplencia()" style="background:linear-gradient(135deg,#7A1010,#B03030);display:flex;align-items:center;gap:6px">📊 Inadimplência</button>
+      <button class="btn btn-solid" onclick="abrirModalInadimplenciaDetalhada()" style="background:linear-gradient(135deg,#7A1010,#B03030);display:flex;align-items:center;gap:6px">📊 Inadimplência</button>
     </div>`:''}
 
     <!-- LINHA 1: KPIs principais -->
@@ -3494,7 +3529,7 @@ function renderFinancas(access) {
             </div>
             <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${pctAdimplente}% do quadro em dia</div>
           </div>
-          ${canEdit?`<button class="btn btn-solid" onclick="abrirModalInadimplenciaDetalhada()" style="background:linear-gradient(135deg,#7A1010,#B03030);font-size:10px;padding:6px 12px">📊 Ver Detalhes</button>`:''}
+          ${canEdit?`<button class="btn" style="font-size:10px;padding:5px 12px" onclick="abrirRelInadimplencia()">📅 Rel. Mensal</button>`:''}
         </div>
         <!-- Barra -->
         <div style="padding:10px 22px 8px">
@@ -3520,7 +3555,7 @@ function renderFinancas(access) {
                 ${canEdit?`<button class="btn" style="padding:3px 8px;font-size:9px;background:linear-gradient(135deg,#25D366,#128C7E);color:#fff;border-color:#128C7E" onclick="cobrarWhatsapp('${m.nome_maconico.replace(/'/g,'')}','${m.telefone||''}',${devia},0)">📱</button>`:''}
               </div>
             </div>`).join('')}
-        ${inadimplentes.length>6?`<div style="padding:8px 22px;font-size:12px;color:var(--text-muted);border-top:1px solid var(--border)">+ ${inadimplentes.length-6} outros → <button class="btn" style="font-size:10px;padding:2px 10px" onclick="abrirModalInadimplenciaDetalhada()">Ver todos</button></div>`:''}
+        ${inadimplentes.length>6?`<div style="padding:8px 22px;font-size:12px;color:var(--text-muted);border-top:1px solid var(--border)">+ ${inadimplentes.length-6} outros — clique em <strong>📊 Inadimplência</strong> para ver todos</div>`:''}
       </div>
 
       <!-- Previsão de Caixa mês corrente + Parcelas -->
