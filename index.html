@@ -2732,46 +2732,49 @@ function verListaPresenca(sessaoId, data, tipo) {
   const visitantes = presencas.filter(p=>!p.membro_id&&(p.presente||p.situacao==='presente'));
   const presentesMembros = presentes.filter(p=>p.membro_id);
 
-  const rowsMembros = membros.map(m=>{
-    const p = presencas.find(x=>x.membro_id===m.id);
-    const pres = p&&(p.presente||p.situacao==='presente');
-    return `<tr style="${pres?'':'opacity:0.5'}">
-      <td style="width:32px;text-align:center">${pres?'<span style="color:var(--green);font-size:16px">✓</span>':'<span style="color:var(--red);font-size:14px">✗</span>'}</td>
-      <td style="font-size:14px;font-family:\'Cormorant Garamond\',serif;font-weight:${pres?700:400}">${m.nome_maconico}</td>
-      <td style="font-size:12px;color:var(--text-muted)">${m.cargo||'—'}</td>
+  // Só mostrar presentes
+  const membrosPres = membros.filter(m=>presencas.find(p=>p.membro_id===m.id&&(p.presente||p.situacao==='presente')));
+
+  const rowsMembros = membrosPres.map((m,i)=>`
+    <tr>
+      <td style="width:32px;text-align:center;font-size:13px;color:var(--text-muted)">${i+1}</td>
+      <td style="font-size:15px;font-family:'Cormorant Garamond',serif;font-weight:700">${m.nome_maconico}</td>
+      <td style="font-size:13px;color:var(--text-muted)">${m.cargo||'—'}</td>
       <td>${degreeBadge(m.grau||3)}</td>
-    </tr>`;
-  }).join('');
+    </tr>`).join('');
 
   const rowsVisit = visitantes.map(v=>{
     const info = (v.justificativa||'').replace('VISITANTE | ','');
-    return `<tr><td colspan="4" style="font-family:\'Cormorant Garamond\',serif;font-size:13px;padding:6px 8px">🤝 ${info}</td></tr>`;
+    return `<tr><td style="text-align:center">🤝</td><td colspan="3" style="font-family:'Cormorant Garamond',serif;font-size:14px">${info}</td></tr>`;
   }).join('');
 
   document.body.insertAdjacentHTML('beforeend', `
     <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px">
-      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;width:560px;max-height:88vh;overflow-y:auto;position:relative">
+      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;width:520px;max-height:88vh;overflow-y:auto;position:relative">
         <div style="height:3px;background:linear-gradient(90deg,var(--gold-dark),var(--gold-rich),var(--gold-light),var(--gold-dark));border-radius:6px 6px 0 0"></div>
         <div style="padding:24px 28px">
-          <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);margin-bottom:4px">📋 Lista de Presença</div>
-          <div style="font-style:italic;color:var(--text-muted);font-size:13px;margin-bottom:16px">${tipo} — ${fmtData(data)}</div>
+          <div style="font-family:'Cinzel',serif;font-size:14px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);margin-bottom:4px">📋 Presenças</div>
+          <div style="font-style:italic;color:var(--text-muted);font-size:14px;margin-bottom:16px">${tipo} — ${fmtData(data)}</div>
           <div style="display:flex;gap:12px;margin-bottom:16px">
-            <div style="background:rgba(34,139,34,0.08);border:1px solid rgba(34,139,34,0.2);border-radius:4px;padding:8px 16px;text-align:center">
-              <div style="font-size:22px;font-weight:700;color:var(--green)">${presentesMembros.length}</div>
-              <div style="font-size:9px;color:var(--text-muted);text-transform:uppercase;font-family:'Cinzel',serif">Obreiros</div>
+            <div style="background:rgba(34,139,34,0.08);border:1px solid rgba(34,139,34,0.2);border-radius:4px;padding:10px 18px;text-align:center">
+              <div style="font-size:26px;font-weight:700;color:var(--green)">${presentesMembros.length}</div>
+              <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;font-family:'Cinzel',serif;margin-top:2px">Obreiros</div>
             </div>
-            <div style="background:rgba(212,168,67,0.08);border:1px solid rgba(212,168,67,0.2);border-radius:4px;padding:8px 16px;text-align:center">
-              <div style="font-size:22px;font-weight:700;color:var(--gold-dark)">${visitantes.length}</div>
-              <div style="font-size:9px;color:var(--text-muted);text-transform:uppercase;font-family:'Cinzel',serif">Visitantes</div>
+            <div style="background:rgba(212,168,67,0.08);border:1px solid rgba(212,168,67,0.2);border-radius:4px;padding:10px 18px;text-align:center">
+              <div style="font-size:26px;font-weight:700;color:var(--gold-dark)">${visitantes.length}</div>
+              <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;font-family:'Cinzel',serif;margin-top:2px">Visitantes</div>
             </div>
-            <div style="background:rgba(27,58,107,0.06);border:1px solid rgba(27,58,107,0.15);border-radius:4px;padding:8px 16px;text-align:center">
-              <div style="font-size:22px;font-weight:700;color:var(--navy)">${membros.length-presentesMembros.length}</div>
-              <div style="font-size:9px;color:var(--text-muted);text-transform:uppercase;font-family:'Cinzel',serif">Ausentes</div>
+            <div style="background:rgba(139,32,32,0.06);border:1px solid rgba(139,32,32,0.15);border-radius:4px;padding:10px 18px;text-align:center">
+              <div style="font-size:26px;font-weight:700;color:var(--red)">${membros.length-presentesMembros.length}</div>
+              <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;font-family:'Cinzel',serif;margin-top:2px">Ausentes</div>
             </div>
           </div>
           <table style="width:100%">
-            <thead><tr><th style="width:32px"></th><th>Irmão</th><th>Cargo</th><th>Grau</th></tr></thead>
-            <tbody>${rowsMembros}${rowsVisit?`<tr><td colspan="4" style="padding:8px 0;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--text-muted)">VISITANTES</td></tr>${rowsVisit}`:''}</tbody>
+            <thead><tr><th style="width:40px">#</th><th>Irmão Presente</th><th>Cargo</th><th>Grau</th></tr></thead>
+            <tbody>
+              ${rowsMembros||`<tr><td colspan="4" style="text-align:center;padding:16px;font-style:italic;color:var(--text-muted)">Nenhum obreiro presente.</td></tr>`}
+              ${visitantes.length?`<tr><td colspan="4" style="padding:8px 22px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--text-muted);background:var(--cream)">VISITANTES</td></tr>${rowsVisit}`:''}
+            </tbody>
           </table>
         </div>
         <div style="padding:14px 28px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px">
@@ -2786,40 +2789,33 @@ function imprimirListaPresenca(sessaoId, data, tipo, local) {
   const membros = DATA.membros.filter(m=>m.status==='ativo'||m.status==='iniciado');
   const presencas = DATA.presencas.filter(p=>p.sessao_id===sessaoId);
   const visitantes = presencas.filter(p=>!p.membro_id&&(p.presente||p.situacao==='presente'));
-  let rows = membros.map((m,i)=>{
-    const p = presencas.find(x=>x.membro_id===m.id);
-    const pres = p&&(p.presente||p.situacao==='presente');
-    return `<tr>
-      <td style="text-align:center">${i+1}</td>
-      <td>${m.nome_maconico}</td>
-      <td>${m.cargo||'—'}</td>
-      <td style="text-align:center">${m.grau}º</td>
-      <td style="text-align:center;font-weight:bold;color:${pres?'green':'red'}">${pres?'✓':'✗'}</td>
-    </tr>`;
-  }).join('');
+  // Apenas presentes
+  const membrosPres = membros.filter(m=>presencas.find(p=>p.membro_id===m.id&&(p.presente||p.situacao==='presente')));
+  let rows = membrosPres.map((m,i)=>`<tr>
+    <td style="text-align:center">${i+1}</td>
+    <td>${m.nome_maconico}</td>
+    <td>${m.cargo||'—'}</td>
+    <td style="text-align:center">${m.grau}º</td>
+  </tr>`).join('');
   if (visitantes.length) {
-    rows += `<tr><td colspan="5" style="background:#f5f0e8;font-weight:bold;padding:6px 8px">Visitantes</td></tr>`;
-    visitantes.forEach(v=>{
-      rows += `<tr><td></td><td colspan="4">${(v.justificativa||'').replace('VISITANTE | ','')}</td></tr>`;
-    });
+    rows += `<tr><td colspan="4" style="background:#f5f0e8;font-weight:bold;padding:6px 8px">Visitantes</td></tr>`;
+    visitantes.forEach(v=>{ rows += `<tr><td></td><td colspan="3">${(v.justificativa||'').replace('VISITANTE | ','')}</td></tr>`; });
   }
-  const presentes = presencas.filter(p=>p.presente||p.situacao==='presente'&&p.membro_id).length;
   abrirJanelaPrint(`
     <div class="print-header">
       <div class="print-lodge">A.R.L.S. Fraternidade Acadêmica de Peruíbe Nº 3524</div>
-      <div class="print-title">Lista de Presença</div>
+      <div class="print-title">Lista de Presenças</div>
       <div class="print-date">${tipo} — ${fmtData(data)}${local?' · '+local:''}</div>
     </div>
     <div class="print-resumo">
-      <div class="print-resumo-item"><div class="print-resumo-valor">${presentes}</div><div class="print-resumo-label">Presentes</div></div>
+      <div class="print-resumo-item"><div class="print-resumo-valor">${membrosPres.length}</div><div class="print-resumo-label">Obreiros Presentes</div></div>
       <div class="print-resumo-item"><div class="print-resumo-valor">${visitantes.length}</div><div class="print-resumo-label">Visitantes</div></div>
-      <div class="print-resumo-item"><div class="print-resumo-valor">${membros.length-presentes}</div><div class="print-resumo-label">Ausentes</div></div>
     </div>
     <table class="print-table">
-      <thead><tr><th>Nº</th><th>Nome Maçônico</th><th>Cargo</th><th>Grau</th><th>Presença</th></tr></thead>
+      <thead><tr><th>Nº</th><th>Nome Maçônico</th><th>Cargo</th><th>Grau</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
-    <div style="margin-top:40px;display:flex;justify-content:space-between;font-size:11px">
+    <div style="margin-top:50px;display:flex;justify-content:space-between;font-size:11px">
       <div style="text-align:center;width:45%"><div style="border-top:1px solid #333;padding-top:4px">Secretário</div></div>
       <div style="text-align:center;width:45%"><div style="border-top:1px solid #333;padding-top:4px">Venerável Mestre</div></div>
     </div>`);
@@ -3489,67 +3485,42 @@ function renderFinancas(access) {
     <!-- LINHA 2: Inadimplência + Previsão + Parcelas -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
 
-      <!-- Inadimplência — tabela completa estilo F5 -->
+      <!-- Inadimplência — resumo simples (detalhes no botão) -->
       <div class="card" style="border-color:${inadimplentes.length>0?'rgba(139,32,32,0.25)':'rgba(58,122,74,0.25)'}">
-        <div class="card-header" style="flex-wrap:wrap;gap:8px">
+        <div class="card-header">
           <div>
             <div class="card-title" style="color:${inadimplentes.length>0?'var(--red)':'var(--green)'}">
               ${inadimplentes.length>0?`⚠️ Inadimplência — ${inadimplentes.length} irmão(s)`:'✅ Todos em dia'}
             </div>
             <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${pctAdimplente}% do quadro em dia</div>
           </div>
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-            <select id="filtro-inadimp" onchange="renderInadimplenciaFiltrada()" style="border:1px solid var(--border-mid);border-radius:3px;padding:5px 10px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--cream);color:var(--text)">
-              <option value="">Todos os inadimplentes</option>
-              ${inadimplentes.map(({m})=>`<option value="${m.id}">${m.nome_maconico}</option>`).join('')}
-            </select>
-            ${canEdit?`<button class="btn" style="font-size:10px;padding:5px 12px" onclick="imprimirInadimplencia()">🖨️ Imprimir</button>`:''}
-            <button class="btn" style="font-size:10px;padding:5px 12px" onclick="abrirRelInadimplencia()">📊 Rel. Mensal</button>
-          </div>
+          ${canEdit?`<button class="btn btn-solid" onclick="abrirModalInadimplenciaDetalhada()" style="background:linear-gradient(135deg,#7A1010,#B03030);font-size:10px;padding:6px 12px">📊 Ver Detalhes</button>`:''}
         </div>
-        <!-- Barra de adimplência -->
-        <div style="padding:10px 24px 4px">
+        <!-- Barra -->
+        <div style="padding:10px 22px 8px">
           <div style="background:var(--cream-mid);border-radius:3px;height:7px;overflow:hidden">
             <div style="height:100%;width:${pctAdimplente}%;background:${pctAdimplente>=80?'var(--green)':pctAdimplente>=60?'var(--gold-dark)':'var(--red)'};border-radius:3px"></div>
           </div>
           <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-top:3px">
             <span>${membrosAtivos.length-inadimplentes.length} em dia</span>
-            <span>${inadimplentes.length} com débito · Total: ${fmtVal(inadimplentes.reduce((s,i)=>s+i.devia,0))}</span>
+            <span>Total: ${fmtVal(inadimplentes.reduce((s,i)=>s+i.devia,0))}</span>
           </div>
         </div>
-        <!-- Tabela F5 -->
-        <div id="inadimp-tabela">
-          ${inadimplentes.length === 0
-            ? `<div style="padding:16px 24px;font-style:italic;color:var(--green);font-size:14px">✅ Nenhum inadimplente!</div>`
-            : inadimplentes.map(({m,devia,detalhes})=>`
-              <div style="border-top:1px solid var(--border);padding:12px 24px">
-                <table style="width:100%;border-collapse:collapse;margin-bottom:0">
-                  <thead>
-                    <tr style="background:rgba(27,58,107,0.06)">
-                      <th style="padding:8px 12px;text-align:left;font-family:'Cinzel',serif;font-size:10px;letter-spacing:0.12em;color:var(--navy);border-bottom:1px solid var(--border-mid);min-width:140px">Nome</th>
-                      <th style="padding:8px 12px;text-align:left;font-family:'Cinzel',serif;font-size:10px;letter-spacing:0.12em;color:var(--navy);border-bottom:1px solid var(--border-mid)">Descrição da Dívida</th>
-                      <th style="padding:8px 12px;text-align:right;font-family:'Cinzel',serif;font-size:10px;letter-spacing:0.12em;color:var(--navy);border-bottom:1px solid var(--border-mid)">Valor</th>
-                      <th style="padding:8px 12px;text-align:right;width:90px;border-bottom:1px solid var(--border-mid)"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${detalhes.map((d,i)=>`
-                      <tr>
-                        <td style="padding:7px 12px;font-family:'Cormorant Garamond',serif;font-size:15px;font-weight:${i===0?700:400};color:var(--text);border-bottom:1px solid rgba(0,0,0,0.04)">${i===0?m.nome_maconico:''}</td>
-                        <td style="padding:7px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;color:var(--text-muted);border-bottom:1px solid rgba(0,0,0,0.04)">${d.cat}${d.detalhe&&d.detalhe!==d.cat?' — '+d.detalhe:''}</td>
-                        <td style="padding:7px 12px;font-family:'Cinzel',serif;font-size:13px;color:var(--red);font-weight:700;text-align:right;border-bottom:1px solid rgba(0,0,0,0.04)">${fmtVal(d.valor)}</td>
-                        <td style="padding:7px 12px;text-align:right;border-bottom:1px solid rgba(0,0,0,0.04)">${i===0&&canEdit?`<button class="btn" style="padding:3px 8px;font-size:9px;background:linear-gradient(135deg,#25D366,#128C7E);color:#fff;border-color:#128C7E" onclick="cobrarWhatsapp('${m.nome_maconico.replace(/'/g,'')}','${m.telefone||''}',${devia},0)">📱</button>`:''}
-                        </td>
-                      </tr>`).join('')}
-                    <tr style="background:rgba(139,32,32,0.04)">
-                      <td colspan="2" style="padding:8px 12px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.1em;color:var(--red);text-transform:uppercase">Total Devido</td>
-                      <td style="padding:8px 12px;font-family:'Cinzel',serif;font-size:14px;font-weight:700;color:var(--red);text-align:right">${fmtVal(devia)}</td>
-                      <td></td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>`).join('')}
-        </div>
+        <!-- Lista simples: nome + valor -->
+        ${inadimplentes.length===0
+          ? `<div style="padding:12px 22px;color:var(--green);font-size:14px;font-style:italic">✅ Nenhum inadimplente!</div>`
+          : inadimplentes.slice(0,6).map(({m,devia})=>`
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 22px;border-top:1px solid var(--border)">
+              <div>
+                <span style="font-size:15px;font-weight:700;font-family:'Cormorant Garamond',serif;color:var(--text)">${m.nome_maconico}</span>
+                <span style="font-size:11px;color:var(--text-muted);margin-left:10px">${m.cargo||''}</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-size:14px;font-weight:700;color:var(--red);font-family:'Cinzel',serif">${fmtVal(devia)}</span>
+                ${canEdit?`<button class="btn" style="padding:3px 8px;font-size:9px;background:linear-gradient(135deg,#25D366,#128C7E);color:#fff;border-color:#128C7E" onclick="cobrarWhatsapp('${m.nome_maconico.replace(/'/g,'')}','${m.telefone||''}',${devia},0)">📱</button>`:''}
+              </div>
+            </div>`).join('')}
+        ${inadimplentes.length>6?`<div style="padding:8px 22px;font-size:12px;color:var(--text-muted);border-top:1px solid var(--border)">+ ${inadimplentes.length-6} outros → <button class="btn" style="font-size:10px;padding:2px 10px" onclick="abrirModalInadimplenciaDetalhada()">Ver todos</button></div>`:''}
       </div>
 
       <!-- Previsão de Caixa mês corrente + Parcelas -->
@@ -3681,27 +3652,58 @@ function renderFinancas(access) {
 
 // ── Cobrar via WhatsApp ───────────────────────────────────────
 function cobrarWhatsapp(nome, telefone, valor, meses) {
-  const msg = meses > 0
-    ? `Prezado Irmão ${nome}, verificamos que constam ${meses} mensalidade(s) em aberto no valor total de R$ ${parseFloat(valor).toFixed(2).replace('.',',')}. Por favor, entre em contato com a Tesouraria para regularizar sua situação. Fraternalmente, A.R.L.S. Fraternidade Acadêmica de Peruíbe Nº 3524.`
-    : `Prezado Irmão ${nome}, verificamos um débito pendente no valor de R$ ${parseFloat(valor).toFixed(2).replace('.',',')}. Por favor, entre em contato com a Tesouraria. Fraternalmente, A.R.L.S. Fraternidade Acadêmica de Peruíbe Nº 3524.`;
+  const valorFmt = parseFloat(valor).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+  // Ler PIX das configurações (localStorage)
+  const pixLoja = localStorage.getItem('pix_loja') || 'informar chave PIX';
+  const msg = `Amado Ir. ${nome},
+
+Identificamos uma pendência de ${valorFmt}.
+
+Pedimos o seu apoio para regularizar este montante, pois este valor é fundamental para honrarmos as despesas fixas e mantermos nossa Loja de pé.
+
+Contamos com sua prontidão e compromisso.
+
+PIX da Loja: ${pixLoja}
+
+Fraternalmente,
+Tesouraria – A.R.L.S. Fraternidade Acadêmica de Peruíbe.`;
+
   const tel = (telefone||'').replace(/\D/g,'');
-  const url = tel
+  const urlWA = tel
     ? `https://wa.me/55${tel}?text=${encodeURIComponent(msg)}`
     : `https://wa.me/?text=${encodeURIComponent(msg)}`;
-  // Mostrar modal com mensagem + botão de copiar + abrir WhatsApp
+  const email = DATA.membros.find(m=>m.nome_maconico===nome)?.email || '';
+  const urlEmail = email
+    ? `mailto:${email}?subject=${encodeURIComponent('Regularização de Débito – A.R.L.S. Fraternidade Acadêmica de Peruíbe')}&body=${encodeURIComponent(msg)}`
+    : '';
+
   document.body.insertAdjacentHTML('beforeend', `
     <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px">
-      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;padding:28px 32px;width:500px;position:relative">
+      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;padding:28px 32px;width:560px;position:relative">
         <div style="height:3px;background:linear-gradient(90deg,#25D366,#128C7E);border-radius:6px 6px 0 0;position:absolute;top:0;left:0;right:0"></div>
-        <div style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;letter-spacing:0.1em;color:#128C7E;margin-bottom:16px">📱 Mensagem de Cobrança — ${nome}</div>
-        <textarea id="msg-whatsapp" rows="6" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:10px;font-family:'Cormorant Garamond',serif;font-size:13px;resize:vertical;background:var(--cream)">${msg}</textarea>
-        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
-          <button class="btn" onclick="fecharModal()" style="padding:8px 20px">Fechar</button>
-          <button class="btn" onclick="navigator.clipboard.writeText(document.getElementById('msg-whatsapp').value);toast('Mensagem copiada!')" style="padding:8px 20px">📋 Copiar</button>
-          <a href="${url}" target="_blank" onclick="fecharModal()" class="btn btn-solid" style="padding:8px 20px;text-decoration:none;background:linear-gradient(135deg,#25D366,#128C7E)">📱 Abrir WhatsApp</a>
+        <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;letter-spacing:0.1em;color:#128C7E;margin-bottom:4px">📱 Mensagem de Cobrança</div>
+        <div style="font-family:'Cormorant Garamond',serif;font-size:13px;color:var(--text-muted);font-style:italic;margin-bottom:14px">${nome} — ${valorFmt}</div>
+        <div style="margin-bottom:8px">
+          <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">Chave PIX da Loja</label>
+          <input id="pix-loja-input" value="${pixLoja}" oninput="localStorage.setItem('pix_loja',this.value);atualizarMsgCobranca(this.value,'${nome}',${valor})"
+            style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:6px 10px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--cream);color:var(--text)">
+        </div>
+        <textarea id="msg-whatsapp" rows="10" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:10px;font-family:'Cormorant Garamond',serif;font-size:14px;resize:vertical;background:var(--cream);line-height:1.7">${msg}</textarea>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap">
+          <button class="btn" onclick="fecharModal()" style="padding:8px 18px">Fechar</button>
+          <button class="btn" onclick="navigator.clipboard.writeText(document.getElementById('msg-whatsapp').value);toast('📋 Mensagem copiada!')" style="padding:8px 18px">📋 Copiar</button>
+          ${urlEmail?`<a href="${urlEmail}" class="btn btn-solid" style="padding:8px 18px;text-decoration:none;background:linear-gradient(135deg,#1B5EA0,#2A7ACC)">✉️ E-mail</a>`:''}
+          <a href="${urlWA}" target="_blank" onclick="fecharModal()" class="btn btn-solid" style="padding:8px 18px;text-decoration:none;background:linear-gradient(135deg,#25D366,#128C7E)">📱 WhatsApp</a>
         </div>
       </div>
     </div>`);
+}
+
+function atualizarMsgCobranca(pix, nome, valor) {
+  const valorFmt = parseFloat(valor).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+  const textarea = document.getElementById('msg-whatsapp');
+  if (!textarea) return;
+  textarea.value = `Amado Ir. ${nome},\n\nIdentificamos uma pendência de ${valorFmt}.\n\nPedimos o seu apoio para regularizar este montante, pois este valor é fundamental para honrarmos as despesas fixas e mantermos nossa Loja de pé.\n\nContamos com sua prontidão e compromisso.\n\nPIX da Loja: ${pix}\n\nFraternalmente,\nTesouraria – A.R.L.S. Fraternidade Acadêmica de Peruíbe.`;
 }
 
 function gerarMsgCobrancaGeral() {
@@ -5100,66 +5102,359 @@ async function excluirAta(id, titulo) {
 }
 
 // ===================== MINHA FREQUÊNCIA =====================
+function abrirModalInadimplenciaDetalhada() {
+  const hoje = new Date(); const anoAtual=hoje.getFullYear(); const lancs=DATA.financas;
+  const membrosAtivos = DATA.membros.filter(m=>(m.status==='ativo'||m.status==='iniciado'||m.status==='profano')&&m.tipo_membro!=='visitante');
+  const inadimplentes = membrosAtivos.map(m=>{
+    const mens=parseFloat(m.mensalidade)||100; let deb=0,mesesDev=0;
+    if(mens>0){const ai=m.data_ingresso?parseInt(m.data_ingresso.split('-')[0]):anoAtual;const mi=m.data_ingresso?parseInt(m.data_ingresso.split('-')[1]):1;const tot=Math.max(0,(anoAtual-ai)*12+(hoje.getMonth()+1-mi));const esp=tot*mens;const pago=lancs.filter(l=>l.membro_id===m.id&&l.tipo==='receita'&&l.status==='pago'&&l.categoria==='mensalidade').reduce((s,l)=>s+parseFloat(l.valor||0),0);deb=Math.max(0,esp-pago);mesesDev=Math.round(deb/mens);}
+    const outros=lancs.filter(l=>l.membro_id===m.id&&(l.status==='aberto'||l.status==='agendado')&&l.tipo==='receita'&&l.categoria!=='mensalidade');
+    const totOutros=outros.reduce((s,l)=>s+parseFloat(l.valor||0),0);const totalDevia=deb+totOutros;if(totalDevia<=0)return null;
+    const det=[];if(mesesDev>0)det.push({cat:'Mensalidade',valor:deb,detalhe:`${mesesDev} mês(es) em atraso`});
+    outros.forEach(l=>det.push({cat:getCatLabel(l.categoria)||l.descricao,valor:parseFloat(l.valor||0),detalhe:l.descricao}));
+    return {m,devia:totalDevia,detalhes:det};
+  }).filter(Boolean);
+  const totalGeral = inadimplentes.reduce((s,i)=>s+i.devia,0);
+  const canEdit = ROLES[currentRole].access['financas']==='full';
+
+  const corpo = inadimplentes.length===0
+    ? `<div style="padding:20px;text-align:center;color:var(--green);font-style:italic">✅ Nenhum inadimplente!</div>`
+    : inadimplentes.map(({m,devia,detalhes})=>`
+      <div style="border:1px solid rgba(139,32,32,0.15);border-radius:4px;margin-bottom:12px;overflow:hidden">
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr style="background:rgba(27,58,107,0.06)">
+            <th style="padding:9px 14px;text-align:left;font-family:'Cinzel',serif;font-size:10px;letter-spacing:0.1em;color:var(--navy);min-width:140px">Nome</th>
+            <th style="padding:9px 14px;text-align:left;font-family:'Cinzel',serif;font-size:10px;letter-spacing:0.1em;color:var(--navy)">Descrição da Dívida</th>
+            <th style="padding:9px 14px;text-align:right;font-family:'Cinzel',serif;font-size:10px;letter-spacing:0.1em;color:var(--navy)">Valor</th>
+            <th style="width:60px"></th>
+          </tr></thead>
+          <tbody>
+            ${detalhes.map((d,i)=>`<tr style="border-top:1px solid rgba(0,0,0,0.05)">
+              <td style="padding:7px 14px;font-family:'Cormorant Garamond',serif;font-size:15px;font-weight:${i===0?700:400}">${i===0?m.nome_maconico:''}</td>
+              <td style="padding:7px 14px;font-family:'Cormorant Garamond',serif;font-size:14px;color:var(--text-muted)">${d.cat}${d.detalhe&&d.detalhe!==d.cat?' — '+d.detalhe:''}</td>
+              <td style="padding:7px 14px;font-family:'Cinzel',serif;font-size:13px;color:var(--red);font-weight:700;text-align:right">${fmtVal(d.valor)}</td>
+              <td style="padding:7px 14px">${i===0&&canEdit?`<button class="btn" style="padding:3px 8px;font-size:9px;background:linear-gradient(135deg,#25D366,#128C7E);color:#fff;border-color:#128C7E;white-space:nowrap" onclick="cobrarWhatsapp('${m.nome_maconico.replace(/'/g,'')}','${m.telefone||''}',${devia},0)">📱</button>`:''}</td>
+            </tr>`).join('')}
+            <tr style="background:rgba(139,32,32,0.05)">
+              <td colspan="2" style="padding:8px 14px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:var(--red);letter-spacing:0.1em;text-transform:uppercase">Total Devido</td>
+              <td style="padding:8px 14px;font-family:'Cinzel',serif;font-size:14px;font-weight:700;color:var(--red);text-align:right">${fmtVal(devia)}</td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>`).join('');
+
+  document.body.insertAdjacentHTML('beforeend', `
+    <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px">
+      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;width:740px;max-height:90vh;overflow-y:auto;position:relative">
+        <div style="height:3px;background:linear-gradient(90deg,var(--red),#B03030);border-radius:6px 6px 0 0"></div>
+        <div style="padding:24px 28px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+            <div style="font-family:'Cinzel',serif;font-size:14px;font-weight:700;letter-spacing:0.1em;color:var(--red)">📊 Inadimplência Detalhada — ${inadimplentes.length} irmão(s)</div>
+            <div style="display:flex;gap:8px">
+              <select id="filtro-inadimp-modal" onchange="filtrarInadimplenciaModal()" style="border:1px solid var(--border-mid);border-radius:3px;padding:5px 10px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--cream);color:var(--text)">
+                <option value="">Todos os inadimplentes</option>
+                ${inadimplentes.map(({m})=>`<option value="${m.id}">${m.nome_maconico}</option>`).join('')}
+              </select>
+              ${canEdit?`<button class="btn" style="padding:5px 12px;font-size:10px" onclick="imprimirInadimplencia()">🖨️ Imprimir</button>`:''}
+            </div>
+          </div>
+          <div style="font-size:13px;color:var(--text-muted);font-style:italic;margin-bottom:20px">Total geral em débito: <strong style="color:var(--red)">${fmtVal(totalGeral)}</strong></div>
+          <div id="inadimp-modal-corpo">${corpo}</div>
+        </div>
+        <div style="padding:14px 28px;border-top:1px solid var(--border);display:flex;justify-content:flex-end">
+          <button class="btn" onclick="fecharModal()" style="padding:8px 22px">Fechar</button>
+        </div>
+      </div>
+    </div>`);
+}
+
+function filtrarInadimplenciaModal() {
+  const filtroId = document.getElementById('filtro-inadimp-modal')?.value||'';
+  renderInadimplenciaFiltrada(filtroId, 'inadimp-modal-corpo');
+}
+
 async function renderMinhaFrequencia() {
+  const isSecretario = currentRole === 'secretario';
   const isChanc = currentRole === 'chanceler' || currentRole === 'veneravel' || currentRole === 'admin';
   const el = document.getElementById('minha-frequencia-content');
 
-  if (isChanc) {
-    // Chanceler vê frequência de todos
+  // ── SECRETÁRIO/ADMIN: painel de aprovação de visitas + frequência de todos ─
+  if (isSecretario || isChanc) {
+    // Buscar visitas pendentes de aprovação
+    let visitasPend = [];
+    try {
+      const res = await sb.from('visitas_externas').select('*,membros(nome_maconico)').eq('status_aprovacao','pendente').order('criado_em',{ascending:false});
+      visitasPend = res.data || [];
+    } catch(e){}
+
     const membros = DATA.membros.filter(m => m.status==='ativo'||m.status==='iniciado');
     const sessoes = DATA.sessoes;
     const presencas = DATA.presencas;
     const total = sessoes.length || 1;
-
     const rows = membros.map(m => {
       const presM = presencas.filter(p => p.membro_id === m.id && (p.presente || p.situacao==='presente')).length;
       const pct = Math.round(presM / total * 100);
       const cor = pct >= 75 ? 'var(--green)' : pct >= 50 ? 'var(--gold-dark)' : 'var(--red)';
       return `<tr>
-        <td>${m.nome_maconico}</td>
-        <td>${m.cargo||'—'}</td>
+        <td>${m.nome_maconico}</td><td>${m.cargo||'—'}</td>
         <td>${presM} / ${sessoes.length}</td>
         <td><div style="display:flex;align-items:center;gap:8px">
           <div style="background:var(--cream-mid);border-radius:2px;height:6px;width:60px;overflow:hidden"><div style="background:${cor};height:100%;width:${pct}%"></div></div>
-          <span style="font-size:11px;color:${cor};font-weight:600">${pct}%</span>
+          <span style="font-size:12px;color:${cor};font-weight:600">${pct}%</span>
         </div></td>
       </tr>`;
     }).join('') || `<tr><td colspan="4" style="text-align:center;padding:20px;font-style:italic;color:var(--text-muted)">Nenhum membro ativo.</td></tr>`;
 
+    const rowsPend = visitasPend.length === 0
+      ? `<div style="padding:16px;font-style:italic;color:var(--green);font-size:14px">✅ Nenhuma visita aguardando aprovação.</div>`
+      : visitasPend.map(v=>`
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);gap:12px">
+          <div style="flex:1">
+            <div style="font-size:15px;font-weight:700;font-family:'Cormorant Garamond',serif">${v.membros?.nome_maconico||'—'}</div>
+            <div style="font-size:13px;color:var(--text-muted);margin-top:2px">${fmtData(v.data)} · ${v.loja_nome||'—'} Nº${v.loja_numero||'—'} · ${v.potencia||'—'} · ${v.grau||'—'}º Grau</div>
+            ${v.comprovante_url?`<a href="${v.comprovante_url}" target="_blank" style="font-size:12px;color:var(--gold-dark);text-decoration:none">📎 Ver comprovante</a>`:'<span style="font-size:12px;color:var(--red)">⚠️ Sem comprovante</span>'}
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            <button class="btn" style="padding:5px 12px;font-size:10px;background:var(--green);color:#fff;border-color:var(--green)" onclick="aprovarVisita('${v.id}',true)">✓ Aprovar</button>
+            <button class="btn" style="padding:5px 12px;font-size:10px;color:var(--red);border-color:rgba(139,32,32,0.4)" onclick="aprovarVisita('${v.id}',false)">✗ Recusar</button>
+          </div>
+        </div>`).join('');
+
     el.innerHTML = `
+      ${visitasPend.length>0?`
+      <div class="card" style="margin-bottom:16px;border-color:rgba(212,168,67,0.4)">
+        <div class="card-header" style="background:rgba(212,168,67,0.05)">
+          <div class="card-title" style="color:var(--gold-dark)">🕐 Visitas Aguardando Aprovação (${visitasPend.length})</div>
+        </div>
+        <div style="padding:0 22px">${rowsPend}</div>
+      </div>`:''}
       <div class="card">
         <div class="card-header"><div class="card-title">Frequência de Todos os Irmãos</div></div>
         <table><thead><tr><th>Irmão</th><th>Cargo</th><th>Presenças</th><th>Frequência</th></tr></thead>
         <tbody>${rows}</tbody></table>
       </div>`;
-  } else {
-    // Irmão vê só a própria frequência
-    const name = ROLES[currentRole].name;
-    // Buscar membro pelo nome (aproximado)
-    const membro = DATA.membros.find(m => m.nome_maconico === name) || DATA.membros[0];
-    const sessoes = DATA.sessoes;
-    const presencas = membro ? DATA.presencas.filter(p => p.membro_id === membro.id) : [];
-    const presentes = presencas.filter(p => p.presente || p.situacao==='presente').length;
-    const pct = sessoes.length ? Math.round(presentes/sessoes.length*100) : 0;
-
-    const rows = sessoes.slice(0,10).map(s => {
-      const p = presencas.find(x => x.sessao_id === s.id);
-      const sit = p ? (p.presente||p.situacao==='presente' ? `<span style="color:var(--green)">✓ Presente</span>` : `<span style="color:var(--red)">✗ Ausente</span>`) : `<span style="color:var(--text-muted)">—</span>`;
-      return `<tr><td>${fmtData(s.data)}</td><td>${s.tipo||'—'}</td><td>${degreeBadge(s.grau||3)}</td><td>${sit}</td></tr>`;
-    }).join('') || `<tr><td colspan="4" style="text-align:center;padding:20px;font-style:italic;color:var(--text-muted)">Nenhuma sessão registrada.</td></tr>`;
-
-    el.innerHTML = `
-      <div class="stats-grid" style="grid-template-columns:repeat(3,1fr)">
-        <div class="stat-card"><div class="stat-label">Minha Presença</div><div class="stat-value">${pct}%</div><div class="stat-change ${pct>=75?'up':'down'}">${pct>=75?'↑ Em dia':'↓ Atenção'}</div></div>
-        <div class="stat-card"><div class="stat-label">Sessões Presentes</div><div class="stat-value">${presentes}</div><div class="stat-change">De ${sessoes.length} realizadas</div></div>
-        <div class="stat-card"><div class="stat-label">Ausências</div><div class="stat-value">${sessoes.length-presentes}</div><div class="stat-change">Total</div></div>
-      </div>
-      <div class="card">
-        <div class="card-header"><div class="card-title">Histórico — ${name}</div></div>
-        <table><thead><tr><th>Data</th><th>Tipo</th><th>Grau</th><th>Situação</th></tr></thead>
-        <tbody>${rows}</tbody></table>
-      </div>`;
+    return;
   }
+
+  // ── IRMÃO: painel pessoal ────────────────────────────────────
+  const name = ROLES[currentRole].name;
+  const membro = DATA.membros.find(m => m.nome_maconico === name) || DATA.membros[0];
+  if (!membro) { el.innerHTML = `<div style="padding:20px;font-style:italic;color:var(--text-muted)">Membro não encontrado.</div>`; return; }
+
+  // Filtros
+  const fDe  = el.querySelector('#mf-freq-de')?.value  || '';
+  const fAte = el.querySelector('#mf-freq-ate')?.value || '';
+
+  const sessoes = DATA.sessoes;
+  const presencas = DATA.presencas.filter(p => p.membro_id === membro.id);
+  let sessoesPresente = sessoes.filter(s => presencas.find(p=>p.sessao_id===s.id&&(p.presente||p.situacao==='presente')));
+  if (fDe)  sessoesPresente = sessoesPresente.filter(s=>s.data>=fDe);
+  if (fAte) sessoesPresente = sessoesPresente.filter(s=>s.data<=fAte);
+
+  // Visitas externas aprovadas
+  let visitasAprov = [];
+  try {
+    const res = await sb.from('visitas_externas').select('*').eq('membro_id', membro.id).eq('status_aprovacao','aprovado').order('data',{ascending:false});
+    visitasAprov = res.data || [];
+    if (fDe)  visitasAprov = visitasAprov.filter(v=>v.data>=fDe);
+    if (fAte) visitasAprov = visitasAprov.filter(v=>v.data<=fAte);
+  } catch(e){}
+
+  // Visitas pendentes do próprio irmão
+  let visitasPend = [];
+  try {
+    const res2 = await sb.from('visitas_externas').select('*').eq('membro_id', membro.id).neq('status_aprovacao','aprovado').order('data',{ascending:false});
+    visitasPend = res2.data || [];
+  } catch(e){}
+
+  const totalPresencas = sessoesPresente.length + visitasAprov.length;
+  const totalSessoes = sessoes.length;
+  const pctLoja = totalSessoes ? Math.round(sessoesPresente.length/totalSessoes*100) : 0;
+  const cor = pctLoja >= 75 ? 'var(--green)' : pctLoja >= 50 ? 'var(--gold-dark)' : 'var(--red)';
+
+  const inp = `style="border:1px solid var(--border-mid);border-radius:3px;padding:5px 10px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--cream);color:var(--text)"`;
+
+  const rowsLoja = sessoesPresente.length === 0
+    ? `<tr><td colspan="4" style="text-align:center;padding:16px;font-style:italic;color:var(--text-muted)">Nenhuma presença na Loja no período.</td></tr>`
+    : sessoesPresente.sort((a,b)=>b.data.localeCompare(a.data)).map(s=>`<tr>
+        <td>${fmtData(s.data)}</td>
+        <td>${s.tipo||'—'}</td>
+        <td>${degreeBadge(s.grau||3)}</td>
+        <td>${s.descricao_local||'Templo'}</td>
+      </tr>`).join('');
+
+  const rowsVisit = visitasAprov.length === 0
+    ? `<tr><td colspan="5" style="text-align:center;padding:16px;font-style:italic;color:var(--text-muted)">Nenhuma visita aprovada no período.</td></tr>`
+    : visitasAprov.map(v=>`<tr>
+        <td>${fmtData(v.data)}</td>
+        <td style="font-weight:600">${v.loja_nome||'—'} Nº ${v.loja_numero||'—'}</td>
+        <td>${v.potencia||'—'}</td>
+        <td style="text-align:center">${v.grau||'—'}º</td>
+        <td>${v.comprovante_url?`<a href="${v.comprovante_url}" target="_blank" style="color:var(--gold-dark);font-size:12px">📎 Ver</a>`:'—'}</td>
+      </tr>`).join('');
+
+  const rowsPend = visitasPend.length === 0 ? '' : visitasPend.map(v=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+      <div>
+        <span style="font-size:14px;font-family:'Cormorant Garamond',serif">${fmtData(v.data)} · ${v.loja_nome||'—'} Nº${v.loja_numero||'—'} · ${v.potencia||'—'}</span>
+        <span style="margin-left:10px;font-size:11px;padding:2px 8px;border-radius:2px;${v.status_aprovacao==='pendente'?'background:rgba(212,168,67,0.15);color:var(--gold-dark)':'background:rgba(139,32,32,0.1);color:var(--red)'}">
+          ${v.status_aprovacao==='pendente'?'⏳ Aguardando aprovação':'✗ Recusada'}
+        </span>
+      </div>
+      <button class="btn" style="padding:3px 8px;font-size:9px;color:var(--red)" onclick="excluirVisitaExterna('${v.id}')">🗑️</button>
+    </div>`).join('');
+
+  el.innerHTML = `
+    <!-- Banner do irmão -->
+    <div style="background:linear-gradient(135deg,rgba(27,58,107,0.06),rgba(27,58,107,0.02));border:1px solid rgba(27,58,107,0.15);border-radius:6px;padding:18px 24px;margin-bottom:16px;display:flex;align-items:center;gap:20px">
+      <div style="width:56px;height:56px;border-radius:50%;background:var(--navy);display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-size:22px;color:#fff;font-weight:700;flex-shrink:0">${membro.nome_maconico.charAt(0)}</div>
+      <div>
+        <div style="font-family:'Cinzel',serif;font-size:16px;font-weight:700;color:var(--navy)">${membro.nome_maconico}</div>
+        <div style="font-size:13px;color:var(--text-muted);font-style:italic">${membro.cargo||'Membro da Loja'} · ${degreeBadge(membro.grau||3)}</div>
+      </div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">
+      <div class="stat-card"><div class="stat-label">Presenças na Loja</div><div class="stat-value">${sessoesPresente.length}</div><div class="stat-change">De ${totalSessoes} sessões</div></div>
+      <div class="stat-card"><div class="stat-label">Visitas a Lojas</div><div class="stat-value" style="color:var(--gold-dark)">${visitasAprov.length}</div><div class="stat-change">Aprovadas</div></div>
+      <div class="stat-card"><div class="stat-label">Total Frequência</div><div class="stat-value" style="color:var(--green)">${totalPresencas}</div><div class="stat-change">Loja + visitas</div></div>
+      <div class="stat-card"><div class="stat-label">% na Loja</div><div class="stat-value" style="color:${cor}">${pctLoja}%</div><div class="stat-change ${pctLoja>=75?'up':'down'}">${pctLoja>=75?'↑ Em dia':'↓ Atenção'}</div></div>
+    </div>
+
+    <!-- Filtros de data -->
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;background:var(--white);border:1px solid var(--border);border-radius:4px;padding:12px 18px">
+      <span style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.12em;color:var(--text-muted)">FILTRAR POR PERÍODO</span>
+      <span style="font-size:12px;color:var(--text-muted)">De</span>
+      <input type="date" id="mf-freq-de" value="${fDe}" onchange="renderMinhaFrequencia()" ${inp}>
+      <span style="font-size:12px;color:var(--text-muted)">Até</span>
+      <input type="date" id="mf-freq-ate" value="${fAte}" onchange="renderMinhaFrequencia()" ${inp}>
+      ${fDe||fAte?`<button class="btn" style="font-size:10px;padding:4px 10px" onclick="document.getElementById('mf-freq-de').value='';document.getElementById('mf-freq-ate').value='';renderMinhaFrequencia()">✕ Limpar</button>`:''}
+    </div>
+
+    <!-- Presenças na Loja -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-header">
+        <div class="card-title">🏛️ Presenças na Loja (${sessoesPresente.length})</div>
+      </div>
+      <table><thead><tr><th>Data</th><th>Tipo de Sessão</th><th>Grau</th><th>Local</th></tr></thead>
+      <tbody>${rowsLoja}</tbody></table>
+    </div>
+
+    <!-- Visitas a outras lojas -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-header">
+        <div class="card-title">✉️ Visitas a Outras Lojas (${visitasAprov.length} aprovadas)</div>
+        <button class="btn btn-solid" onclick="abrirModalCadastrarVisita('${membro.id}')" style="font-size:10px;padding:6px 14px">+ Registrar Visita</button>
+      </div>
+      <table><thead><tr><th>Data</th><th>Loja / Oriente</th><th>Potência</th><th>Grau</th><th>Comprovante</th></tr></thead>
+      <tbody>${rowsVisit}</tbody></table>
+    </div>
+
+    <!-- Visitas pendentes/recusadas -->
+    ${visitasPend.length>0?`
+    <div class="card">
+      <div class="card-header"><div class="card-title" style="color:var(--gold-dark)">⏳ Aguardando Aprovação / Recusadas (${visitasPend.length})</div></div>
+      <div style="padding:0 22px">${rowsPend}</div>
+    </div>`:''}`;
+}
+
+async function aprovarVisita(id, aprovar) {
+  const status = aprovar ? 'aprovado' : 'recusado';
+  const aprovPor = ROLES[currentRole]?.name || currentRole;
+  const res = await sb.from('visitas_externas').update({status_aprovacao:status, aprovado_por:aprovPor}).eq('id',id);
+  if (res.error) { toast('Erro: '+res.error.message); return; }
+  toast(aprovar ? '✅ Visita aprovada!' : '✗ Visita recusada');
+  renderMinhaFrequencia();
+}
+
+async function excluirVisitaExterna(id) {
+  if (!confirm('Excluir este registro de visita?')) return;
+  await sb.from('visitas_externas').delete().eq('id',id);
+  renderMinhaFrequencia();
+}
+
+function abrirModalCadastrarVisita(membroId) {
+  const hoje = new Date().toISOString().split('T')[0];
+  const inp = `style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"`;
+  const lb = (t,op='') => `<label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">${t}${op?` <span style="font-weight:400;text-transform:none">(${op})</span>`:''}</label>`;
+  document.body.insertAdjacentHTML('beforeend', `
+    <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px">
+      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;width:520px;max-height:92vh;overflow-y:auto;position:relative">
+        <div style="height:3px;background:linear-gradient(90deg,var(--gold-dark),var(--gold-rich),var(--gold-light),var(--gold-dark));border-radius:6px 6px 0 0"></div>
+        <div style="padding:28px 32px">
+          <div style="font-family:'Cinzel',serif;font-size:14px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);margin-bottom:6px">✉️ Registrar Visita a Outra Loja</div>
+          <div style="font-size:13px;color:var(--text-muted);font-style:italic;margin-bottom:22px">Após envio, aguarde aprovação do Secretário da Loja.</div>
+          <div style="display:grid;gap:14px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div>${lb('Data *')}<input id="vis-ext-data" type="date" value="${hoje}" ${inp}></div>
+              <div>${lb('Grau da Sessão *')}<select id="vis-ext-grau" ${inp}>
+                <option value="1">1º Grau — Aprendiz</option>
+                <option value="2">2º Grau — Companheiro</option>
+                <option value="3" selected>3º Grau — Mestre</option>
+              </select></div>
+            </div>
+            <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px">
+              <div>${lb('Nome da Loja *')}<input id="vis-ext-loja-nome" ${inp} placeholder="Ex: Fraternidade Nº 100"></div>
+              <div>${lb('Número')}<input id="vis-ext-loja-num" ${inp} placeholder="Ex: 100"></div>
+            </div>
+            <div>${lb('Potência (Obediência) *')}<select id="vis-ext-potencia" ${inp}>
+              <option value="GOB">GOB — Grande Oriente do Brasil</option>
+              <option value="GLBP">GLBP — Grande Loja Benficente de Peruíbe</option>
+              <option value="COMAB">COMAB — Confederação Maçônica do Brasil</option>
+              <option value="GLEB">GLEB — Grande Loja do Estado da Bahia</option>
+              <option value="GLESP">GLESP — Grande Loja do Estado de SP</option>
+              <option value="Outra">Outra</option>
+            </select></div>
+            <div>${lb('Comprovante de Presença *')}
+              <input id="vis-ext-arquivo" type="file" accept=".pdf,.jpg,.jpeg,.png" ${inp}>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:4px">📎 Obrigatório: foto do certificado/lista de presença</div>
+            </div>
+          </div>
+        </div>
+        <div style="padding:14px 32px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px">
+          <button class="btn" onclick="fecharModal()" style="padding:8px 20px">Cancelar</button>
+          <button class="btn btn-solid" onclick="salvarVisitaExterna('${membroId}')" style="padding:8px 20px">📤 Enviar para Aprovação</button>
+        </div>
+      </div>
+    </div>`);
+}
+
+async function salvarVisitaExterna(membroId) {
+  const data    = document.getElementById('vis-ext-data')?.value;
+  const lojaNome= document.getElementById('vis-ext-loja-nome')?.value.trim();
+  const lojaNum = document.getElementById('vis-ext-loja-num')?.value.trim();
+  const potencia= document.getElementById('vis-ext-potencia')?.value;
+  const grau    = document.getElementById('vis-ext-grau')?.value;
+  const fileInp = document.getElementById('vis-ext-arquivo');
+  const file    = fileInp?.files?.[0];
+
+  if (!data||!lojaNome||!potencia) { toast('Preencha data, nome da loja e potência'); return; }
+  if (!file) { toast('O comprovante de presença é obrigatório'); return; }
+
+  // Upload comprovante
+  const path = `visitas/${Date.now()}_${file.name.replace(/\s/g,'_')}`;
+  let compUrl = null;
+  try {
+    const { data: upD, error: upE } = await sb.storage.from('atas-arquivos').upload(path, file, {upsert:true});
+    if (!upE) {
+      const { data: urlD } = sb.storage.from('atas-arquivos').getPublicUrl(path);
+      compUrl = urlD?.publicUrl || null;
+    }
+  } catch(e){}
+
+  const res = await sb.from('visitas_externas').insert({
+    membro_id: membroId, data, loja_nome: lojaNome, loja_numero: lojaNum||null,
+    potencia, grau: parseInt(grau)||3,
+    comprovante_url: compUrl,
+    status_aprovacao: 'pendente',
+    criado_em: new Date().toISOString()
+  });
+  if (res.error) { toast('Erro: '+res.error.message); return; }
+  toast('✅ Visita enviada! Aguardando aprovação do Secretário.');
+  fecharModal();
+  renderMinhaFrequencia();
 }
 
 // ===================== MEU FINANCEIRO =====================
