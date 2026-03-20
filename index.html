@@ -4469,12 +4469,12 @@ function abrirModalAgape() {
             <!-- Tipo de rateio -->
             <div>
               <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Tipo de Rateio</label>
-              <div style="display:flex;border:1px solid var(--border-mid);border-radius:3px;overflow:hidden">
+              <div style="display:flex;gap:8px">
                 <button type="button" id="btn-agape-sessao" onclick="setTipoAgape('sessao')"
-                  style="flex:1;padding:10px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;cursor:pointer;border:none;border-right:1px solid var(--border-mid);background:rgba(27,58,107,0.12);color:var(--text);outline:2px solid var(--navy);outline-offset:-2px;position:relative">
-                  🍽️ Ágape — Presentes da Sessão</button>
+                  style="flex:1;padding:10px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.08em;cursor:pointer;border-radius:3px;border:2px solid var(--navy);background:rgba(27,58,107,0.12);color:var(--navy)">
+                  🍽️ Ágape — Presentes da Sessão ✓</button>
                 <button type="button" id="btn-agape-todos" onclick="setTipoAgape('todos')"
-                  style="flex:1;padding:10px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;cursor:pointer;border:none;background:var(--cream);color:var(--text);position:relative">
+                  style="flex:1;padding:10px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.08em;cursor:pointer;border-radius:3px;border:2px solid var(--border-mid);background:var(--cream);color:var(--navy)">
                   🎉 Evento — Todos Obreiros</button>
               </div>
               <input type="hidden" id="agape-tipo" value="sessao">
@@ -6071,8 +6071,12 @@ function abrirModalComissao(tipoInicial='permanente', comissaoExistente=null) {
   const membrosComissao = c.membros_cargos || (c.membros||[]).map(nm=>({nome:nm, cargo_com:''}));
   const getMembCargo = (nm) => membrosComissao.find(mc=>mc.nome===nm)?.cargo_com||'';
 
-  // Todos os membros (incluindo visitantes)
-  const todosMembros = DATA.membros;
+  // Todos os membros separados por tipo, selecionados primeiro
+  const todosMembros = [
+    ...DATA.membros.filter(m=>m.tipo_membro==='membro'||!m.tipo_membro),
+    ...DATA.membros.filter(m=>m.tipo_membro==='filiado'),
+    ...DATA.membros.filter(m=>m.tipo_membro==='visitante')
+  ];
 
   // Cargos possíveis na comissão
   const CARGOS_COM = ['Presidente','Vice-Presidente','Secretário','Tesoureiro','Relator','Membro','Convidado','Assessor'];
@@ -6080,14 +6084,23 @@ function abrirModalComissao(tipoInicial='permanente', comissaoExistente=null) {
   const listaMembrosCom = todosMembros.map(m=>{
     const selecionado = membrosComissao.some(mc=>mc.nome===m.nome_maconico);
     const cargoAtual = getMembCargo(m.nome_maconico);
-    const tipoLabel = m.tipo_membro==='visitante'?'🤝 Visitante':m.tipo_membro==='filiado'?'🔗 Filiado':'🏛️ Membro';
-    return `<div class="linha-membro-com" data-nome="${m.nome_maconico.toLowerCase()}" style="display:flex;align-items:center;gap:8px;padding:7px 12px;border-bottom:1px solid var(--border);background:${selecionado?'rgba(27,58,107,0.04)':'transparent'};transition:background 0.1s" onmouseover="if(!document.getElementById('chk-${m.id}').checked)this.style.background='var(--cream)'" onmouseout="if(!document.getElementById('chk-${m.id}').checked)this.style.background='transparent'">
+    const tipo_m = m.tipo_membro||'membro';
+    const tipoIcon = tipo_m==='visitante'?'🤝':tipo_m==='filiado'?'🔗':'🏛️';
+    const tipoLabel = tipo_m==='visitante'?'Visitante':tipo_m==='filiado'?'Filiado':'Membro';
+    return `<div class="linha-membro-com" data-nome="${m.nome_maconico.toLowerCase()}" data-tipo="${tipo_m}" style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border);background:${selecionado?'rgba(27,58,107,0.05)':'transparent'}">
       <input type="checkbox" id="chk-${m.id}" value="${m.nome_maconico}" ${selecionado?'checked':''} style="width:15px;height:15px;cursor:pointer;accent-color:var(--navy);flex-shrink:0" onchange="toggleMembroCom('${m.id}')">
       <div style="flex:1;min-width:0">
-        <span style="font-size:13px;font-weight:${selecionado?700:400};color:var(--text);font-family:'Cormorant Garamond',serif">${m.nome_maconico}</span>
-        <span style="font-size:10px;color:var(--text-muted);margin-left:8px">${m.cargo||tipoLabel}</span>
+        <span style="font-size:14px;font-weight:${selecionado?700:400};color:var(--text);font-family:'Cormorant Garamond',serif">${m.nome_maconico}</span>
+        <span style="font-size:10px;color:var(--text-muted);margin-left:8px">${m.cargo||''}</span>
       </div>
-      <select id="cargo-com-${m.id}" style="border:1px solid var(--border-mid);border-radius:3px;padding:3px 6px;font-family:'Cormorant Garamond',serif;font-size:11px;background:var(--cream);color:var(--text);opacity:${selecionado?1:0.35};cursor:${selecionado?'pointer':'default'}" ${selecionado?'':'disabled'}>
+      <span style="font-size:10px;padding:2px 7px;border-radius:3px;white-space:nowrap;
+        background:${tipo_m==='visitante'?'rgba(212,168,67,0.12)':tipo_m==='filiado'?'rgba(27,94,160,0.1)':'rgba(27,58,107,0.08)'};
+        color:${tipo_m==='visitante'?'var(--gold-dark)':tipo_m==='filiado'?'#1B5EA0':'var(--navy)'};
+        border:1px solid ${tipo_m==='visitante'?'rgba(212,168,67,0.3)':tipo_m==='filiado'?'rgba(27,94,160,0.25)':'rgba(27,58,107,0.2)'};
+        font-family:'Cinzel',serif;font-weight:700;letter-spacing:0.06em">
+        ${tipoIcon} ${tipoLabel}
+      </span>
+      <select id="cargo-com-${m.id}" style="border:1px solid var(--border-mid);border-radius:3px;padding:3px 6px;font-family:'Cormorant Garamond',serif;font-size:12px;background:var(--cream);color:var(--text);opacity:${selecionado?1:0.4};cursor:${selecionado?'pointer':'default'};min-width:130px" ${selecionado?'':'disabled'}>
         <option value="">Cargo na comissão</option>
         ${CARGOS_COM.map(cg=>`<option value="${cg}" ${cargoAtual===cg?'selected':''}>${cg}</option>`).join('')}
       </select>
@@ -6104,13 +6117,13 @@ function abrirModalComissao(tipoInicial='permanente', comissaoExistente=null) {
           <!-- Tipo — mesmo padrão visual dos outros toggles -->
           <div style="margin-bottom:16px">
             ${lb('Tipo de Comissão')}
-            <div style="display:flex;border:1px solid var(--border-mid);border-radius:3px;overflow:hidden">
+            <div style="display:flex;gap:8px">
               <button type="button" id="btn-tipo-perm" onclick="setTipoComissao('permanente')"
-                style="flex:1;padding:10px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.08em;cursor:pointer;border:none;border-right:1px solid var(--border-mid);background:${tipo==='permanente'?'rgba(27,58,107,0.12)':'var(--cream)'};color:var(--text);outline:${tipo==='permanente'?'2px solid var(--navy)':'none'};outline-offset:-2px;position:relative">
-                🏛️ Permanente</button>
+                style="flex:1;padding:10px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.08em;cursor:pointer;border-radius:3px;border:2px solid ${tipo==='permanente'?'var(--navy)':'var(--border-mid)'};background:${tipo==='permanente'?'rgba(27,58,107,0.12)':'var(--cream)'};color:var(--navy)">
+                🏛️ Permanente${tipo==='permanente'?' ✓':''}</button>
               <button type="button" id="btn-tipo-temp" onclick="setTipoComissao('temporaria')"
-                style="flex:1;padding:10px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.08em;cursor:pointer;border:none;background:${tipo==='temporaria'?'rgba(27,58,107,0.12)':'var(--cream)'};color:var(--text);outline:${tipo==='temporaria'?'2px solid var(--navy)':'none'};outline-offset:-2px;position:relative">
-                ⏳ Temporária</button>
+                style="flex:1;padding:10px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.08em;cursor:pointer;border-radius:3px;border:2px solid ${tipo==='temporaria'?'var(--navy)':'var(--border-mid)'};background:${tipo==='temporaria'?'rgba(27,58,107,0.12)':'var(--cream)'};color:var(--navy)">
+                ⏳ Temporária${tipo==='temporaria'?' ✓':''}</button>
             </div>
             <input type="hidden" id="com-tipo" value="${tipo}">
             <div style="font-size:11px;color:var(--text-muted);font-style:italic;margin-top:5px">
@@ -6126,13 +6139,28 @@ function abrirModalComissao(tipoInicial='permanente', comissaoExistente=null) {
               <select id="com-presidente" ${inp}>${opsPres}</select></div>
 
             <div>
-              ${lb('Membros da Comissão', 'inclui visitantes · cargo específico na comissão')}
-              <input type="text" id="busca-membros-com" placeholder="🔍 Buscar irmão..." oninput="filtrarMembrosCom()"
-                style="width:100%;border:1px solid var(--border-mid);border-radius:3px 3px 0 0;padding:7px 12px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--cream);color:var(--text);border-bottom:none">
-              <div id="lista-membros-com" style="border:1px solid var(--border-mid);border-radius:0 0 3px 3px;max-height:200px;overflow-y:auto;background:var(--white)">
+              ${lb('Membros da Comissão', 'cargo específico por membro')}
+              <!-- Barra de busca + filtros de tipo -->
+              <div style="display:flex;gap:6px;margin-bottom:0;align-items:center">
+                <input type="text" id="busca-membros-com" placeholder="🔍 Buscar..." oninput="filtrarMembrosCom()"
+                  style="flex:1;border:1px solid var(--border-mid);border-radius:3px 3px 0 0;padding:7px 12px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--cream);color:var(--text);border-bottom:none;min-width:0">
+                <div style="display:flex;gap:4px;padding-bottom:0">
+                  ${[
+                    {val:'',    label:'Todos'},
+                    {val:'membro',   label:'🏛️ Membros'},
+                    {val:'filiado',  label:'🔗 Filiados'},
+                    {val:'visitante',label:'🤝 Visitantes'}
+                  ].map((f,i)=>`<button type="button" id="filtro-tipo-com-${i}" onclick="filtrarTipoCom('${f.val}',${i})"
+                    style="padding:5px 8px;font-family:'Cinzel',serif;font-size:8px;font-weight:700;letter-spacing:0.06em;cursor:pointer;border-radius:3px 3px 0 0;border:1px solid ${i===0?'var(--navy)':'var(--border-mid)'};border-bottom:none;background:${i===0?'rgba(27,58,107,0.1)':'var(--cream)'};color:${i===0?'var(--navy)':'var(--text-muted)'};white-space:nowrap">${f.label}</button>`).join('')}
+                </div>
+              </div>
+              <div id="lista-membros-com" style="border:1px solid var(--border-mid);border-radius:0 0 3px 3px;max-height:210px;overflow-y:auto;background:var(--white)">
                 ${listaMembrosCom}
               </div>
-              <div style="font-size:11px;color:var(--text-muted);font-style:italic;margin-top:4px">Marque os irmãos e defina o cargo de cada um nesta comissão</div>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:5px">
+                <div style="font-size:11px;color:var(--text-muted);font-style:italic">Marque e defina o cargo de cada irmão nesta comissão</div>
+                <div id="cont-selecionados-com" style="font-size:11px;color:var(--navy);font-weight:700;font-family:'Cinzel',serif"></div>
+              </div>
             </div>
 
             <div id="campos-temporaria" style="${tipo!=='temporaria'?'display:none':''}">
@@ -6168,15 +6196,46 @@ function abrirModalComissao(tipoInicial='permanente', comissaoExistente=null) {
     </div>`);
 }
 
+let _filtroTipoCom = '';
+
+function filtrarTipoCom(tipo, idx) {
+  _filtroTipoCom = tipo;
+  for (let i=0; i<4; i++) {
+    const btn = document.getElementById('filtro-tipo-com-'+i);
+    if (!btn) continue;
+    const ativo = i === idx;
+    btn.style.border = `1px solid ${ativo?'var(--navy)':'var(--border-mid)'}`;
+    btn.style.borderBottom = 'none';
+    btn.style.background = ativo ? 'rgba(27,58,107,0.1)' : 'var(--cream)';
+    btn.style.color = ativo ? 'var(--navy)' : 'var(--text-muted)';
+  }
+  filtrarMembrosCom();
+}
+
+function filtrarMembrosCom() {
+  const termo = (document.getElementById('busca-membros-com')?.value||'').toLowerCase();
+  document.querySelectorAll('#lista-membros-com .linha-membro-com').forEach(div => {
+    const nome = div.dataset.nome||'';
+    const tipo = div.dataset.tipo||'membro';
+    const matchNome = !termo || nome.includes(termo);
+    const matchTipo = !_filtroTipoCom || tipo === _filtroTipoCom;
+    div.style.display = (matchNome && matchTipo) ? 'flex' : 'none';
+  });
+  const selecionados = document.querySelectorAll('#lista-membros-com input[type="checkbox"]:checked').length;
+  const cont = document.getElementById('cont-selecionados-com');
+  if (cont) cont.textContent = selecionados > 0 ? `${selecionados} selecionado(s)` : '';
+}
+
 function toggleMembroCom(membroId) {
   const chk = document.getElementById('chk-'+membroId);
   const sel = document.getElementById('cargo-com-'+membroId);
   const linha = chk?.closest('.linha-membro-com');
   const checked = chk?.checked;
-  if (sel) { sel.disabled = !checked; sel.style.opacity = checked?'1':'0.35'; sel.style.cursor = checked?'pointer':'default'; }
-  if (linha) linha.style.background = checked?'rgba(27,58,107,0.04)':'transparent';
-  const nomeEl = linha?.querySelector('span');
-  if (nomeEl) nomeEl.style.fontWeight = checked?'700':'400';
+  if (sel) { sel.disabled = !checked; sel.style.opacity = checked?'1':'0.4'; sel.style.cursor = checked?'pointer':'default'; }
+  if (linha) linha.style.background = checked?'rgba(27,58,107,0.05)':'transparent';
+  const selecionados = document.querySelectorAll('#lista-membros-com input[type="checkbox"]:checked').length;
+  const cont = document.getElementById('cont-selecionados-com');
+  if (cont) cont.textContent = selecionados > 0 ? `${selecionados} selecionado(s)` : '';
 }
 
 function abrirModalEditarComissao(id) {
@@ -6186,24 +6245,23 @@ function abrirModalEditarComissao(id) {
 
 function setTipoComissao(tipo) {
   document.getElementById('com-tipo').value = tipo;
-  ['perm','temp'].forEach(t => {
-    const btn = document.getElementById('btn-tipo-'+t);
-    if (!btn) return;
-    const ativo = (t==='perm' && tipo==='permanente') || (t==='temp' && tipo==='temporaria');
-    btn.style.background = ativo ? 'rgba(27,58,107,0.12)' : 'var(--cream)';
-    btn.style.color = 'var(--text)';
-    btn.style.outline = ativo ? '2px solid var(--navy)' : 'none';
-    btn.style.outlineOffset = '-2px';
-  });
-  document.getElementById('campos-temporaria').style.display = tipo==='temporaria'?'block':'none';
-}
-
-function filtrarMembrosCom() {
-  const termo = document.getElementById('busca-membros-com')?.value.toLowerCase()||'';
-  document.querySelectorAll('#lista-membros-com .linha-membro-com').forEach(div => {
-    const nome = div.dataset.nome||'';
-    div.style.display = nome.includes(termo) ? 'flex' : 'none';
-  });
+  const btnPerm = document.getElementById('btn-tipo-perm');
+  const btnTemp = document.getElementById('btn-tipo-temp');
+  if (btnPerm) {
+    const ativo = tipo === 'permanente';
+    btnPerm.style.border = `2px solid ${ativo ? 'var(--navy)' : 'var(--border-mid)'}`;
+    btnPerm.style.background = ativo ? 'rgba(27,58,107,0.12)' : 'var(--cream)';
+    btnPerm.style.color = 'var(--navy)';
+    btnPerm.textContent = '🏛️ Permanente' + (ativo ? ' ✓' : '');
+  }
+  if (btnTemp) {
+    const ativo = tipo === 'temporaria';
+    btnTemp.style.border = `2px solid ${ativo ? 'var(--navy)' : 'var(--border-mid)'}`;
+    btnTemp.style.background = ativo ? 'rgba(27,58,107,0.12)' : 'var(--cream)';
+    btnTemp.style.color = 'var(--navy)';
+    btnTemp.textContent = '⏳ Temporária' + (ativo ? ' ✓' : '');
+  }
+  document.getElementById('campos-temporaria').style.display = tipo === 'temporaria' ? 'block' : 'none';
 }
 
 function salvarComissao(id) {
