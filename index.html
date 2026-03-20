@@ -3091,9 +3091,10 @@ async function abrirModalPresenca(sessaoId, dataSessao, tipoSessao) {
     'Arquiteto','Experto','Membro','Diácono','Cobridor Interno','Cobridor Externo'
   ];
 
-  // Detectar situação atual de cada membro: 'presente' | 'ausente'
+  // Detectar situação atual: 'presente' | 'abonada' | 'ausente'
   const getSituacaoAtual = (p) => {
     if (!p) return 'ausente';
+    if (p.situacao === 'abonada') return 'abonada';
     if (p.presente || p.situacao === 'presente') return 'presente';
     return 'ausente';
   };
@@ -3104,7 +3105,8 @@ async function abrirModalPresenca(sessaoId, dataSessao, tipoSessao) {
     const cargoAtual = m.cargo || 'Membro';
     const btnStyle = (estado, ativo) => {
       const cores = {
-        presente: {bg:'rgba(34,139,34,0.12)', border:'var(--green)', cor:'var(--green)'},
+        presente: {bg:'rgba(34,139,34,0.12)', border:'var(--green)',      cor:'var(--green)'},
+        abonada:  {bg:'rgba(27,94,160,0.12)', border:'#1B5EA0',           cor:'#1B5EA0'},
         ausente:  {bg:'transparent',          border:'var(--border-dark)', cor:'var(--text-muted)'}
       };
       const c = cores[estado];
@@ -3113,7 +3115,8 @@ async function abrirModalPresenca(sessaoId, dataSessao, tipoSessao) {
         ? `${base}background:${c.bg};border-color:${c.border};color:${c.cor}`
         : `${base}background:transparent;border-color:var(--border);color:var(--border-mid);opacity:0.4`;
     };
-    return `<tr id="row-${m.id}" style="border-bottom:1px solid var(--border);background:${sit==='presente'?'rgba(34,139,34,0.03)':'transparent'}">
+    const bgRow = sit==='presente'?'rgba(34,139,34,0.03)':sit==='abonada'?'rgba(27,94,160,0.04)':'transparent';
+    return `<tr id="row-${m.id}" style="border-bottom:1px solid var(--border);background:${bgRow}">
       <td style="padding:8px 10px;font-size:14px;font-family:'Cormorant Garamond',serif;font-weight:600">${m.nome_maconico}</td>
       <td style="padding:8px 10px">
         <select id="cargo-${m.id}" style="border:1px solid var(--border-mid);border-radius:3px;padding:4px 7px;font-family:'Cormorant Garamond',serif;font-size:12px;background:var(--cream);color:var(--text);width:100%">
@@ -3122,9 +3125,11 @@ async function abrirModalPresenca(sessaoId, dataSessao, tipoSessao) {
         </select>
       </td>
       <td style="padding:8px 6px;text-align:center">
-        <div style="display:flex;gap:6px;justify-content:center;align-items:center">
+        <div style="display:flex;gap:5px;justify-content:center;align-items:center">
           <button title="Presente" onclick="setSituacao('${m.id}','presente')"
             id="btn-pres-${m.id}" style="${btnStyle('presente', sit==='presente')}">✓</button>
+          <button title="Falta Abonada (conta como presente)" onclick="setSituacao('${m.id}','abonada')"
+            id="btn-abon-${m.id}" style="${btnStyle('abonada', sit==='abonada')}">⊘</button>
           <button title="Ausente" onclick="setSituacao('${m.id}','ausente')"
             id="btn-ause-${m.id}" style="${btnStyle('ausente', sit==='ausente')}">✗</button>
         </div>
@@ -3132,7 +3137,8 @@ async function abrirModalPresenca(sessaoId, dataSessao, tipoSessao) {
     </tr>`;
   }).join('');
 
-  const presentes = presExist.filter(p=>p.presente||p.situacao==='presente').length;
+  const presentes = presExist.filter(p=>p.presente||p.situacao==='presente'||p.situacao==='abonada').length;
+  const abonadas  = presExist.filter(p=>p.situacao==='abonada').length;
 
   document.body.insertAdjacentHTML('beforeend', `
     <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px">
@@ -3144,6 +3150,7 @@ async function abrirModalPresenca(sessaoId, dataSessao, tipoSessao) {
           <!-- Legenda -->
           <div style="display:flex;gap:16px;margin-bottom:14px;font-size:11px;flex-wrap:wrap">
             <span style="display:flex;align-items:center;gap:5px;color:var(--green)"><span style="width:22px;height:22px;border-radius:50%;background:rgba(34,139,34,0.12);border:2px solid var(--green);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px">✓</span>Presente</span>
+            <span style="display:flex;align-items:center;gap:5px;color:#1B5EA0"><span style="width:22px;height:22px;border-radius:50%;background:rgba(27,94,160,0.12);border:2px solid #1B5EA0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px">⊘</span>Abonada <span style="color:var(--text-muted)">(conta como presente)</span></span>
             <span style="display:flex;align-items:center;gap:5px;color:var(--text-muted)"><span style="width:22px;height:22px;border-radius:50%;background:transparent;border:2px solid var(--border-dark);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px">✗</span>Ausente</span>
           </div>
           <table style="width:100%">
@@ -3157,7 +3164,7 @@ async function abrirModalPresenca(sessaoId, dataSessao, tipoSessao) {
         </div>
         <div style="padding:14px 28px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
           <div id="cont-presentes" style="font-size:13px;color:var(--text-muted);font-style:italic">
-            ${presentes} presente(s) · ${membros.length-presentes} ausente(s)
+            ${presentes} presente(s) · ${abonadas} abonada(s) · ${membros.length-presentes} ausente(s)
           </div>
           <div style="display:flex;gap:10px">
             <button class="btn" onclick="fecharModal()" style="padding:8px 20px">Fechar</button>
@@ -3170,11 +3177,13 @@ async function abrirModalPresenca(sessaoId, dataSessao, tipoSessao) {
 
 function setSituacao(membroId, situacao) {
   const cores = {
-    presente: {bg:'rgba(34,139,34,0.12)', border:'var(--green)',     cor:'var(--green)'},
-    ausente:  {bg:'transparent',          border:'var(--border-dark)',cor:'var(--text-muted)'}
+    presente: {bg:'rgba(34,139,34,0.12)', border:'var(--green)',      cor:'var(--green)'},
+    abonada:  {bg:'rgba(27,94,160,0.12)', border:'#1B5EA0',           cor:'#1B5EA0'},
+    ausente:  {bg:'transparent',          border:'var(--border-dark)', cor:'var(--text-muted)'}
   };
-  ['presente','ausente'].forEach(e => {
-    const btn = document.getElementById(`btn-${e.slice(0,4)}-${membroId}`);
+  ['presente','abonada','ausente'].forEach(e => {
+    const id = e==='presente'?'btn-pres':e==='abonada'?'btn-abon':'btn-ause';
+    const btn = document.getElementById(`${id}-${membroId}`);
     if (!btn) return;
     const ativo = e === situacao;
     const c = cores[e];
@@ -3184,19 +3193,23 @@ function setSituacao(membroId, situacao) {
     btn.style.opacity     = ativo ? '1' : '0.4';
   });
   const row = document.getElementById(`row-${membroId}`);
-  if (row) row.style.background = situacao==='presente'?'rgba(34,139,34,0.03)':'transparent';
+  if (row) row.style.background =
+    situacao==='presente' ? 'rgba(34,139,34,0.03)' :
+    situacao==='abonada'  ? 'rgba(27,94,160,0.04)' : 'transparent';
   atualizarContPresentes();
 }
 
 function atualizarContPresentes() {
   const membros = DATA.membros.filter(m => m.status==='ativo'||m.status==='iniciado');
-  let pres = 0;
+  let pres=0, abon=0;
   membros.forEach(m=>{
     const bp = document.getElementById(`btn-pres-${m.id}`);
+    const ba = document.getElementById(`btn-abon-${m.id}`);
     if (bp?.style.opacity!=='0.4' && bp?.style.background!=='transparent') pres++;
+    else if (ba?.style.opacity!=='0.4' && ba?.style.background!=='transparent') abon++;
   });
   const cont = document.getElementById('cont-presentes');
-  if (cont) cont.textContent = `${pres} presente(s) · ${membros.length-pres} ausente(s)`;
+  if (cont) cont.textContent = `${pres+abon} presente(s) · ${abon} abonada(s) · ${membros.length-pres-abon} ausente(s)`;
 }
 
 function togglePresenca(btn, membroId) {
@@ -3218,13 +3231,16 @@ async function confirmarPresencas(sessaoId) {
   const membros = DATA.membros.filter(m => m.status==='ativo'||m.status==='iniciado');
   const upserts = membros.map(m => {
     const bPres = document.getElementById(`btn-pres-${m.id}`);
-    const presente = bPres && bPres.style.opacity !== '0.4' && bPres.style.background !== 'transparent';
+    const bAbon = document.getElementById(`btn-abon-${m.id}`);
+    const isPresente = bPres?.style.opacity!=='0.4' && bPres?.style.background!=='transparent';
+    const isAbonada  = bAbon?.style.opacity!=='0.4' && bAbon?.style.background!=='transparent';
     const cargo = document.getElementById(`cargo-${m.id}`)?.value || m.cargo || 'Membro';
+    // Abonada conta como presente=true para cálculo de frequência
     return {
       sessao_id: sessaoId,
       membro_id: m.id,
-      presente,
-      situacao: presente ? 'presente' : 'ausente',
+      presente: isPresente || isAbonada,
+      situacao: isPresente ? 'presente' : isAbonada ? 'abonada' : 'ausente',
       justificativa: `cargo_sessao:${cargo}`
     };
   });
