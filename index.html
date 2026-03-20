@@ -6382,6 +6382,35 @@ function excluirComissao(id) {
   renderComissoes(ROLES[currentRole].access['comissoes']||'full');
 }
 
+// ─── EXPORTAR EXCEL (SheetJS) ───
+function exportarExcel(dados, nomeArquivo, nomeAba) {
+  // Carregar SheetJS dinamicamente se não estiver carregado
+  if (typeof XLSX !== 'undefined') {
+    _fazerDownloadExcel(dados, nomeArquivo, nomeAba);
+    return;
+  }
+  const script = document.createElement('script');
+  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  script.onload = () => _fazerDownloadExcel(dados, nomeArquivo, nomeAba);
+  script.onerror = () => toast('Erro ao carregar biblioteca Excel');
+  document.head.appendChild(script);
+}
+
+function _fazerDownloadExcel(dados, nomeArquivo, nomeAba) {
+  try {
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(dados);
+    // Largura automática das colunas
+    const maxW = dados[0]?.map((_,ci) => Math.max(...dados.map(r=>String(r[ci]||'').length), 10));
+    ws['!cols'] = maxW?.map(w=>({wch: Math.min(w+2, 50)}));
+    XLSX.utils.book_append_sheet(wb, ws, nomeAba||'Relatório');
+    XLSX.writeFile(wb, nomeArquivo+'.xlsx');
+    toast('✅ Excel exportado com sucesso!');
+  } catch(e) {
+    toast('Erro ao gerar Excel: '+e.message);
+  }
+}
+
 function renderRelatorios() {
   document.getElementById('relatorios-content').innerHTML = `
     <div class="rel-grid">
@@ -6397,8 +6426,8 @@ function renderRelatorios() {
       </div>
       <div class="rel-card" onclick="mostrarRelFrequenciaPeriodo()">
         <div class="rel-card-icon">📊</div>
-        <div class="rel-card-title">Frequência por Período</div>
-        <div class="rel-card-desc">Percentual de frequência por irmão e aptidão para votação em intervalo configurável.</div>
+        <div class="rel-card-title">Relatório de Frequência</div>
+        <div class="rel-card-desc">Frequência por período com filtro por irmão. Aptidão para votação e exportação Excel.</div>
       </div>
       <div class="rel-card" onclick="mostrarRelFinancas()">
         <div class="rel-card-icon">💰</div>
@@ -6551,7 +6580,7 @@ function mostrarRelMembros() {
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <button class="btn" onclick="toggleColsRelMembros()" style="font-size:10px">⚙️ Colunas</button>
           <button class="btn" onclick="imprimirRelMembros()">🖨️ Imprimir</button>
-          <button class="btn btn-solid" onclick="exportarRelMembrosCSV()" style="font-size:10px">📥 Exportar CSV</button>
+          <button class="btn btn-solid" onclick="exportarRelMembrosExcel()" style="font-size:10px;background:linear-gradient(135deg,#1A5C3A,#2A8C5A)">📊 Exportar Excel</button>
         </div>
       </div>
 
@@ -6625,34 +6654,32 @@ function atualizarColsRel() {
   if (el) el.innerHTML = tabela;
 }
 
-function exportarRelMembrosCSV() {
+function exportarRelMembrosExcel() {
   const cols = getRelMembrosCols().filter(c=>c!=='foto');
-  const headerMap = {num:'Nº',nomemac:'Nome Maçônico',nomeciv:'Nome Civil',cim:'CIM',grau:'Grau',cargo:'Cargo',status:'Situação',tipo:'Tipo',cpf:'CPF',telefone:'Telefone',email:'E-mail',nascimento:'Nascimento',ingresso:'Ingresso',loja:'Loja',mens:'Mensalidade'};
-  const rows = [cols.map(c=>headerMap[c]||c).join(';')];
-  DATA.membros.forEach(m=>{
-    rows.push(cols.map(c=>{
-      switch(c){
-        case 'num':return String(m.numero_sequencial||'').padStart(3,'0');
-        case 'nomemac':return m.nome_maconico||'';
-        case 'nomeciv':return m.nome_civil||'';
-        case 'cim':return m.cim||'';
-        case 'grau':return `${m.grau}º Grau`;
-        case 'cargo':return m.cargo||'';
-        case 'status':return m.status||'';
-        case 'tipo':return m.tipo_membro||'membro';
-        case 'cpf':return m.cpf||'';
-        case 'telefone':return m.telefone||'';
-        case 'email':return m.email||'';
-        case 'nascimento':return fmtData(m.data_nascimento);
-        case 'ingresso':return fmtData(m.data_ingresso);
-        case 'loja':return m.loja_origem||'';
-        case 'mens':return m.tipo_membro==='visitante'?'0':(m.mensalidade||100);
-        default:return '';
-      }
-    }).join(';'));
-  });
-  const blob = new Blob(['\uFEFF'+rows.join('\n')], {type:'text/csv;charset=utf-8'});
-  const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='irmaos_loja.csv'; a.click();
+  const headerMap = {num:'Nº',nomemac:'Nome Maçônico',nomeciv:'Nome Civil',cim:'CIM',grau:'Grau',cargo:'Cargo',status:'Situação',tipo:'Tipo',cpf:'CPF',telefone:'Telefone',email:'E-mail',nascimento:'Nascimento',ingresso:'Ingresso',loja:'Loja Origem',mens:'Mensalidade'};
+  const getCelVal = (m,c) => {
+    switch(c){
+      case 'num':      return String(m.numero_sequencial||'').padStart(3,'0');
+      case 'nomemac':  return m.nome_maconico||'';
+      case 'nomeciv':  return m.nome_civil||'';
+      case 'cim':      return m.cim||'';
+      case 'grau':     return `${m.grau||3}º Grau`;
+      case 'cargo':    return m.cargo||'';
+      case 'status':   return m.status||'';
+      case 'tipo':     return m.tipo_membro||'membro';
+      case 'cpf':      return m.cpf||'';
+      case 'telefone': return m.telefone||'';
+      case 'email':    return m.email||'';
+      case 'nascimento':return fmtData(m.data_nascimento);
+      case 'ingresso': return fmtData(m.data_ingresso);
+      case 'loja':     return m.loja_origem||'';
+      case 'mens':     return m.tipo_membro==='visitante'?0:(m.mensalidade||100);
+      default:         return '';
+    }
+  };
+  const cabecalho = cols.map(c=>headerMap[c]||c);
+  const linhas = DATA.membros.map(m => cols.map(c=>getCelVal(m,c)));
+  exportarExcel([cabecalho,...linhas], 'irmaos_loja_'+new Date().toISOString().slice(0,10), 'Irmãos do Quadro');
 }
 
 function imprimirRelMembros() {
@@ -6742,7 +6769,21 @@ function gerarRelFreqSessao() {
     ${ausentes.length?`<div class="rel-section-title">❌ Ausentes</div><table><thead><tr><th>Irmão</th><th>Cargo</th><th>Grau</th><th>Situação</th></tr></thead><tbody>${linhasAusentes}</tbody></table>`:''}
     ${visitantes.length?`<div class="rel-section-title">🤝 Visitantes</div><table><thead><tr><th>Nome</th><th>Loja / Oriente</th><th>CIM</th><th>Tipo</th></tr></thead><tbody>${linhasVisit}</tbody></table>`:''}
     <div style="display:flex;justify-content:flex-end;margin-top:16px">
+      <button class="btn" onclick="exportarFreqSessaoExcel('${sessaoId}')">📊 Excel</button>
       <button class="btn btn-solid" onclick="imprimirFreqSessao('${sessaoId}')">🖨️ Imprimir Lista de Presença</button></div>`;
+}
+
+function exportarFreqSessaoExcel(sessaoId) {
+  const s = DATA.sessoes.find(x=>x.id===sessaoId);
+  const membros = DATA.membros.filter(m=>m.status==='ativo'||m.status==='iniciado');
+  const presencas = DATA.presencas.filter(p=>p.sessao_id===sessaoId);
+  const cab=['Nome Maçônico','Cargo','Grau','Presença'];
+  const linhas=membros.map(m=>{
+    const p=presencas.find(x=>x.membro_id===m.id);
+    const pres=p&&(p.presente||p.situacao==='presente');
+    return [m.nome_maconico,m.cargo||'',m.grau+'º',pres?'Presente':'Ausente'];
+  });
+  exportarExcel([cab,...linhas],'presencas_'+(s?.data||''),'Presenças');
 }
 
 function imprimirFreqSessao(sessaoId) {
@@ -6783,16 +6824,23 @@ function imprimirFreqSessao(sessaoId) {
 // ─── FREQUÊNCIA POR PERÍODO / APTIDÃO ───
 function mostrarRelFrequenciaPeriodo() {
   const anoAtual = new Date().getFullYear();
+  const opsMembros = `<option value="">Todos os irmãos</option>`
+    + DATA.membros.filter(m=>m.status==='ativo'||m.status==='iniciado')
+        .map(m=>`<option value="${m.id}">${m.nome_maconico}</option>`).join('');
   document.getElementById('rel-resultado').innerHTML = `
     <div class="card">
-      <div class="card-header"><div class="card-title">📊 Frequência por Período</div></div>
-      <div class="rel-filters">
+      <div class="card-header">
+        <div class="card-title">📊 Relatório de Frequência</div>
+      </div>
+      <div class="rel-filters" style="flex-wrap:wrap;gap:10px">
         <div><label class="rel-filter-label">Data Início</label>
           <input id="rel-per-ini" type="date" value="${anoAtual}-01-01" class="rel-filter-input"></div>
         <div><label class="rel-filter-label">Data Fim</label>
           <input id="rel-per-fim" type="date" value="${new Date().toISOString().split('T')[0]}" class="rel-filter-input"></div>
-        <div><label class="rel-filter-label">% Mínimo para Aptidão</label>
-          <input id="rel-pct-min" type="number" value="50" min="1" max="100" class="rel-filter-input"></div>
+        <div><label class="rel-filter-label">Irmão (ou todos)</label>
+          <select id="rel-per-irmao" class="rel-filter-input" style="min-width:180px">${opsMembros}</select></div>
+        <div><label class="rel-filter-label">% Mínimo Aptidão</label>
+          <input id="rel-pct-min" type="number" value="50" min="1" max="100" class="rel-filter-input" style="width:80px"></div>
         <div style="display:flex;align-items:flex-end">
           <button class="btn btn-solid" onclick="gerarRelFreqPeriodo()" style="width:100%">Gerar</button></div>
       </div>
@@ -6811,16 +6859,36 @@ function gerarRelFreqPeriodo() {
   const ini = document.getElementById('rel-per-ini')?.value;
   const fim = document.getElementById('rel-per-fim')?.value;
   const pctMin = parseInt(document.getElementById('rel-pct-min')?.value)||50;
+  const filtroIrmaoId = document.getElementById('rel-per-irmao')?.value||'';
   if (!ini||!fim) { toast('Selecione o período'); return; }
   const sessoesP = DATA.sessoes.filter(s=>s.data>=ini&&s.data<=fim);
-  const membros = DATA.membros.filter(m=>m.status==='ativo'||m.status==='iniciado');
+  let membros = DATA.membros.filter(m=>m.status==='ativo'||m.status==='iniciado');
+  if (filtroIrmaoId) membros = membros.filter(m=>m.id===filtroIrmaoId);
   const total = sessoesP.length;
   const resultado = membros.map(m=>{
     const pres = DATA.presencas.filter(p=>p.membro_id===m.id&&(p.presente||p.situacao==='presente')&&sessoesP.find(s=>s.id===p.sessao_id)).length;
     const pct = total?Math.round(pres/total*100):0;
-    return {...m,presentes:pres,pct,apto:pct>=pctMin};
+    // Detalhes das sessões (para quando filtrar por irmão)
+    const detalhesSessoes = filtroIrmaoId ? sessoesP.map(s=>{
+      const p = DATA.presencas.find(x=>x.membro_id===m.id&&x.sessao_id===s.id);
+      const presente = p&&(p.presente||p.situacao==='presente');
+      return {data:s.data, tipo:s.tipo||'Sessão', presente};
+    }) : [];
+    return {...m, presentes:pres, pct, apto:pct>=pctMin, detalhesSessoes};
   }).sort((a,b)=>b.pct-a.pct);
   const aptos = resultado.filter(m=>m.apto).length;
+  const isUmIrmao = filtroIrmaoId && resultado.length === 1;
+
+  const linhasSessoes = isUmIrmao && resultado[0]?.detalhesSessoes?.length
+    ? `<div style="margin-top:20px">
+        <div style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.15em;color:var(--navy);margin-bottom:10px">HISTÓRICO DE SESSÕES NO PERÍODO</div>
+        <table><thead><tr><th>Data</th><th>Tipo</th><th>Presença</th></tr></thead>
+        <tbody>${resultado[0].detalhesSessoes.map(s=>`<tr>
+          <td>${fmtData(s.data)}</td>
+          <td>${s.tipo}</td>
+          <td><span style="font-size:14px;color:${s.presente?'var(--green)':'var(--red)'}">${s.presente?'✓ Presente':'✗ Ausente'}</span></td>
+        </tr>`).join('')}</tbody></table>
+      </div>` : '';
 
   const linhas = resultado.map(m=>`<tr>
     <td>${m.nome_maconico}</td><td>${m.cargo||'—'}</td>
@@ -6828,25 +6896,48 @@ function gerarRelFreqPeriodo() {
     <td><div style="display:flex;align-items:center;gap:8px">
       <div style="background:var(--cream-mid);border-radius:2px;height:6px;width:80px;overflow:hidden">
         <div style="background:${m.pct>=pctMin?'var(--green)':m.pct>=30?'var(--gold-dark)':'var(--red)'};height:100%;width:${m.pct}%"></div></div>
-      <span style="font-size:11px;font-weight:700;color:${m.pct>=pctMin?'var(--green)':m.pct>=30?'var(--gold-dark)':'var(--red)'}">${m.pct}%</span></div></td>
+      <span style="font-size:12px;font-weight:700;color:${m.pct>=pctMin?'var(--green)':m.pct>=30?'var(--gold-dark)':'var(--red)'}">${m.pct}%</span></div></td>
     <td><span class="apto-badge ${m.apto?'apto-sim':'apto-nao'}">${m.apto?'✓ APTO':'✗ INAPTO'}</span></td>
   </tr>`).join('');
 
   document.getElementById('rel-freq-per-result').innerHTML = `
     <div style="display:flex;gap:12px;margin:16px 0;flex-wrap:wrap">
       <div class="stat-card" style="flex:1"><div class="stat-label">Sessões no período</div><div class="stat-value">${total}</div></div>
-      <div class="stat-card" style="flex:1"><div class="stat-label">✅ Aptos à votação</div><div class="stat-value" style="color:var(--green)">${aptos}</div></div>
-      <div class="stat-card" style="flex:1"><div class="stat-label">❌ Inaptos</div><div class="stat-value" style="color:var(--red)">${resultado.length-aptos}</div></div>
+      ${!filtroIrmaoId?`
+      <div class="stat-card" style="flex:1"><div class="stat-label">✅ Aptos</div><div class="stat-value" style="color:var(--green)">${aptos}</div></div>
+      <div class="stat-card" style="flex:1"><div class="stat-label">❌ Inaptos</div><div class="stat-value" style="color:var(--red)">${resultado.length-aptos}</div></div>`
+      : `<div class="stat-card" style="flex:1"><div class="stat-label">Presenças</div><div class="stat-value" style="color:var(--green)">${resultado[0]?.presentes||0}</div></div>
+         <div class="stat-card" style="flex:1"><div class="stat-label">Frequência</div><div class="stat-value" style="color:${resultado[0]?.pct>=pctMin?'var(--green)':'var(--red)'}">${resultado[0]?.pct||0}%</div></div>`}
     </div>
     <table><thead><tr><th>Irmão</th><th>Cargo</th><th>Presenças</th><th>Frequência</th><th>Aptidão (≥${pctMin}%)</th></tr></thead>
     <tbody>${linhas}</tbody></table>
-    <div style="display:flex;justify-content:flex-end;margin-top:16px">
-      <button class="btn btn-solid" onclick="imprimirFreqPeriodo('${ini}','${fim}',${pctMin})">🖨️ Imprimir Relatório Eleitoral</button></div>`;
+    ${linhasSessoes}
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap">
+      <button class="btn" onclick="exportarFreqPeriodoExcel('${ini}','${fim}',${pctMin},'${filtroIrmaoId}')">📊 Exportar Excel</button>
+      <button class="btn btn-solid" onclick="imprimirFreqPeriodo('${ini}','${fim}',${pctMin},'${filtroIrmaoId}')">🖨️ Imprimir</button>
+    </div>`;
 }
 
-function imprimirFreqPeriodo(ini, fim, pctMin) {
+function exportarFreqPeriodoExcel(ini, fim, pctMin, filtroIrmaoId) {
   const sessoesP = DATA.sessoes.filter(s=>s.data>=ini&&s.data<=fim);
-  const membros = DATA.membros.filter(m=>m.status==='ativo'||m.status==='iniciado');
+  let membros = DATA.membros.filter(m=>m.status==='ativo'||m.status==='iniciado');
+  if (filtroIrmaoId) membros = membros.filter(m=>m.id===filtroIrmaoId);
+  const total = sessoesP.length;
+  const resultado = membros.map(m=>{
+    const pres = DATA.presencas.filter(p=>p.membro_id===m.id&&(p.presente||p.situacao==='presente')&&sessoesP.find(s=>s.id===p.sessao_id)).length;
+    const pct = total?Math.round(pres/total*100):0;
+    return {nome:m.nome_maconico, cargo:m.cargo||'', presentes:pres, total, pct, apto:pct>=pctMin?'APTO':'INAPTO'};
+  }).sort((a,b)=>b.pct-a.pct);
+  const cab = ['Nome Maçônico','Cargo','Presenças','Total Sessões','Frequência %','Aptidão'];
+  const linhas = resultado.map(r=>[r.nome,r.cargo,r.presentes,r.total,r.pct+'%',r.apto]);
+  exportarExcel([cab,...linhas], `frequencia_${ini}_${fim}`, 'Frequência');
+}
+
+function imprimirFreqPeriodo(ini, fim, pctMin, filtroIrmaoId) {
+  filtroIrmaoId = filtroIrmaoId || '';
+  const sessoesP = DATA.sessoes.filter(s=>s.data>=ini&&s.data<=fim);
+  let membros = DATA.membros.filter(m=>m.status==='ativo'||m.status==='iniciado');
+  if (filtroIrmaoId) membros = membros.filter(m=>m.id===filtroIrmaoId);
   const total = sessoesP.length;
   const resultado = membros.map(m=>{
     const pres = DATA.presencas.filter(p=>p.membro_id===m.id&&(p.presente||p.situacao==='presente')&&sessoesP.find(s=>s.id===p.sessao_id)).length;
@@ -6939,10 +7030,22 @@ function gerarRelFinancas() {
     </div>
     ${lancs.length?`<table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Valor</th></tr></thead><tbody>${linhas}</tbody></table>`
     :'<div style="padding:20px;text-align:center;font-style:italic;color:var(--text-muted)">Nenhum lançamento no período.</div>'}
-    <div style="display:flex;justify-content:flex-end;margin-top:16px">
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+      <button class="btn" onclick="exportarFinancasExcel('${ini}','${fim}','${tipo}','${cat}')">📊 Exportar Excel</button>
       <button class="btn btn-solid" onclick="imprimirRelFinancas('${ini}','${fim}','${tipo}','${cat}')">🖨️ Imprimir</button></div>`;
 }
 
+function exportarFinancasExcel(ini, fim, tipo, cat) {
+  let lancs = DATA.financas.filter(l=>l.data>=ini&&l.data<=fim);
+  if (tipo!=='todos') lancs=lancs.filter(l=>l.tipo===tipo);
+  if (cat!=='todos') lancs=lancs.filter(l=>l.categoria===cat);
+  const cab = ['Data','Descrição','Categoria','Tipo','Valor (R$)','Status'];
+  const linhas = lancs.map(l=>{
+    const mb = DATA.membros.find(m=>m.id===l.membro_id);
+    return [fmtData(l.data), (l.descricao||'')+(mb?' ('+mb.nome_maconico+')':''), getCatLabel(l.categoria)||'', l.tipo==='receita'?'Receita':'Despesa', parseFloat(l.valor||0), l.status||'pago'];
+  });
+  exportarExcel([cab,...linhas], `financas_${ini}_${fim}`, 'Extrato Financeiro');
+}
 function imprimirRelFinancas(ini, fim, tipo, cat) {
   let lancs = DATA.financas.filter(l=>l.data>=ini&&l.data<=fim);
   if (tipo!=='todos') lancs=lancs.filter(l=>l.tipo===tipo);
@@ -6998,7 +7101,10 @@ function mostrarRelDebitos() {
     <div class="card">
       <div class="card-header">
         <div class="card-title">⚠️ Irmãos com Débitos</div>
-        <button class="btn btn-solid" onclick="imprimirRelDebitos()">🖨️ Imprimir</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn" onclick="exportarDebitosExcel()">📊 Excel</button>
+          <button class="btn btn-solid" onclick="imprimirRelDebitos()">🖨️ Imprimir</button>
+        </div>
       </div>
       <div style="display:flex;gap:12px;margin:14px 0;flex-wrap:wrap">
         <div class="stat-card" style="flex:1"><div class="stat-label">Inadimplentes</div><div class="stat-value" style="color:var(--red)">${devedores.length}</div></div>
@@ -7008,6 +7114,24 @@ function mostrarRelDebitos() {
       <table><thead><tr><th>Irmão</th><th>Cargo</th><th>Mensalidade</th><th>Atraso</th><th>Valor Aberto</th><th></th></tr></thead>
       <tbody>${linhas}</tbody></table>
     </div>`;
+}
+
+function exportarDebitosExcel() {
+  const membros = DATA.membros.filter(m=>m.status==='ativo'||m.status==='iniciado');
+  const hoje = new Date(); const anoAtual=hoje.getFullYear(); const lancs=DATA.financas;
+  const devedores = membros.map(m=>{
+    const mens=parseFloat(m.mensalidade)||100; if(!mens) return null;
+    const ai=m.data_ingresso?parseInt(m.data_ingresso.split('-')[0]):anoAtual;
+    const mi=m.data_ingresso?parseInt(m.data_ingresso.split('-')[1]):1;
+    const tot=Math.max(0,(anoAtual-ai)*12+(hoje.getMonth()+1-mi));
+    const esp=tot*mens;
+    const pago=lancs.filter(l=>l.membro_id===m.id&&l.tipo==='receita'&&l.status==='pago'&&l.categoria==='mensalidade').reduce((s,l)=>s+parseFloat(l.valor||0),0);
+    const devia=Math.max(0,esp-pago); if(!devia) return null;
+    return {nome:m.nome_maconico,cargo:m.cargo||'',mens,devia,meses:Math.round(devia/mens)};
+  }).filter(Boolean);
+  const cab=['Nome Maçônico','Cargo','Mensalidade (R$)','Meses em Atraso','Valor em Aberto (R$)'];
+  const linhas=devedores.map(d=>[d.nome,d.cargo,d.mens,d.meses,d.devia]);
+  exportarExcel([cab,...linhas],'debitos_pendentes_'+new Date().toISOString().slice(0,10),'Débitos');
 }
 
 function imprimirRelDebitos() {
@@ -7075,7 +7199,10 @@ function mostrarRelTronco() {
     <div class="card">
       <div class="card-header">
         <div class="card-title">🏺 Tronco de Beneficência</div>
-        <button class="btn btn-solid" onclick="imprimirRelTronco()">🖨️ Imprimir</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn" onclick="exportarTroncoExcel()">📊 Excel</button>
+          <button class="btn btn-solid" onclick="imprimirRelTronco()">🖨️ Imprimir</button>
+        </div>
       </div>
       <div style="display:flex;gap:12px;margin:14px 0;flex-wrap:wrap">
         <div class="stat-card" style="flex:1"><div class="stat-label">Total Arrecadado</div><div class="stat-value" style="color:var(--green);font-size:18px">${fmtVal(totalTronco)}</div></div>
@@ -7092,6 +7219,17 @@ function mostrarRelTronco() {
         💡 Para lançar no Tronco, acesse o menu <strong>Finanças</strong> → <strong>＋ Novo Lançamento</strong> → selecione a categoria <strong>Tronco Benef.</strong> e vincule à sessão correspondente.
       </div>
     </div>`;
+}
+
+function exportarTroncoExcel() {
+  const lancsTronco = DATA.financas.filter(l=>l.categoria==='tronco');
+  const cab=['Data','Descrição','Tipo','Valor (R$)'];
+  const linhas=lancsTronco.sort((a,b)=>(a.data||'').localeCompare(b.data||'')).map(l=>[
+    fmtData(l.data), l.descricao||'', l.tipo==='receita'?'Entrada':'Saída', parseFloat(l.valor||0)
+  ]);
+  const total=lancsTronco.filter(l=>l.tipo==='receita').reduce((s,l)=>s+parseFloat(l.valor||0),0);
+  const saidas=lancsTronco.filter(l=>l.tipo==='despesa').reduce((s,l)=>s+parseFloat(l.valor||0),0);
+  exportarExcel([cab,...linhas,['','','Saldo',total-saidas]],'tronco_beneficencia','Tronco');
 }
 
 function mostrarRelComissoes() {
@@ -7147,6 +7285,7 @@ function mostrarRelComissoes() {
           </select>
           <input id="rf-com-nome" type="text" placeholder="🔍 Buscar..." oninput="filtrarRelComissoes()"
             style="border:1px solid var(--border-mid);border-radius:3px;padding:5px 10px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--cream);color:var(--text);width:150px">
+          <button class="btn" onclick="exportarComissoesExcel()">📊 Excel</button>
           <button class="btn" onclick="imprimirRelComissoes()">🖨️ Imprimir</button>
         </div>
       </div>
@@ -7188,6 +7327,18 @@ function filtrarRelComissoes() {
   if (!el) return;
   el.innerHTML = renderSec(perm,'🏛️ Permanentes','var(--navy)')+renderSec(temp,'⏳ Temporárias','#7A4A00')
     ||(lista.length===0?'<div style="text-align:center;padding:20px;font-style:italic;color:var(--text-muted)">Nenhuma comissão encontrada.</div>':'');
+}
+
+function exportarComissoesExcel() {
+  const lista = DATA.comissoes || [];
+  const cab = ['Nome','Tipo','Presidente','Membros','Cargo dos Membros','Missão','Ativa'];
+  const linhas = lista.map(c=>[
+    c.nome||'', c.tipo||'', c.presidente||'',
+    (c.membros||[]).join(', '),
+    (c.membros_cargos||[]).map(mc=>mc.nome+(mc.cargo_com?' ('+mc.cargo_com+')':'')).join(', '),
+    c.missao||'', c.ativa?'Sim':'Não'
+  ]);
+  exportarExcel([cab,...linhas],'comissoes_loja','Comissões');
 }
 
 function imprimirRelComissoes() {
