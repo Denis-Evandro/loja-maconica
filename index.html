@@ -2965,8 +2965,20 @@ function verListaPresenca(sessaoId, data, tipo) {
     </tr>`).join('');
 
   const rowsVisit = visitantes.map(v=>{
-    const info = (v.justificativa||'').replace('VISITANTE | ','');
-    return `<tr><td style="text-align:center">🤝</td><td colspan="4" style="font-family:'Cormorant Garamond',serif;font-size:14px">${info}</td></tr>`;
+    const j = v.justificativa||'';
+    const parts = j.replace('VISITANTE | ','').split(' | ').reduce((acc,p)=>{const[k,...vv]=p.split(': ');acc[k?.trim()]=vv.join(': ')?.trim();return acc;},{});
+    const nome  = parts['Nome']  || j.replace('VISITANTE | ','');
+    const loja  = parts['Loja']  || '';
+    const cim   = parts['CIM']   || '';
+    const cargo = parts['Cargo'] || '';
+    return `<tr style="background:rgba(212,168,67,0.02)">
+      <td style="text-align:center;font-size:16px">🤝</td>
+      <td style="font-family:'Cormorant Garamond',serif;font-size:14px;font-weight:700;padding:7px 8px">${nome}</td>
+      <td style="font-size:12px;color:var(--text-muted);padding:7px 8px">${loja}${cim&&cim!=='—'?' · CIM: '+cim:''}</td>
+      <td colspan="2" style="padding:7px 8px">
+        ${cargo?`<span style="background:rgba(27,58,107,0.1);border:1px solid rgba(27,58,107,0.25);border-radius:20px;padding:2px 10px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.06em;color:var(--navy)">${cargo}</span>`:''}
+      </td>
+    </tr>`;
   }).join('');
 
   document.body.insertAdjacentHTML('beforeend', `
@@ -3291,8 +3303,19 @@ async function abrirModalVisitante(sessaoId) {
           <div>${lb('Loja / Oriente *')}
             <input id="vis-loja" list="lojas-list" ${inp} placeholder="Ex: Loja União Nº 10 — GOB/SP"></div>
           <div style="font-size:11px;color:var(--gold-dark);font-style:italic">💡 Lojas já visitantes aparecem como sugestão ao digitar</div>
-          <div>${lb('CIM', 'opcional')}
-            <input id="vis-cim" ${inp} placeholder="Ex: 12345-SP"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div>${lb('CIM', 'opcional')}
+              <input id="vis-cim" ${inp} placeholder="Ex: 12345-SP"></div>
+            <div>${lb('Cargo na Sessão', 'opcional')}
+              <input id="vis-cargo" list="vis-cargos-list" ${inp} placeholder="Ex: Orador, 1º Vigilante...">
+              <datalist id="vis-cargos-list">
+                <option value="Venerável Mestre"><option value="1º Vigilante"><option value="2º Vigilante">
+                <option value="Orador"><option value="Secretário"><option value="Tesoureiro">
+                <option value="Chanceler"><option value="Mestre de Cerimônias"><option value="Diácono">
+                <option value="Visitante"><option value="Convidado">
+              </datalist>
+            </div>
+          </div>
         </div>
 
         ${visitantesCad.length > 0 ? '</div>' : ''}
@@ -3310,30 +3333,33 @@ function preencherDadosVisitante() {
   const val = sel?.value;
   if (!val) return;
   const [nome, loja, cim] = val.split('|');
-  const nomeEl = document.getElementById('vis-nome');
-  const lojaEl = document.getElementById('vis-loja');
-  const cimEl  = document.getElementById('vis-cim');
-  if (nomeEl) nomeEl.value = nome || '';
-  if (lojaEl) lojaEl.value = loja || '';
-  if (cimEl)  cimEl.value  = cim  || '';
+  const nomeEl  = document.getElementById('vis-nome');
+  const lojaEl  = document.getElementById('vis-loja');
+  const cimEl   = document.getElementById('vis-cim');
+  const cargoEl = document.getElementById('vis-cargo');
+  if (nomeEl)  nomeEl.value  = nome || '';
+  if (lojaEl)  lojaEl.value  = loja || '';
+  if (cimEl)   cimEl.value   = cim  || '';
+  if (cargoEl) cargoEl.value = '';
 }
 
 async function salvarVisitante(sessaoId) {
-  const nome = document.getElementById('vis-nome')?.value.trim();
-  const loja = document.getElementById('vis-loja')?.value.trim();
-  const cim  = document.getElementById('vis-cim')?.value.trim();
+  const nome  = document.getElementById('vis-nome')?.value.trim();
+  const loja  = document.getElementById('vis-loja')?.value.trim();
+  const cim   = document.getElementById('vis-cim')?.value.trim();
+  const cargo = document.getElementById('vis-cargo')?.value.trim();
   if (!nome || !loja) { toast('Preencha nome e loja'); return; }
 
   // Salvar a loja na tabela de lojas_visitantes para autocompletar depois
   await sb.from('lojas_visitantes').upsert({ nome: loja }, { onConflict: 'nome', ignoreDuplicates: true });
 
-  // Registrar visitante na tabela presencas com situacao 'presente' (constraint aceita)
+  // Registrar visitante na tabela presencas
   const res = await sb.from('presencas').insert({
     sessao_id: sessaoId,
     membro_id: null,
     presente: true,
     situacao: 'presente',
-    justificativa: `VISITANTE | Nome: ${nome} | Loja: ${loja} | CIM: ${cim||'—'}`
+    justificativa: `VISITANTE | Nome: ${nome} | Loja: ${loja} | CIM: ${cim||'—'}${cargo?' | Cargo: '+cargo:''}`
   });
   if (res.error) { toast('Erro: ' + res.error.message); return; }
   toast('Visitante registrado ✦');
