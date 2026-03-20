@@ -6062,30 +6062,58 @@ function abrirModalComissao(tipoInicial='permanente', comissaoExistente=null) {
   const c = comissaoExistente || {};
   const tipo = ed ? c.tipo : tipoInicial;
   const inp = `style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"`;
-  const lb = (t) => `<label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">${t}</label>`;
-  const opsMembros = DATA.membros.map(m=>`<option value="${m.nome_maconico}" ${(c.membros||[]).includes(m.nome_maconico)?'selected':''}>${m.nome_maconico}</option>`).join('');
+  const lb = (t,op='') => `<label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">${t}${op?` <span style="font-weight:400;text-transform:none;font-size:10px">(${op})</span>`:''}</label>`;
+
+  // Presidente options
   const opsPres = `<option value="">— Selecionar —</option>`+DATA.membros.map(m=>`<option value="${m.nome_maconico}" ${c.presidente===m.nome_maconico?'selected':''}>${m.nome_maconico}</option>`).join('');
+
+  // Membros selecionados (com cargo específico na comissão)
+  const membrosComissao = c.membros_cargos || (c.membros||[]).map(nm=>({nome:nm, cargo_com:''}));
+  const getMembCargo = (nm) => membrosComissao.find(mc=>mc.nome===nm)?.cargo_com||'';
+
+  // Todos os membros (incluindo visitantes)
+  const todosMembros = DATA.membros;
+
+  // Cargos possíveis na comissão
+  const CARGOS_COM = ['Presidente','Vice-Presidente','Secretário','Tesoureiro','Relator','Membro','Convidado','Assessor'];
+
+  const listaMembrosCom = todosMembros.map(m=>{
+    const selecionado = membrosComissao.some(mc=>mc.nome===m.nome_maconico);
+    const cargoAtual = getMembCargo(m.nome_maconico);
+    const tipoLabel = m.tipo_membro==='visitante'?'🤝 Visitante':m.tipo_membro==='filiado'?'🔗 Filiado':'🏛️ Membro';
+    return `<div class="linha-membro-com" data-nome="${m.nome_maconico.toLowerCase()}" style="display:flex;align-items:center;gap:8px;padding:7px 12px;border-bottom:1px solid var(--border);background:${selecionado?'rgba(27,58,107,0.04)':'transparent'};transition:background 0.1s" onmouseover="if(!document.getElementById('chk-${m.id}').checked)this.style.background='var(--cream)'" onmouseout="if(!document.getElementById('chk-${m.id}').checked)this.style.background='transparent'">
+      <input type="checkbox" id="chk-${m.id}" value="${m.nome_maconico}" ${selecionado?'checked':''} style="width:15px;height:15px;cursor:pointer;accent-color:var(--navy);flex-shrink:0" onchange="toggleMembroCom('${m.id}')">
+      <div style="flex:1;min-width:0">
+        <span style="font-size:13px;font-weight:${selecionado?700:400};color:var(--text);font-family:'Cormorant Garamond',serif">${m.nome_maconico}</span>
+        <span style="font-size:10px;color:var(--text-muted);margin-left:8px">${m.cargo||tipoLabel}</span>
+      </div>
+      <select id="cargo-com-${m.id}" style="border:1px solid var(--border-mid);border-radius:3px;padding:3px 6px;font-family:'Cormorant Garamond',serif;font-size:11px;background:var(--cream);color:var(--text);opacity:${selecionado?1:0.35};cursor:${selecionado?'pointer':'default'}" ${selecionado?'':'disabled'}>
+        <option value="">Cargo na comissão</option>
+        ${CARGOS_COM.map(cg=>`<option value="${cg}" ${cargoAtual===cg?'selected':''}>${cg}</option>`).join('')}
+      </select>
+    </div>`;
+  }).join('');
 
   document.body.insertAdjacentHTML('beforeend', `
     <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px">
-      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:8px;width:600px;max-height:92vh;overflow-y:auto;position:relative">
+      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:8px;width:620px;max-height:92vh;overflow-y:auto;position:relative">
         <div style="height:3px;background:linear-gradient(90deg,var(--gold-dark),var(--gold-rich),var(--gold-light),var(--gold-dark));border-radius:8px 8px 0 0"></div>
         <div style="padding:28px 32px">
           <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);margin-bottom:22px">${ed?'✎ Editar Comissão':'+ Nova Comissão'}</div>
 
-          <!-- Tipo -->
+          <!-- Tipo — mesmo padrão visual dos outros toggles -->
           <div style="margin-bottom:16px">
             ${lb('Tipo de Comissão')}
             <div style="display:flex;border:1px solid var(--border-mid);border-radius:3px;overflow:hidden">
               <button type="button" id="btn-tipo-perm" onclick="setTipoComissao('permanente')"
-                style="flex:1;padding:9px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;cursor:pointer;border:none;background:${tipo==='permanente'?'var(--navy)':'var(--cream)'};color:${tipo==='permanente'?'#fff':'var(--text)'}">
+                style="flex:1;padding:10px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.08em;cursor:pointer;border:none;border-right:1px solid var(--border-mid);background:${tipo==='permanente'?'rgba(27,58,107,0.12)':'var(--cream)'};color:var(--text);outline:${tipo==='permanente'?'2px solid var(--navy)':'none'};outline-offset:-2px;position:relative">
                 🏛️ Permanente</button>
               <button type="button" id="btn-tipo-temp" onclick="setTipoComissao('temporaria')"
-                style="flex:1;padding:9px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;cursor:pointer;border:none;border-left:1px solid var(--border-mid);background:${tipo==='temporaria'?'var(--navy)':'var(--cream)'};color:${tipo==='temporaria'?'#fff':'var(--text)'}">
+                style="flex:1;padding:10px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.08em;cursor:pointer;border:none;background:${tipo==='temporaria'?'rgba(27,58,107,0.12)':'var(--cream)'};color:var(--text);outline:${tipo==='temporaria'?'2px solid var(--navy)':'none'};outline-offset:-2px;position:relative">
                 ⏳ Temporária</button>
             </div>
             <input type="hidden" id="com-tipo" value="${tipo}">
-            <div style="font-size:10px;color:var(--text-muted);font-style:italic;margin-top:5px">
+            <div style="font-size:11px;color:var(--text-muted);font-style:italic;margin-top:5px">
               Permanente = da Loja (Finanças, Beneficência...) · Temporária = por evento (Instalação, Posse, Grau...)
             </div>
           </div>
@@ -6097,23 +6125,19 @@ function abrirModalComissao(tipoInicial='permanente', comissaoExistente=null) {
             <div>${lb('Presidente *')}
               <select id="com-presidente" ${inp}>${opsPres}</select></div>
 
-            <div>${lb('Membros da Comissão')}
+            <div>
+              ${lb('Membros da Comissão', 'inclui visitantes · cargo específico na comissão')}
               <input type="text" id="busca-membros-com" placeholder="🔍 Buscar irmão..." oninput="filtrarMembrosCom()"
                 style="width:100%;border:1px solid var(--border-mid);border-radius:3px 3px 0 0;padding:7px 12px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--cream);color:var(--text);border-bottom:none">
-              <div id="lista-membros-com" style="border:1px solid var(--border-mid);border-radius:0 0 3px 3px;max-height:160px;overflow-y:auto;background:var(--white)">
-                ${DATA.membros.map(m=>`
-                  <label style="display:flex;align-items:center;gap:10px;padding:7px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-family:'Cormorant Garamond',serif;font-size:13px;transition:background 0.1s" onmouseover="this.style.background='var(--cream)'" onmouseout="this.style.background='transparent'" data-nome="${m.nome_maconico.toLowerCase()}">
-                    <input type="checkbox" value="${m.nome_maconico}" ${(c.membros||[]).includes(m.nome_maconico)?'checked':''} style="width:15px;height:15px;cursor:pointer;accent-color:var(--navy)">
-                    <span style="font-weight:${(c.membros||[]).includes(m.nome_maconico)?'700':'400'};color:var(--text)">${m.nome_maconico}</span>
-                    ${m.cargo?`<span style="font-size:10px;color:var(--text-muted);margin-left:auto">${m.cargo}</span>`:''}
-                  </label>`).join('')}
+              <div id="lista-membros-com" style="border:1px solid var(--border-mid);border-radius:0 0 3px 3px;max-height:200px;overflow-y:auto;background:var(--white)">
+                ${listaMembrosCom}
               </div>
-              <div style="font-size:10px;color:var(--text-muted);font-style:italic;margin-top:4px">Marque todos os irmãos que farão parte desta comissão</div>
+              <div style="font-size:11px;color:var(--text-muted);font-style:italic;margin-top:4px">Marque os irmãos e defina o cargo de cada um nesta comissão</div>
             </div>
 
             <div id="campos-temporaria" style="${tipo!=='temporaria'?'display:none':''}">
               <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
-                <div>${lb('Evento / Motivo')}<input id="com-evento" value="${c.evento||''}" ${inp} placeholder="Ex: Instalação 6026"></div>
+                <div>${lb('Evento / Motivo')}<input id="com-evento" value="${c.evento||''}" ${inp} placeholder="Ex: Instalação 2026"></div>
                 <div>${lb('Data Início')}<input id="com-data-ini" type="date" value="${c.data_inicio||''}" ${inp}></div>
                 <div>${lb('Data Fim')}<input id="com-data-fim" type="date" value="${c.data_fim||''}" ${inp}></div>
               </div>
@@ -6144,6 +6168,17 @@ function abrirModalComissao(tipoInicial='permanente', comissaoExistente=null) {
     </div>`);
 }
 
+function toggleMembroCom(membroId) {
+  const chk = document.getElementById('chk-'+membroId);
+  const sel = document.getElementById('cargo-com-'+membroId);
+  const linha = chk?.closest('.linha-membro-com');
+  const checked = chk?.checked;
+  if (sel) { sel.disabled = !checked; sel.style.opacity = checked?'1':'0.35'; sel.style.cursor = checked?'pointer':'default'; }
+  if (linha) linha.style.background = checked?'rgba(27,58,107,0.04)':'transparent';
+  const nomeEl = linha?.querySelector('span');
+  if (nomeEl) nomeEl.style.fontWeight = checked?'700':'400';
+}
+
 function abrirModalEditarComissao(id) {
   const c = DATA.comissoes.find(x=>x.id===id);
   if (c) abrirModalComissao(c.tipo, c);
@@ -6151,18 +6186,23 @@ function abrirModalEditarComissao(id) {
 
 function setTipoComissao(tipo) {
   document.getElementById('com-tipo').value = tipo;
-  document.getElementById('btn-tipo-perm').style.background = tipo==='permanente'?'var(--navy)':'var(--cream)';
-  document.getElementById('btn-tipo-perm').style.color = tipo==='permanente'?'#fff':'var(--text)';
-  document.getElementById('btn-tipo-temp').style.background = tipo==='temporaria'?'var(--navy)':'var(--cream)';
-  document.getElementById('btn-tipo-temp').style.color = tipo==='temporaria'?'#fff':'var(--text)';
+  ['perm','temp'].forEach(t => {
+    const btn = document.getElementById('btn-tipo-'+t);
+    if (!btn) return;
+    const ativo = (t==='perm' && tipo==='permanente') || (t==='temp' && tipo==='temporaria');
+    btn.style.background = ativo ? 'rgba(27,58,107,0.12)' : 'var(--cream)';
+    btn.style.color = 'var(--text)';
+    btn.style.outline = ativo ? '2px solid var(--navy)' : 'none';
+    btn.style.outlineOffset = '-2px';
+  });
   document.getElementById('campos-temporaria').style.display = tipo==='temporaria'?'block':'none';
 }
 
 function filtrarMembrosCom() {
   const termo = document.getElementById('busca-membros-com')?.value.toLowerCase()||'';
-  document.querySelectorAll('#lista-membros-com label').forEach(lbl => {
-    const nome = lbl.dataset.nome||'';
-    lbl.style.display = nome.includes(termo) ? 'flex' : 'none';
+  document.querySelectorAll('#lista-membros-com .linha-membro-com').forEach(div => {
+    const nome = div.dataset.nome||'';
+    div.style.display = nome.includes(termo) ? 'flex' : 'none';
   });
 }
 
@@ -6170,15 +6210,22 @@ function salvarComissao(id) {
   const nome = document.getElementById('com-nome')?.value.trim();
   const presidente = document.getElementById('com-presidente')?.value;
   if (!nome || !presidente) { toast('Preencha nome e presidente'); return; }
-  // Ler checkboxes
+  // Ler checkboxes com cargos
   const checkboxes = document.querySelectorAll('#lista-membros-com input[type="checkbox"]:checked');
   const membros = Array.from(checkboxes).map(cb=>cb.value);
+  // Ler cargos específicos de cada membro na comissão
+  const membros_cargos = Array.from(checkboxes).map(cb=>{
+    const memId = cb.id.replace('chk-','');
+    const cargoSel = document.getElementById('cargo-com-'+memId)?.value||'';
+    return {nome: cb.value, cargo_com: cargoSel};
+  });
   const tipo = document.getElementById('com-tipo')?.value;
   const comissao = {
     id: id && id!=='null' ? id : 'com_'+Date.now(),
     nome,
     presidente,
     membros,
+    membros_cargos,
     tipo,
     evento: document.getElementById('com-evento')?.value.trim()||null,
     data_inicio: document.getElementById('com-data-ini')?.value||null,
