@@ -2948,52 +2948,54 @@ function renderFrequencia(access) {
 function verListaPresenca(sessaoId, data, tipo) {
   const membros = DATA.membros.filter(m=>m.status==='ativo'||m.status==='iniciado');
   const presencas = DATA.presencas.filter(p=>p.sessao_id===sessaoId);
-  const presentes = presencas.filter(p=>p.presente||p.situacao==='presente');
   const visitantes = presencas.filter(p=>!p.membro_id&&(p.presente||p.situacao==='presente'));
-  const presentesMembros = presentes.filter(p=>p.membro_id);
-
-  // Só mostrar presentes
   const membrosPres = membros.filter(m=>presencas.find(p=>p.membro_id===m.id&&(p.presente||p.situacao==='presente')));
+  const membrosAuse = membros.filter(m=>{
+    const p = presencas.find(x=>x.membro_id===m.id);
+    return !p || (!p.presente && p.situacao!=='presente');
+  });
 
-  const rowsMembros = membrosPres.map((m,i)=>`
+  const rowsPres = membrosPres.map((m,i)=>`
     <tr>
       <td style="width:32px;text-align:center;font-size:13px;color:var(--text-muted)">${i+1}</td>
       <td style="font-size:15px;font-family:'Cormorant Garamond',serif;font-weight:700">${m.nome_maconico}</td>
       <td style="font-size:13px;color:var(--text-muted)">${m.cargo||'—'}</td>
       <td>${degreeBadge(m.grau||3)}</td>
+      <td style="text-align:center"><span style="color:var(--green);font-weight:700;font-size:15px">✓</span></td>
     </tr>`).join('');
 
   const rowsVisit = visitantes.map(v=>{
     const info = (v.justificativa||'').replace('VISITANTE | ','');
-    return `<tr><td style="text-align:center">🤝</td><td colspan="3" style="font-family:'Cormorant Garamond',serif;font-size:14px">${info}</td></tr>`;
+    return `<tr><td style="text-align:center">🤝</td><td colspan="4" style="font-family:'Cormorant Garamond',serif;font-size:14px">${info}</td></tr>`;
   }).join('');
 
   document.body.insertAdjacentHTML('beforeend', `
     <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px">
-      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;width:520px;max-height:88vh;overflow-y:auto;position:relative">
+      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;width:560px;max-height:90vh;overflow-y:auto;position:relative">
         <div style="height:3px;background:linear-gradient(90deg,var(--gold-dark),var(--gold-rich),var(--gold-light),var(--gold-dark));border-radius:6px 6px 0 0"></div>
         <div style="padding:24px 28px">
           <div style="font-family:'Cinzel',serif;font-size:14px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);margin-bottom:4px">📋 Presenças</div>
           <div style="font-style:italic;color:var(--text-muted);font-size:14px;margin-bottom:16px">${tipo} — ${fmtData(data)}</div>
-          <div style="display:flex;gap:12px;margin-bottom:16px">
-            <div style="background:rgba(34,139,34,0.08);border:1px solid rgba(34,139,34,0.2);border-radius:4px;padding:10px 18px;text-align:center">
-              <div style="font-size:26px;font-weight:700;color:var(--green)">${presentesMembros.length}</div>
-              <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;font-family:'Cinzel',serif;margin-top:2px">Obreiros</div>
+          <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+            <div style="background:rgba(34,139,34,0.08);border:1px solid rgba(34,139,34,0.2);border-radius:4px;padding:10px 16px;text-align:center;flex:1">
+              <div style="font-size:24px;font-weight:700;color:var(--green)">${membrosPres.length}</div>
+              <div style="font-size:9px;color:var(--text-muted);text-transform:uppercase;font-family:'Cinzel',serif;margin-top:2px">Presentes</div>
             </div>
-            <div style="background:rgba(212,168,67,0.08);border:1px solid rgba(212,168,67,0.2);border-radius:4px;padding:10px 18px;text-align:center">
-              <div style="font-size:26px;font-weight:700;color:var(--gold-dark)">${visitantes.length}</div>
-              <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;font-family:'Cinzel',serif;margin-top:2px">Visitantes</div>
+            <div style="background:rgba(212,168,67,0.08);border:1px solid rgba(212,168,67,0.2);border-radius:4px;padding:10px 16px;text-align:center;flex:1">
+              <div style="font-size:24px;font-weight:700;color:var(--gold-dark)">${visitantes.length}</div>
+              <div style="font-size:9px;color:var(--text-muted);text-transform:uppercase;font-family:'Cinzel',serif;margin-top:2px">Visitantes</div>
             </div>
-            <div style="background:rgba(139,32,32,0.06);border:1px solid rgba(139,32,32,0.15);border-radius:4px;padding:10px 18px;text-align:center">
-              <div style="font-size:26px;font-weight:700;color:var(--red)">${membros.length-presentesMembros.length}</div>
-              <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;font-family:'Cinzel',serif;margin-top:2px">Ausentes</div>
+            <div style="background:rgba(139,32,32,0.06);border:1px solid rgba(139,32,32,0.15);border-radius:4px;padding:10px 16px;text-align:center;flex:1">
+              <div style="font-size:24px;font-weight:700;color:var(--red)">${membrosAuse.length}</div>
+              <div style="font-size:9px;color:var(--text-muted);text-transform:uppercase;font-family:'Cinzel',serif;margin-top:2px">Ausentes</div>
             </div>
           </div>
           <table style="width:100%">
-            <thead><tr><th style="width:40px">#</th><th>Irmão Presente</th><th>Cargo</th><th>Grau</th></tr></thead>
+            <thead><tr><th>#</th><th>Irmão</th><th>Cargo</th><th>Grau</th><th style="text-align:center">Situação</th></tr></thead>
             <tbody>
-              ${rowsMembros||`<tr><td colspan="4" style="text-align:center;padding:16px;font-style:italic;color:var(--text-muted)">Nenhum obreiro presente.</td></tr>`}
-              ${visitantes.length?`<tr><td colspan="4" style="padding:8px 22px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--text-muted);background:var(--cream)">VISITANTES</td></tr>${rowsVisit}`:''}
+              ${rowsPres||''}
+              ${visitantes.length?`<tr><td colspan="5" style="padding:6px 12px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--text-muted);background:var(--cream)">VISITANTES</td></tr>${rowsVisit}`:''}
+              ${!rowsPres?`<tr><td colspan="5" style="text-align:center;padding:16px;font-style:italic;color:var(--text-muted)">Nenhum obreiro presente.</td></tr>`:''}
             </tbody>
           </table>
         </div>
@@ -3002,6 +3004,44 @@ function verListaPresenca(sessaoId, data, tipo) {
           <button class="btn btn-solid" onclick="fecharModal();imprimirListaPresenca('${sessaoId}','${data}','${tipo}','')" style="padding:8px 20px">🖨️ Imprimir</button>
         </div>
       </div>
+    </div>`);
+}
+
+function imprimirListaPresenca(sessaoId, data, tipo, local) {
+  const membros = DATA.membros.filter(m=>m.status==='ativo'||m.status==='iniciado');
+  const presencas = DATA.presencas.filter(p=>p.sessao_id===sessaoId);
+  const visitantes  = presencas.filter(p=>!p.membro_id&&(p.presente||p.situacao==='presente'));
+  const membrosPres = membros.filter(m=>presencas.find(p=>p.membro_id===m.id&&(p.presente||p.situacao==='presente')));
+
+  let rows = membrosPres.map((m,i)=>`<tr>
+    <td style="text-align:center">${i+1}</td>
+    <td>${m.nome_maconico}</td>
+    <td>${m.cargo||'—'}</td>
+    <td style="text-align:center">${m.grau}º</td>
+  </tr>`).join('');
+
+  if (visitantes.length) {
+    rows += `<tr><td colspan="4" style="background:#f5f0e8;font-weight:bold;padding:6px 8px">Visitantes</td></tr>`;
+    visitantes.forEach(v=>{ rows += `<tr><td></td><td colspan="3">${(v.justificativa||'').replace('VISITANTE | ','')}</td></tr>`; });
+  }
+
+  abrirJanelaPrint(`
+    <div class="print-header">
+      <div class="print-lodge">A.R.L.S. Fraternidade Acadêmica de Peruíbe Nº 3524</div>
+      <div class="print-title">Lista de Presenças</div>
+      <div class="print-date">${tipo} — ${fmtData(data)}${local?' · '+local:''}</div>
+    </div>
+    <div class="print-resumo">
+      <div class="print-resumo-item"><div class="print-resumo-valor" style="color:green">${membrosPres.length}</div><div class="print-resumo-label">Presentes</div></div>
+      <div class="print-resumo-item"><div class="print-resumo-valor">${visitantes.length}</div><div class="print-resumo-label">Visitantes</div></div>
+    </div>
+    <table class="print-table">
+      <thead><tr><th>Nº</th><th>Nome Maçônico</th><th>Cargo</th><th>Grau</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div style="margin-top:50px;display:flex;justify-content:space-between;font-size:11px">
+      <div style="text-align:center;width:45%"><div style="border-top:1px solid #333;padding-top:4px">Secretário</div></div>
+      <div style="text-align:center;width:45%"><div style="border-top:1px solid #333;padding-top:4px">Venerável Mestre</div></div>
     </div>`);
 }
 
@@ -3045,31 +3085,49 @@ async function abrirModalPresenca(sessaoId, dataSessao, tipoSessao) {
   const membros = DATA.membros.filter(m => m.status==='ativo'||m.status==='iniciado');
   const presExist = DATA.presencas.filter(p => p.sessao_id === sessaoId);
 
-  // Lista de cargos maçônicos para o select
   const CARGOS_MASONICOS = [
     'Venerável Mestre','1º Vigilante','2º Vigilante','Orador','Secretário','Tesoureiro',
     'Chanceler','Mestre de Cerimônias','Porta-Bandeira','Hospitaleiro','1º Diácono','2º Diácono',
     'Arquiteto','Experto','Membro','Diácono','Cobridor Interno','Cobridor Externo'
   ];
-  const opsCargos = CARGOS_MASONICOS.map(c=>`<option value="${c}">${c}</option>`).join('');
 
-  const linhas = membros.map((m,idx) => {
+  // Detectar situação atual de cada membro: 'presente' | 'ausente'
+  const getSituacaoAtual = (p) => {
+    if (!p) return 'ausente';
+    if (p.presente || p.situacao === 'presente') return 'presente';
+    return 'ausente';
+  };
+
+  const linhas = membros.map((m) => {
     const p = presExist.find(x => x.membro_id === m.id);
-    const pres = p ? (p.presente || p.situacao==='presente') : false;
+    const sit = getSituacaoAtual(p);
     const cargoAtual = m.cargo || 'Membro';
-    return `<tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:8px 10px;font-size:15px;font-family:'Cormorant Garamond',serif;font-weight:600">${m.nome_maconico}</td>
+    const btnStyle = (estado, ativo) => {
+      const cores = {
+        presente: {bg:'rgba(34,139,34,0.12)', border:'var(--green)', cor:'var(--green)'},
+        ausente:  {bg:'transparent',          border:'var(--border-dark)', cor:'var(--text-muted)'}
+      };
+      const c = cores[estado];
+      const base = `width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:14px;font-weight:700;transition:all 0.12s;border:2px solid;`;
+      return ativo
+        ? `${base}background:${c.bg};border-color:${c.border};color:${c.cor}`
+        : `${base}background:transparent;border-color:var(--border);color:var(--border-mid);opacity:0.4`;
+    };
+    return `<tr id="row-${m.id}" style="border-bottom:1px solid var(--border);background:${sit==='presente'?'rgba(34,139,34,0.03)':'transparent'}">
+      <td style="padding:8px 10px;font-size:14px;font-family:'Cormorant Garamond',serif;font-weight:600">${m.nome_maconico}</td>
       <td style="padding:8px 10px">
-        <select id="cargo-${m.id}" style="border:1px solid var(--border-mid);border-radius:3px;padding:4px 8px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--cream);color:var(--text);width:100%">
+        <select id="cargo-${m.id}" style="border:1px solid var(--border-mid);border-radius:3px;padding:4px 7px;font-family:'Cormorant Garamond',serif;font-size:12px;background:var(--cream);color:var(--text);width:100%">
           ${CARGOS_MASONICOS.map(c=>`<option value="${c}" ${c===cargoAtual?'selected':''}>${c}</option>`).join('')}
           ${!CARGOS_MASONICOS.includes(cargoAtual)?`<option value="${cargoAtual}" selected>${cargoAtual}</option>`:''}
         </select>
       </td>
-      <td style="padding:8px 10px;text-align:center">
-        <button onclick="togglePresenca(this,'${m.id}')" data-presente="${pres}"
-          style="width:36px;height:36px;border-radius:50%;border:2px solid ${pres?'var(--green)':'var(--border-dark)'};background:${pres?'var(--green-bg)':'transparent'};cursor:pointer;font-size:16px;transition:all 0.15s;font-weight:700;color:${pres?'var(--green)':'var(--text-muted)'}">
-          ${pres?'✓':'○'}
-        </button>
+      <td style="padding:8px 6px;text-align:center">
+        <div style="display:flex;gap:6px;justify-content:center;align-items:center">
+          <button title="Presente" onclick="setSituacao('${m.id}','presente')"
+            id="btn-pres-${m.id}" style="${btnStyle('presente', sit==='presente')}">✓</button>
+          <button title="Ausente" onclick="setSituacao('${m.id}','ausente')"
+            id="btn-ause-${m.id}" style="${btnStyle('ausente', sit==='ausente')}">✗</button>
+        </div>
       </td>
     </tr>`;
   }).join('');
@@ -3078,24 +3136,28 @@ async function abrirModalPresenca(sessaoId, dataSessao, tipoSessao) {
 
   document.body.insertAdjacentHTML('beforeend', `
     <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px">
-      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;width:600px;max-height:85vh;overflow-y:auto;position:relative">
+      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;width:720px;max-height:88vh;overflow-y:auto;position:relative">
         <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gold-dark),var(--gold-rich),var(--gold-light),var(--gold-dark));border-radius:6px 6px 0 0"></div>
         <div style="padding:24px 28px">
           <div style="font-family:'Cinzel',serif;font-size:14px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);margin-bottom:4px">✓ Registro de Presenças</div>
-          <div style="font-style:italic;color:var(--text-muted);font-size:13px;margin-bottom:6px">${tipoSessao} — ${fmtData(dataSessao)}</div>
-          <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px">Cargo para a sessão pode ser alterado aqui sem afetar o cadastro permanente. Clique no círculo para marcar presença.</div>
+          <div style="font-style:italic;color:var(--text-muted);font-size:13px;margin-bottom:8px">${tipoSessao} — ${fmtData(dataSessao)}</div>
+          <!-- Legenda -->
+          <div style="display:flex;gap:16px;margin-bottom:14px;font-size:11px;flex-wrap:wrap">
+            <span style="display:flex;align-items:center;gap:5px;color:var(--green)"><span style="width:22px;height:22px;border-radius:50%;background:rgba(34,139,34,0.12);border:2px solid var(--green);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px">✓</span>Presente</span>
+            <span style="display:flex;align-items:center;gap:5px;color:var(--text-muted)"><span style="width:22px;height:22px;border-radius:50%;background:transparent;border:2px solid var(--border-dark);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px">✗</span>Ausente</span>
+          </div>
           <table style="width:100%">
             <thead><tr>
               <th>Irmão</th>
               <th>Cargo na Sessão</th>
-              <th style="text-align:center;width:70px">Presente</th>
+              <th style="text-align:center;width:90px">Situação</th>
             </tr></thead>
             <tbody id="lista-presencas">${linhas}</tbody>
           </table>
         </div>
         <div style="padding:14px 28px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
-          <div style="font-size:13px;color:var(--text-muted);font-style:italic" id="cont-presentes">
-            ${presentes} presente(s) de ${membros.length}
+          <div id="cont-presentes" style="font-size:13px;color:var(--text-muted);font-style:italic">
+            ${presentes} presente(s) · ${membros.length-presentes} ausente(s)
           </div>
           <div style="display:flex;gap:10px">
             <button class="btn" onclick="fecharModal()" style="padding:8px 20px">Fechar</button>
@@ -3106,7 +3168,39 @@ async function abrirModalPresenca(sessaoId, dataSessao, tipoSessao) {
     </div>`);
 }
 
+function setSituacao(membroId, situacao) {
+  const cores = {
+    presente: {bg:'rgba(34,139,34,0.12)', border:'var(--green)',     cor:'var(--green)'},
+    ausente:  {bg:'transparent',          border:'var(--border-dark)',cor:'var(--text-muted)'}
+  };
+  ['presente','ausente'].forEach(e => {
+    const btn = document.getElementById(`btn-${e.slice(0,4)}-${membroId}`);
+    if (!btn) return;
+    const ativo = e === situacao;
+    const c = cores[e];
+    btn.style.background  = ativo ? c.bg : 'transparent';
+    btn.style.borderColor = ativo ? c.border : 'var(--border)';
+    btn.style.color       = ativo ? c.cor : 'var(--border-mid)';
+    btn.style.opacity     = ativo ? '1' : '0.4';
+  });
+  const row = document.getElementById(`row-${membroId}`);
+  if (row) row.style.background = situacao==='presente'?'rgba(34,139,34,0.03)':'transparent';
+  atualizarContPresentes();
+}
+
+function atualizarContPresentes() {
+  const membros = DATA.membros.filter(m => m.status==='ativo'||m.status==='iniciado');
+  let pres = 0;
+  membros.forEach(m=>{
+    const bp = document.getElementById(`btn-pres-${m.id}`);
+    if (bp?.style.opacity!=='0.4' && bp?.style.background!=='transparent') pres++;
+  });
+  const cont = document.getElementById('cont-presentes');
+  if (cont) cont.textContent = `${pres} presente(s) · ${membros.length-pres} ausente(s)`;
+}
+
 function togglePresenca(btn, membroId) {
+  // Legado — mantido por compatibilidade
   const atual = btn.dataset.presente === 'true';
   const novo = !atual;
   btn.dataset.presente = novo;
@@ -3114,7 +3208,6 @@ function togglePresenca(btn, membroId) {
   btn.style.borderColor = novo ? 'var(--green)' : 'var(--border-dark)';
   btn.style.background = novo ? 'var(--green-bg)' : 'transparent';
   btn.style.color = novo ? 'var(--green)' : 'var(--text-muted)';
-  // Atualizar contador
   const total = document.querySelectorAll('#lista-presencas button[data-presente]').length;
   const count = document.querySelectorAll('#lista-presencas button[data-presente="true"]').length;
   const cont = document.getElementById('cont-presentes');
@@ -3123,14 +3216,18 @@ function togglePresenca(btn, membroId) {
 
 async function confirmarPresencas(sessaoId) {
   const membros = DATA.membros.filter(m => m.status==='ativo'||m.status==='iniciado');
-  const btns = document.querySelectorAll('#lista-presencas button[data-presente]');
-  const upserts = membros.map((m, i) => ({
-    sessao_id: sessaoId,
-    membro_id: m.id,
-    presente: btns[i]?.dataset.presente === 'true',
-    situacao: btns[i]?.dataset.presente === 'true' ? 'presente' : 'ausente',
-    justificativa: `cargo_sessao:${document.getElementById('cargo-'+m.id)?.value||m.cargo||'Membro'}`
-  }));
+  const upserts = membros.map(m => {
+    const bPres = document.getElementById(`btn-pres-${m.id}`);
+    const presente = bPres && bPres.style.opacity !== '0.4' && bPres.style.background !== 'transparent';
+    const cargo = document.getElementById(`cargo-${m.id}`)?.value || m.cargo || 'Membro';
+    return {
+      sessao_id: sessaoId,
+      membro_id: m.id,
+      presente,
+      situacao: presente ? 'presente' : 'ausente',
+      justificativa: `cargo_sessao:${cargo}`
+    };
+  });
   const res = await sb.from('presencas').upsert(upserts, { onConflict: 'sessao_id,membro_id' });
   if (res.error) { toast('Erro: ' + res.error.message); return; }
   toast('Presenças salvas ✦');
@@ -7057,15 +7154,18 @@ function gerarRelFreqPeriodo() {
   if (filtroIrmaoId) membros = membros.filter(m=>m.id===filtroIrmaoId);
   const total = sessoesP.length;
   const resultado = membros.map(m=>{
-    const pres = DATA.presencas.filter(p=>p.membro_id===m.id&&(p.presente||p.situacao==='presente')&&sessoesP.find(s=>s.id===p.sessao_id)).length;
+    const presP = DATA.presencas.filter(p=>p.membro_id===m.id&&sessoesP.find(s=>s.id===p.sessao_id));
+    const pres   = presP.filter(p=>p.presente||p.situacao==='presente').length;
+    const abon   = presP.filter(p=>p.situacao==='abonada').length;
     const pct = total?Math.round(pres/total*100):0;
     // Detalhes das sessões (para quando filtrar por irmão)
     const detalhesSessoes = filtroIrmaoId ? sessoesP.map(s=>{
       const p = DATA.presencas.find(x=>x.membro_id===m.id&&x.sessao_id===s.id);
-      const presente = p&&(p.presente||p.situacao==='presente');
-      return {data:s.data, tipo:s.tipo||'Sessão', presente};
+      const sit = !p ? 'ausente' : p.situacao==='abonada' ? 'abonada' : (p.presente||p.situacao==='presente') ? 'presente' : 'ausente';
+      const justif = p?.justificativa?.match(/justif:(.+)/)?.[1]?.trim()||'';
+      return {data:s.data, tipo:s.tipo||'Sessão', sit, justif};
     }) : [];
-    return {...m, presentes:pres, pct, apto:pct>=pctMin, detalhesSessoes};
+    return {...m, presentes:pres, abonadas:abon, pct, apto:pct>=pctMin, detalhesSessoes};
   }).sort((a,b)=>b.pct-a.pct);
   const aptos = resultado.filter(m=>m.apto).length;
   const isUmIrmao = filtroIrmaoId && resultado.length === 1;
@@ -7073,19 +7173,25 @@ function gerarRelFreqPeriodo() {
   const linhasSessoes = isUmIrmao && resultado[0]?.detalhesSessoes?.length
     ? `<div style="margin-top:20px">
         <div style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.15em;color:var(--navy);margin-bottom:10px">HISTÓRICO DE SESSÕES NO PERÍODO</div>
-        <table><thead><tr><th>Data</th><th>Tipo</th><th>Presença</th></tr></thead>
+        <table><thead><tr><th>Data</th><th>Tipo</th><th>Situação</th></tr></thead>
         <tbody>${resultado[0].detalhesSessoes.map(s=>`<tr>
           <td>${fmtData(s.data)}</td>
           <td>${s.tipo}</td>
-          <td><span style="font-size:14px;color:${s.presente?'var(--green)':'var(--red)'}">${s.presente?'✓ Presente':'✗ Ausente'}</span></td>
+          <td>${s.sit==='presente'
+            ? `<span style="color:var(--green);font-weight:700">✓ Presente</span>`
+            : s.sit==='abonada'
+            ? `<span style="color:#1B5EA0;font-weight:700">⊘ Abonada${s.justif?' — '+s.justif:''}</span>`
+            : `<span style="color:var(--red)">✗ Ausente</span>`
+          }</td>
         </tr>`).join('')}</tbody></table>
       </div>` : '';
 
   const linhas = resultado.map(m=>`<tr>
     <td>${m.nome_maconico}</td><td>${m.cargo||'—'}</td>
     <td style="text-align:center">${m.presentes}/${total}</td>
+    <td style="text-align:center"><span style="font-size:12px;color:#1B5EA0">⊘ ${m.abonadas}</span></td>
     <td><div style="display:flex;align-items:center;gap:8px">
-      <div style="background:var(--cream-mid);border-radius:2px;height:6px;width:80px;overflow:hidden">
+      <div style="background:var(--cream-mid);border-radius:2px;height:6px;width:70px;overflow:hidden">
         <div style="background:${m.pct>=pctMin?'var(--green)':m.pct>=30?'var(--gold-dark)':'var(--red)'};height:100%;width:${m.pct}%"></div></div>
       <span style="font-size:12px;font-weight:700;color:${m.pct>=pctMin?'var(--green)':m.pct>=30?'var(--gold-dark)':'var(--red)'}">${m.pct}%</span></div></td>
     <td><span class="apto-badge ${m.apto?'apto-sim':'apto-nao'}">${m.apto?'✓ APTO':'✗ INAPTO'}</span></td>
@@ -7098,10 +7204,12 @@ function gerarRelFreqPeriodo() {
       <div class="stat-card" style="flex:1"><div class="stat-label">✅ Aptos</div><div class="stat-value" style="color:var(--green)">${aptos}</div></div>
       <div class="stat-card" style="flex:1"><div class="stat-label">❌ Inaptos</div><div class="stat-value" style="color:var(--red)">${resultado.length-aptos}</div></div>`
       : `<div class="stat-card" style="flex:1"><div class="stat-label">Presenças</div><div class="stat-value" style="color:var(--green)">${resultado[0]?.presentes||0}</div></div>
+         <div class="stat-card" style="flex:1"><div class="stat-label">⊘ Abonadas</div><div class="stat-value" style="color:#1B5EA0">${resultado[0]?.abonadas||0}</div></div>
          <div class="stat-card" style="flex:1"><div class="stat-label">Frequência</div><div class="stat-value" style="color:${resultado[0]?.pct>=pctMin?'var(--green)':'var(--red)'}">${resultado[0]?.pct||0}%</div></div>`}
     </div>
-    <table><thead><tr><th>Irmão</th><th>Cargo</th><th>Presenças</th><th>Frequência</th><th>Aptidão (≥${pctMin}%)</th></tr></thead>
+    <table><thead><tr><th>Irmão</th><th>Cargo</th><th>Presenças</th><th>Abonadas</th><th>Frequência</th><th>Aptidão (≥${pctMin}%)</th></tr></thead>
     <tbody>${linhas}</tbody></table>
+    <div style="font-size:11px;color:var(--text-muted);font-style:italic;margin-top:8px">* Faltas abonadas não são contadas como presenças para efeito de aptidão.</div>
     ${linhasSessoes}
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap">
       <button class="btn" onclick="exportarFreqPeriodoExcel('${ini}','${fim}',${pctMin},'${filtroIrmaoId}')">📊 Exportar Excel</button>
@@ -7115,12 +7223,14 @@ function exportarFreqPeriodoExcel(ini, fim, pctMin, filtroIrmaoId) {
   if (filtroIrmaoId) membros = membros.filter(m=>m.id===filtroIrmaoId);
   const total = sessoesP.length;
   const resultado = membros.map(m=>{
-    const pres = DATA.presencas.filter(p=>p.membro_id===m.id&&(p.presente||p.situacao==='presente')&&sessoesP.find(s=>s.id===p.sessao_id)).length;
+    const presP = DATA.presencas.filter(p=>p.membro_id===m.id&&sessoesP.find(s=>s.id===p.sessao_id));
+    const pres = presP.filter(p=>p.presente||p.situacao==='presente').length;
+    const abon = presP.filter(p=>p.situacao==='abonada').length;
     const pct = total?Math.round(pres/total*100):0;
-    return {nome:m.nome_maconico, cargo:m.cargo||'', presentes:pres, total, pct, apto:pct>=pctMin?'APTO':'INAPTO'};
+    return {nome:m.nome_maconico, cargo:m.cargo||'', presentes:pres, abonadas:abon, total, pct, apto:pct>=pctMin?'APTO':'INAPTO'};
   }).sort((a,b)=>b.pct-a.pct);
-  const cab = ['Nome Maçônico','Cargo','Presenças','Total Sessões','Frequência %','Aptidão'];
-  const linhas = resultado.map(r=>[r.nome,r.cargo,r.presentes,r.total,r.pct+'%',r.apto]);
+  const cab = ['Nome Maçônico','Cargo','Presenças','Faltas Abonadas','Total Sessões','Frequência %','Aptidão'];
+  const linhas = resultado.map(r=>[r.nome,r.cargo,r.presentes,r.abonadas,r.total,r.pct+'%',r.apto]);
   exportarExcel([cab,...linhas], `frequencia_${ini}_${fim}`, 'Frequência');
 }
 
