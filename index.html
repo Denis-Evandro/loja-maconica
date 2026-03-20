@@ -3725,6 +3725,7 @@ function renderFinancas(access) {
       <button class="btn btn-solid" onclick="abrirModalLancamento()" style="display:flex;align-items:center;gap:6px">＋ Novo Lançamento</button>
       <button class="btn btn-solid" onclick="abrirModalMensalidadeAuto()" style="background:linear-gradient(135deg,#1B5EA0,#2A7ACC);display:flex;align-items:center;gap:6px">⚡ Mensalidades do Mês</button>
       <button class="btn btn-solid" onclick="abrirModalAgape()" style="background:linear-gradient(135deg,#6B3A00,#A05A00);display:flex;align-items:center;gap:6px">🍽️ Ágape / Rateio</button>
+      <button class="btn btn-solid" onclick="abrirModalTronco()" style="background:linear-gradient(135deg,#5C3D00,#8B6000);display:flex;align-items:center;gap:6px">🏺 Tronco</button>
       <button class="btn btn-solid" onclick="abrirModalFecharMes()" style="background:linear-gradient(135deg,#3A006B,#6A2AAC);display:flex;align-items:center;gap:6px">📦 Fechar Mês</button>
       <button class="btn btn-solid" onclick="abrirModalInadimplenciaDetalhada()" style="background:linear-gradient(135deg,#7A1010,#B03030);display:flex;align-items:center;gap:6px">📊 Inadimplência</button>
     </div>`:''}
@@ -3821,6 +3822,46 @@ function renderFinancas(access) {
               <div style="font-size:11px;color:var(--text-muted)">${p.pendentes} parcela(s) · ${fmtVal(p.valorParc*p.pendentes)} restante</div>
             </div>`).join('')}
         </div>`:''}
+
+        <!-- Tronco de Beneficência -->
+        ${(() => {
+          const lancsTronco = lancs.filter(l=>l.categoria==='tronco');
+          const entradas = lancsTronco.filter(l=>l.tipo==='receita'&&l.status==='pago').reduce((s,l)=>s+parseFloat(l.valor||0),0);
+          const saidas   = lancsTronco.filter(l=>l.tipo==='despesa'&&l.status==='pago').reduce((s,l)=>s+parseFloat(l.valor||0),0);
+          const saldoTronco = entradas - saidas;
+          const entradasMes = lancsTronco.filter(l=>l.tipo==='receita'&&l.status==='pago'&&l.data?.startsWith(`${anoAtual}-${mesAtual}`)).reduce((s,l)=>s+parseFloat(l.valor||0),0);
+          const nSessoes = new Set(lancsTronco.filter(l=>l.tipo==='receita').map(l=>l.descricao?.match(/\d{4}-\d{2}-\d{2}/)?.[0]).filter(Boolean)).size || Math.max(1, lancsTronco.filter(l=>l.tipo==='receita').length);
+          const mediaSessao = nSessoes>0 ? Math.round(entradas/nSessoes) : 0;
+          const corSaldo = saldoTronco>=0?'var(--green)':'var(--red)';
+          return `<div class="card" style="border-color:rgba(160,117,42,0.35)">
+            <div class="card-header" style="background:rgba(160,117,42,0.04)">
+              <div class="card-title" style="color:#7A4A00">🏺 Tronco de Beneficência</div>
+              ${canEdit?`<button class="btn" onclick="abrirModalTronco()" style="font-size:10px;padding:5px 12px;border-color:rgba(160,117,42,0.45);color:#7A4A00">+ Lançar</button>`:''}
+            </div>
+            <div style="font-size:11px;color:var(--text-muted);font-style:italic;padding:8px 22px 4px">Arrecadação vinculada às sessões da loja</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;padding:0 22px 14px">
+              <div style="text-align:center;padding:10px 8px;background:rgba(34,139,34,0.05);border-radius:4px;border:1px solid rgba(34,139,34,0.15)">
+                <div style="font-size:13px;color:var(--green);font-weight:700;font-family:'Cinzel',serif">${fmtVal(entradas)}</div>
+                <div style="font-size:9px;color:var(--text-muted);text-transform:uppercase;margin-top:3px;letter-spacing:0.06em">Total Entradas</div>
+              </div>
+              <div style="text-align:center;padding:10px 8px;background:rgba(139,32,32,0.05);border-radius:4px;border:1px solid rgba(139,32,32,0.15)">
+                <div style="font-size:13px;color:var(--red);font-weight:700;font-family:'Cinzel',serif">${fmtVal(saidas)}</div>
+                <div style="font-size:9px;color:var(--text-muted);text-transform:uppercase;margin-top:3px;letter-spacing:0.06em">Benefícios</div>
+              </div>
+              <div style="text-align:center;padding:10px 8px;background:${saldoTronco>=0?'rgba(34,139,34,0.05)':'rgba(139,32,32,0.05)'};border-radius:4px;border:1px solid ${saldoTronco>=0?'rgba(34,139,34,0.15)':'rgba(139,32,32,0.15)'}">
+                <div style="font-size:15px;color:${corSaldo};font-weight:700;font-family:'Cinzel',serif">${fmtVal(saldoTronco)}</div>
+                <div style="font-size:9px;color:var(--text-muted);text-transform:uppercase;margin-top:3px;letter-spacing:0.06em">💰 Saldo</div>
+              </div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 22px;border-top:1px solid var(--border);background:rgba(160,117,42,0.02)">
+              <div style="font-size:12px;color:var(--text-muted)">
+                Este mês: <strong style="color:#7A4A00">${fmtVal(entradasMes)}</strong>
+                &nbsp;·&nbsp; Média/sessão: <strong style="color:#7A4A00">${fmtVal(mediaSessao)}</strong>
+              </div>
+              <button class="btn" style="font-size:10px;padding:4px 10px;border-color:rgba(160,117,42,0.4);color:#7A4A00" onclick="showPanel('relatorios');setTimeout(()=>mostrarRelTronco(),300)">Ver relatório →</button>
+            </div>
+          </div>`;
+        })()}
       </div>
     </div>
 
@@ -4272,6 +4313,161 @@ function imprimirRelInadimplencia() {
 }
 
 // ── Fechar Mês ────────────────────────────────────────────────
+// ── Tronco de Beneficência ────────────────────────────────────
+function abrirModalTronco() {
+  const hoje = new Date().toISOString().split('T')[0];
+  const inp = `style="width:100%;border:1px solid rgba(160,117,42,0.4);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:#FFFDF5;color:var(--text)"`;
+  const lb = (t,op='') => `<label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:#7A4A00;text-transform:uppercase;display:block;margin-bottom:5px">${t}${op?` <span style="font-weight:400;text-transform:none;color:var(--text-muted)">(${op})</span>`:''}</label>`;
+
+  // Buscar sessões ordenadas — mais recente primeiro
+  const sessoes = [...DATA.sessoes].sort((a,b)=>b.data.localeCompare(a.data));
+  const sessaoHoje = sessoes.find(s=>s.data===hoje);
+  const sessaoMaisRecente = sessaoHoje || sessoes[0];
+
+  const opsSessoes = sessoes.map(s=>
+    `<option value="${s.id}" data-data="${s.data}" ${s.id===sessaoMaisRecente?.id?'selected':''}>
+      ${fmtData(s.data)} — ${s.tipo||'Sessão'} · ${s.descricao_local||'Templo'}
+    </option>`
+  ).join('');
+
+  const dataInicial = sessaoMaisRecente?.data || hoje;
+
+  document.body.insertAdjacentHTML('beforeend', `
+    <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px">
+      <div style="background:var(--white);border:1px solid rgba(160,117,42,0.35);border-radius:8px;width:500px;position:relative">
+        <div style="height:3px;background:linear-gradient(90deg,#7A4A00,#C9A84C,#F5E6A3,#C9A84C,#7A4A00);border-radius:8px 8px 0 0"></div>
+        <div style="padding:28px 32px">
+          <div style="font-family:'Cinzel',serif;font-size:14px;font-weight:700;letter-spacing:0.1em;color:#7A4A00;margin-bottom:4px">🏺 Tronco de Beneficência</div>
+          <div style="font-size:13px;color:var(--text-muted);font-style:italic;margin-bottom:22px">Registrar arrecadação ou concessão vinculada à sessão</div>
+
+          <!-- Tipo: entrada ou saída -->
+          <div style="margin-bottom:16px">
+            ${lb('Tipo de Lançamento')}
+            <div style="display:flex;gap:8px">
+              <button type="button" id="btn-tronco-entrada" onclick="setTipoTronco('entrada')"
+                style="flex:1;padding:10px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.08em;cursor:pointer;border-radius:3px;border:2px solid #7A4A00;background:rgba(160,117,42,0.12);color:#7A4A00">
+                ↑ Arrecadação ✓</button>
+              <button type="button" id="btn-tronco-saida" onclick="setTipoTronco('saida')"
+                style="flex:1;padding:10px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.08em;cursor:pointer;border-radius:3px;border:2px solid var(--border-mid);background:var(--cream);color:var(--text-muted)">
+                ↓ Benefício Concedido</button>
+            </div>
+            <input type="hidden" id="tronco-tipo" value="entrada">
+          </div>
+
+          <div style="display:grid;gap:13px">
+            <!-- Sessão vinculada -->
+            <div>
+              ${lb('Sessão Vinculada')}
+              <select id="tronco-sessao" onchange="atualizarDataTronco()" ${inp}>
+                <option value="" data-data="${hoje}">— Sem sessão específica —</option>
+                ${opsSessoes}
+              </select>
+              <div style="font-size:11px;color:var(--text-muted);font-style:italic;margin-top:4px">
+                💡 A sessão mais recente é selecionada automaticamente
+              </div>
+            </div>
+
+            <!-- Data (preenchida automaticamente pela sessão) -->
+            <div>
+              ${lb('Data')}
+              <input id="tronco-data" type="date" value="${dataInicial}" ${inp}>
+            </div>
+
+            <!-- Valor -->
+            <div>
+              ${lb('Valor Total Arrecadado (R$)')}
+              <input id="tronco-valor" type="number" step="0.01" min="0" ${inp} placeholder="Ex: 45.00">
+            </div>
+
+            <!-- Descrição -->
+            <div>
+              ${lb('Descrição', 'opcional')}
+              <input id="tronco-desc" value="" ${inp} placeholder="Ex: Tronco Sessão Ordinária de Março">
+            </div>
+
+            <!-- Observações -->
+            <div>
+              ${lb('Observações', 'opcional')}
+              <textarea id="tronco-obs" rows="2" ${inp} style="resize:vertical" placeholder="Destino do benefício, nome do beneficiado, etc."></textarea>
+            </div>
+          </div>
+        </div>
+        <div style="padding:16px 32px;border-top:1px solid rgba(160,117,42,0.2);display:flex;justify-content:flex-end;gap:10px;background:rgba(160,117,42,0.02);border-radius:0 0 8px 8px">
+          <button class="btn" onclick="fecharModal()" style="padding:8px 20px">Cancelar</button>
+          <button class="btn btn-solid" onclick="salvarTronco()" style="padding:8px 20px;background:linear-gradient(135deg,#5C3D00,#8B6000)">🏺 Registrar no Tronco</button>
+        </div>
+      </div>
+    </div>`);
+}
+
+function setTipoTronco(tipo) {
+  document.getElementById('tronco-tipo').value = tipo;
+  const btnE = document.getElementById('btn-tronco-entrada');
+  const btnS = document.getElementById('btn-tronco-saida');
+  if (btnE) {
+    const ativo = tipo==='entrada';
+    btnE.style.border = `2px solid ${ativo?'#7A4A00':'var(--border-mid)'}`;
+    btnE.style.background = ativo?'rgba(160,117,42,0.12)':'var(--cream)';
+    btnE.style.color = ativo?'#7A4A00':'var(--text-muted)';
+    btnE.textContent = '↑ Arrecadação'+(ativo?' ✓':'');
+  }
+  if (btnS) {
+    const ativo = tipo==='saida';
+    btnS.style.border = `2px solid ${ativo?'#7A4A00':'var(--border-mid)'}`;
+    btnS.style.background = ativo?'rgba(160,117,42,0.12)':'var(--cream)';
+    btnS.style.color = ativo?'#7A4A00':'var(--text-muted)';
+    btnS.textContent = '↓ Benefício Concedido'+(ativo?' ✓':'');
+  }
+  // Atualizar label do valor
+  const lb = document.querySelector('label[for="tronco-valor"], label:has(+#tronco-valor)');
+  const inp = document.getElementById('tronco-valor');
+  if (inp) inp.placeholder = tipo==='entrada'?'Ex: 45.00':'Ex: 200.00';
+}
+
+function atualizarDataTronco() {
+  const sel = document.getElementById('tronco-sessao');
+  const opt = sel?.options[sel.selectedIndex];
+  const dataSessao = opt?.dataset?.data;
+  const dataInp = document.getElementById('tronco-data');
+  if (dataInp && dataSessao) dataInp.value = dataSessao;
+  // Sugerir descrição automaticamente
+  const desc = document.getElementById('tronco-desc');
+  if (desc && !desc.value && opt?.text.trim()) {
+    desc.value = 'Tronco — ' + opt.text.trim().replace(/\s+/g,' ');
+  }
+}
+
+async function salvarTronco() {
+  const tipo   = document.getElementById('tronco-tipo')?.value || 'entrada';
+  const sessId = document.getElementById('tronco-sessao')?.value || null;
+  const data   = document.getElementById('tronco-data')?.value;
+  const valor  = parseFloat(document.getElementById('tronco-valor')?.value)||0;
+  const desc   = document.getElementById('tronco-desc')?.value.trim();
+  const obs    = document.getElementById('tronco-obs')?.value.trim();
+
+  if (!data) { toast('Informe a data'); return; }
+  if (!valor || valor <= 0) { toast('Informe o valor'); return; }
+
+  const sessao = DATA.sessoes.find(s=>s.id===sessId);
+  const descFinal = desc || (sessao ? `Tronco — ${sessao.tipo||'Sessão'} ${fmtData(sessao.data)}` : `Tronco — ${fmtData(data)}`);
+
+  const res = await sb.from('financas').insert({
+    data,
+    descricao: descFinal + (obs ? ` | ${obs}` : ''),
+    tipo: tipo === 'entrada' ? 'receita' : 'despesa',
+    categoria: 'tronco',
+    valor,
+    status: 'pago',
+    membro_id: null
+  });
+
+  if (res.error) { toast('Erro: ' + res.error.message); return; }
+  toast(`🏺 ${tipo==='entrada'?'Arrecadação':'Benefício'} registrado no Tronco ✦`);
+  fecharModal();
+  await loadAllData();
+  renderFinancas(ROLES[currentRole].access['financas']||'full');
+}
+
 function abrirModalFecharMes() {
   const hoje = new Date();
   const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
