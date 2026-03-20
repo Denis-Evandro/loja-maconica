@@ -1432,7 +1432,7 @@ const ROLES = {
   irmao: {
     label:'Irmão', icon:'🔵', badge:'Irmão',
     initials:'AE', name:'Ir. André da Esperança', color:'#1A5C8A',
-    access:{ dashboard:'none', membros:'none', frequencia:'none', financas:'none', eventos:'none', permissoes:'none', comissoes:'read', 'minha-frequencia':'full', 'meu-financeiro':'full', atas:'full', relatorios:'none' }
+    access:{ dashboard:'read', membros:'read', frequencia:'read', financas:'none', eventos:'read', permissoes:'none', comissoes:'read', 'minha-frequencia':'full', 'meu-financeiro':'full', atas:'full', relatorios:'none' }
   },
   admin: {
     label:'Administrador', icon:'🏛️', badge:'Admin',
@@ -1445,11 +1445,11 @@ let currentRole = 'veneravel';
 let selectedRole = 'veneravel';
 
 const NAV_ITEMS = [
-  { id:'dashboard', label:'Painel Geral', icon:`<path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z" stroke-width="1.5"/>`, hideFor:['irmao'] },
-  { id:'membros', label:'Membros / Irmãos', icon:`<circle cx="9" cy="7" r="4" stroke-width="1.5"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2" stroke-width="1.5"/><path d="M16 3a4 4 0 010 7.75M21 21v-2a4 4 0 00-3-3.87" stroke-width="1.5"/>`, hideFor:['irmao'] },
-  { id:'frequencia', label:'Frequência', icon:`<path d="M9 11l3 3L22 4" stroke-width="1.5"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke-width="1.5"/>`, hideFor:['irmao'] },
+  { id:'dashboard', label:'Painel Geral', icon:`<path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z" stroke-width="1.5"/>` },
+  { id:'membros', label:'Membros / Irmãos', icon:`<circle cx="9" cy="7" r="4" stroke-width="1.5"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2" stroke-width="1.5"/><path d="M16 3a4 4 0 010 7.75M21 21v-2a4 4 0 00-3-3.87" stroke-width="1.5"/>` },
+  { id:'frequencia', label:'Frequência', icon:`<path d="M9 11l3 3L22 4" stroke-width="1.5"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke-width="1.5"/>`, hideFor:[] },
   { id:'financas', label:'Finanças / Tesouraria', icon:`<line x1="12" y1="1" x2="12" y2="23" stroke-width="1.5"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" stroke-width="1.5"/>`, hideFor:['irmao'] },
-  { id:'eventos', label:'Sessão / Convites', icon:`<rect x="3" y="4" width="18" height="18" rx="2" stroke-width="1.5"/><line x1="16" y1="2" x2="16" y2="6" stroke-width="1.5"/><line x1="8" y1="2" x2="8" y2="6" stroke-width="1.5"/><line x1="3" y1="10" x2="21" y2="10" stroke-width="1.5"/>`, hideFor:['irmao'] },
+  { id:'eventos', label:'Sessão / Convites', icon:`<rect x="3" y="4" width="18" height="18" rx="2" stroke-width="1.5"/><line x1="16" y1="2" x2="16" y2="6" stroke-width="1.5"/><line x1="8" y1="2" x2="8" y2="6" stroke-width="1.5"/><line x1="3" y1="10" x2="21" y2="10" stroke-width="1.5"/>` },
   { id:'comissoes', label:'Comissões', icon:`<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke-width="1.5"/><circle cx="9" cy="7" r="4" stroke-width="1.5"/><path d="M23 21v-2a4 4 0 00-3-3.87" stroke-width="1.5"/><path d="M16 3.13a4 4 0 010 7.75" stroke-width="1.5"/>` },
   { id:'relatorios', label:'Relatórios', icon:`<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke-width="1.5"/><polyline points="14,2 14,8 20,8" stroke-width="1.5"/><line x1="16" y1="13" x2="8" y2="13" stroke-width="1.5"/><line x1="16" y1="17" x2="8" y2="17" stroke-width="1.5"/><polyline points="10,9 9,9 8,9" stroke-width="1.5"/>`, hideFor:['irmao'] },
   { id:'atas', label:'Atas & Eventos', icon:`<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke-width="1.5"/><polyline points="14,2 14,8 20,8" stroke-width="1.5"/>`, section:'pessoal' },
@@ -1551,7 +1551,7 @@ function doLogin() {
   document.getElementById('sidebarBadge').querySelector('span').textContent = r.icon;
   document.getElementById('topbarRole').textContent = r.label;
   renderNav();
-  const defaultPanel = currentRole === 'irmao' ? 'atas' : 'dashboard';
+  const defaultPanel = 'dashboard';
   showPanel(defaultPanel);
   loadAllData().catch(e => console.warn(e));
 }
@@ -1653,9 +1653,229 @@ function readOnlyBanner() {
 }
 
 // ===================== DASHBOARD =====================
+function renderDashboardIrmao(el) {
+  const name = ROLES[currentRole].name;
+  const membro = DATA.membros.find(m => m.nome_maconico === name) || DATA.membros[0];
+  const hoje = new Date();
+  const mesAtual = String(hoje.getMonth()+1).padStart(2,'0');
+  const anoAtual = hoje.getFullYear();
+  const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const mesesCurtos = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+  // ── Frequência pessoal ─────────────────────────────────────
+  const sessoes = DATA.sessoes;
+  const minhasPres = membro ? DATA.presencas.filter(p=>p.membro_id===membro.id&&(p.presente||p.situacao==='presente')) : [];
+  const pctFreq = sessoes.length ? Math.round(minhasPres.length/sessoes.length*100) : 0;
+  const corFreq = pctFreq>=75?'var(--green)':pctFreq>=50?'var(--gold-dark)':'var(--red)';
+
+  // Últimas 3 presenças confirmadas
+  const ultimasPres = sessoes
+    .filter(s => minhasPres.find(p=>p.sessao_id===s.id))
+    .sort((a,b)=>b.data.localeCompare(a.data)).slice(0,3);
+
+  // ── Financeiro pessoal ─────────────────────────────────────
+  const minhasFinancas = membro ? DATA.financas.filter(l=>l.membro_id===membro.id) : [];
+  const totalPago  = minhasFinancas.filter(l=>l.tipo==='receita'&&l.status==='pago').reduce((s,l)=>s+parseFloat(l.valor||0),0);
+  const totalAberto= minhasFinancas.filter(l=>l.status==='aberto'||l.status==='agendado').reduce((s,l)=>s+parseFloat(l.valor||0),0);
+  const mensalidade= membro?.mensalidade || 100;
+  const anoIng  = membro?.data_ingresso ? parseInt(membro.data_ingresso.split('-')[0]) : anoAtual;
+  const mesIng  = membro?.data_ingresso ? parseInt(membro.data_ingresso.split('-')[1]) : 1;
+  const totalMeses = Math.max(0,(anoAtual-anoIng)*12+(hoje.getMonth()+1-mesIng));
+  const devia = Math.max(0, totalMeses*mensalidade - totalPago);
+  const emDia = devia<=0 && totalAberto<=0;
+
+  // ── Quadro de irmãos ───────────────────────────────────────
+  const quadro = DATA.membros.filter(m=>(m.tipo_membro==='membro'||m.tipo_membro==='filiado')&&(m.status==='ativo'||m.status==='iniciado'));
+  const totalMembros = DATA.membros.filter(m=>m.tipo_membro==='membro'&&(m.status==='ativo'||m.status==='iniciado')).length;
+  const totalFiliados= DATA.membros.filter(m=>m.tipo_membro==='filiado'&&(m.status==='ativo'||m.status==='iniciado')).length;
+
+  // ── Registros ──────────────────────────────────────────────
+  const totalSessoes = sessoes.length;
+  const totalAtas    = DATA.atas?.length || 0;
+  const hojeStr = hoje.toISOString().split('T')[0];
+
+  // ── Próximos eventos ───────────────────────────────────────
+  const sessFut = sessoes.filter(s=>s.data>=hojeStr).sort((a,b)=>a.data.localeCompare(b.data));
+  const evFut   = DATA.eventos.filter(e=>e.data>=hojeStr).sort((a,b)=>a.data.localeCompare(b.data));
+  const proximos = [
+    ...sessFut.map(s=>({data:s.data, titulo:s.tipo||'Sessão', local:s.descricao_local||'Templo', isConvite:false})),
+    ...evFut.map(e=>({data:e.data, titulo:e.titulo||e.descricao||'Evento', local:e.local||'Templo', isConvite:true}))
+  ].sort((a,b)=>a.data.localeCompare(b.data)).slice(0,5);
+
+  // ── Aniversariantes do mês ─────────────────────────────────
+  const anivMembros = DATA.membros.filter(m=>m.data_nascimento?.slice(5,7)===mesAtual)
+    .map(m=>({nome:m.nome_maconico, data:m.data_nascimento, tipo:'Irmão', isFamiliar:false}));
+  const anivFam = DATA.membros.flatMap(m=>{
+    const fam = JSON.parse(m._familiares||'[]');
+    return fam.filter(f=>f.nascimento?.slice(5,7)===mesAtual)
+      .map(f=>({nome:f.nome, data:f.nascimento, tipo:`${f.grau} de ${m.nome_maconico}`, isFamiliar:true}));
+  });
+  const todosAniv = [...anivMembros,...anivFam].sort((a,b)=>(a.data||'').slice(8).localeCompare((b.data||'').slice(8)));
+
+  // ── Helpers de estilo ──────────────────────────────────────
+  const cardBase = `background:var(--white);border:1px solid var(--border);border-radius:6px;box-shadow:0 2px 10px rgba(27,58,107,0.07)`;
+  const cardClick = (panel) => `${cardBase};cursor:pointer;transition:box-shadow 0.15s,transform 0.15s" onclick="showPanel('${panel}')" onmouseover="this.style.boxShadow='0 6px 24px rgba(27,58,107,0.16)';this.style.transform='translateY(-2px)'" onmouseout="this.style.boxShadow='0 2px 10px rgba(27,58,107,0.07)';this.style.transform=''`;
+  const sectionLabel = (txt) => `<div style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.18em;color:var(--text-muted);text-transform:uppercase;margin-bottom:12px">${txt}</div>`;
+
+  el.innerHTML = `
+
+    <!-- SAUDAÇÃO -->
+    <div style="display:flex;align-items:center;gap:16px;background:linear-gradient(135deg,rgba(27,58,107,0.08),rgba(27,58,107,0.02));border:1px solid rgba(27,58,107,0.15);border-radius:6px;padding:18px 24px;margin-bottom:18px">
+      <div style="width:56px;height:56px;border-radius:50%;background:var(--navy);display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-size:22px;color:#fff;font-weight:700;flex-shrink:0">${(membro?.nome_maconico||'?').charAt(0)}</div>
+      <div style="flex:1">
+        <div style="font-family:'Cinzel',serif;font-size:17px;font-weight:700;color:var(--navy)">Bem-vindo, ${membro?.nome_maconico||name}!</div>
+        <div style="font-size:14px;color:var(--text-muted);font-style:italic;margin-top:2px">${membro?.cargo||'Membro da Loja'} · ${degreeBadge(membro?.grau||3)} · ${meses[hoje.getMonth()]} de ${anoAtual}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:11px;color:var(--text-muted);font-family:'Cinzel',serif;letter-spacing:0.1em">SITUAÇÃO</div>
+        <div style="font-size:16px;font-weight:700;color:${emDia?'var(--green)':'var(--red)'};margin-top:2px">${emDia?'✅ Em dia':'⚠️ Pendente'}</div>
+      </div>
+    </div>
+
+    <!-- LINHA 1: 4 cards de acesso rápido -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-bottom:16px">
+
+      <!-- Membros -->
+      <div style="padding:18px 18px;${cardClick('membros')}">
+        ${sectionLabel('👥 Irmãos')}
+        <div style="font-size:40px;font-weight:700;font-family:'Cinzel',serif;color:var(--navy);line-height:1;margin-bottom:8px">${quadro.length}</div>
+        <div style="font-size:12px;color:var(--text-muted);line-height:1.5">
+          ${totalMembros} Membros<br>${totalFiliados} Filiados
+        </div>
+        <div style="margin-top:10px;font-size:10px;color:var(--navy);font-family:'Cinzel',serif;font-weight:700;letter-spacing:0.06em;border-top:1px solid var(--border);padding-top:7px">Ver quadro →</div>
+      </div>
+
+      <!-- Registros -->
+      <div style="padding:18px 18px;${cardBase}">
+        ${sectionLabel('📋 Registros')}
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <div style="flex:1;cursor:pointer;border-radius:4px;padding:8px 6px;background:rgba(27,58,107,0.05);border:1px solid rgba(27,58,107,0.12);text-align:center" onclick="showPanel('atas')">
+            <div style="font-size:26px;font-weight:700;font-family:'Cinzel',serif;color:var(--navy);line-height:1">${totalAtas}</div>
+            <div style="font-size:9px;color:var(--navy);margin-top:4px;font-family:'Cinzel',serif;font-weight:700;letter-spacing:0.06em">ATAS →</div>
+          </div>
+          <div style="flex:1;cursor:pointer;border-radius:4px;padding:8px 6px;background:rgba(212,168,67,0.06);border:1px solid rgba(212,168,67,0.2);text-align:center" onclick="showPanel('eventos')">
+            <div style="font-size:26px;font-weight:700;font-family:'Cinzel',serif;color:var(--gold-dark);line-height:1">${totalSessoes}</div>
+            <div style="font-size:9px;color:var(--gold-dark);margin-top:4px;font-family:'Cinzel',serif;font-weight:700;letter-spacing:0.06em">SESSÕES →</div>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);border-top:1px solid var(--border);padding-top:7px">Atas e sessões da loja</div>
+      </div>
+
+      <!-- Frequência pessoal -->
+      <div style="padding:18px 18px;${cardClick('minha-frequencia')}">
+        ${sectionLabel('📊 Minha Frequência')}
+        <div style="font-size:40px;font-weight:700;font-family:'Cinzel',serif;color:${corFreq};line-height:1;margin-bottom:6px">${pctFreq}<span style="font-size:18px">%</span></div>
+        <div style="background:rgba(0,0,0,0.05);border-radius:3px;height:5px;overflow:hidden;margin-bottom:8px">
+          <div style="height:100%;width:${pctFreq}%;background:${corFreq};border-radius:3px"></div>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted)">${minhasPres.length} de ${sessoes.length} sessões</div>
+        <div style="margin-top:10px;font-size:10px;color:${corFreq};font-family:'Cinzel',serif;font-weight:700;letter-spacing:0.06em;border-top:1px solid var(--border);padding-top:7px">${pctFreq>=75?'✓ Em dia':'⚠ Atenção'} → ver histórico</div>
+      </div>
+
+      <!-- Financeiro pessoal -->
+      <div style="padding:18px 18px;${cardClick('meu-financeiro')}">
+        ${sectionLabel('💰 Meu Financeiro')}
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <div style="font-size:22px">${emDia?'✅':'⚠️'}</div>
+          <div>
+            <div style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;color:${emDia?'var(--green)':'var(--red)'}">${emDia?'Em dia':'Pendente'}</div>
+            <div style="font-size:11px;color:var(--text-muted)">${emDia?'Mensalidades ok':'Verifique débitos'}</div>
+          </div>
+        </div>
+        <div style="font-size:12px;color:var(--text-muted)">Mensalidade: <strong style="color:var(--text)">${fmtVal(mensalidade)}/mês</strong></div>
+        ${!emDia?`<div style="font-size:12px;color:var(--red);margin-top:3px">Em aberto: <strong>${fmtVal(devia+totalAberto)}</strong></div>`:''}
+        <div style="margin-top:10px;font-size:10px;color:var(--navy);font-family:'Cinzel',serif;font-weight:700;letter-spacing:0.06em;border-top:1px solid var(--border);padding-top:7px">Ver extrato →</div>
+      </div>
+    </div>
+
+    <!-- LINHA 2: Minhas últimas presenças + Próximos Eventos -->
+    <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:12px;margin-bottom:16px">
+
+      <!-- Últimas presenças -->
+      <div style="${cardBase};padding:18px 20px">
+        ${sectionLabel('📅 Minhas Últimas Presenças')}
+        ${ultimasPres.length===0
+          ? `<div style="font-style:italic;color:var(--text-muted);font-size:13px">Nenhuma presença registrada.</div>`
+          : ultimasPres.map(s=>`
+            <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border)">
+              <div style="background:var(--navy);color:#fff;border-radius:4px;padding:4px 8px;text-align:center;flex-shrink:0">
+                <div style="font-family:'Cinzel',serif;font-size:7px;font-weight:700;opacity:0.8">${mesesCurtos[parseInt(s.data?.split('-')[1])-1]||'—'}</div>
+                <div style="font-family:'Cinzel',serif;font-size:16px;font-weight:700;line-height:1">${s.data?.split('-')[2]||'—'}</div>
+              </div>
+              <div>
+                <div style="font-size:13px;font-weight:700;font-family:'Cormorant Garamond',serif;color:var(--text)">${s.tipo||'Sessão'}</div>
+                <div style="font-size:11px;color:var(--text-muted)">📍 ${s.descricao_local||'Templo'}</div>
+              </div>
+              <div style="margin-left:auto"><span style="color:var(--green);font-size:16px">✓</span></div>
+            </div>`).join('')}
+        <div style="margin-top:10px;font-size:10px;color:var(--navy);font-family:'Cinzel',serif;font-weight:700;letter-spacing:0.06em;cursor:pointer" onclick="showPanel('minha-frequencia')">Ver frequência completa →</div>
+      </div>
+
+      <!-- Próximos Eventos -->
+      <div style="${cardBase};padding:18px 20px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          ${sectionLabel('📅 Próximos Eventos & Convites')}
+          <button class="btn" onclick="showPanel('eventos')" style="font-size:9px;padding:3px 10px;margin-top:-12px">Ver todos →</button>
+        </div>
+        ${proximos.length===0
+          ? `<div style="font-style:italic;color:var(--text-muted);font-size:13px;padding:8px 0">Nenhum evento agendado.</div>`
+          : proximos.map(ev=>{
+              const d=(ev.data||'').split('-');
+              const mesN=mesesCurtos[parseInt(d[1])-1]||'—';
+              const dia=d[2]||'—';
+              const corB = ev.isConvite?'rgba(212,168,67,0.15)':'rgba(27,58,107,0.08)';
+              const corT = ev.isConvite?'var(--gold-dark)':'var(--navy)';
+              const badge = ev.isConvite?'✉️ Convite':'🏛️ Sessão';
+              return `<div style="display:flex;align-items:center;gap:0;background:var(--cream);border:1px solid var(--border);border-radius:4px;overflow:hidden;margin-bottom:6px">
+                <div style="background:#1B3A6B;min-width:52px;width:52px;padding:7px 5px;text-align:center;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+                  <div style="font-family:'Cinzel',serif;font-size:7px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#fff;opacity:0.85">${mesN}</div>
+                  <div style="font-family:'Cinzel',serif;font-size:21px;font-weight:700;line-height:1;color:#fff">${dia}</div>
+                </div>
+                <div style="flex:1;padding:7px 12px;font-family:'Cormorant Garamond',serif;border-left:2px solid rgba(27,58,107,0.15)">
+                  <div style="font-size:14px;font-weight:700;color:var(--text)">${ev.titulo}</div>
+                  <div style="font-size:11px;color:var(--text-muted)">📍 ${ev.local}</div>
+                </div>
+                <div style="padding:0 10px;flex-shrink:0">
+                  <span style="font-family:'Cinzel',serif;font-size:8px;font-weight:700;padding:3px 7px;border-radius:3px;background:${corB};color:${corT};white-space:nowrap">${badge}</span>
+                </div>
+              </div>`;
+            }).join('')}
+      </div>
+    </div>
+
+    <!-- LINHA 3: Aniversariantes do mês -->
+    <div style="background:rgba(212,168,67,0.015);border:1px solid rgba(212,168,67,0.35);border-radius:6px;padding:18px 22px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;letter-spacing:0.12em;color:var(--gold-dark);text-transform:uppercase">🎂 Aniversariantes de ${meses[hoje.getMonth()]} (${todosAniv.length})</div>
+      </div>
+      ${todosAniv.length===0
+        ? `<div style="font-style:italic;color:var(--text-muted);font-size:13px">Nenhum aniversariante este mês.</div>`
+        : `<div style="display:flex;flex-direction:column;gap:7px">
+          ${todosAniv.map(a=>{
+            const d=(a.data||'').split('-');
+            const mesN=mesesCurtos[parseInt(d[1])-1]||'—';
+            const dia=d[2]||'—';
+            return `<div style="display:flex;align-items:center;gap:0;background:var(--white);border:1px solid rgba(212,168,67,0.2);border-radius:4px;overflow:hidden">
+              <div style="background-color:#1B3A6B;min-width:68px;width:68px;padding:10px 8px;text-align:center;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+                <div style="font-family:'Cinzel',serif;font-size:8px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#fff;opacity:0.85">${mesN}</div>
+                <div style="font-family:'Cinzel',serif;font-size:28px;font-weight:700;line-height:1;color:#fff">${dia}</div>
+              </div>
+              <div style="flex:1;padding:10px 18px;font-family:'Cormorant Garamond',serif;border-left:3px solid rgba(212,168,67,0.3)">
+                <span style="font-size:17px;font-weight:700;color:var(--text)">${a.nome}</span>
+                <span style="font-size:13px;color:var(--text-muted);margin-left:12px">${a.tipo}</span>
+              </div>
+              ${a.isFamiliar?'':`<div style="padding:0 16px"><span class="badge b-active" style="font-size:9px">🏛️ Irmão</span></div>`}
+            </div>`;
+          }).join('')}
+        </div>`}
+    </div>`;
+}
 function renderDashboard() {
   const el = document.getElementById('dashboard-content');
   if (!el) return;
+
+  // Irmão vê painel personalizado
+  if (currentRole === 'irmao') { renderDashboardIrmao(el); return; }
 
   const hoje = new Date();
   const mesAtual = String(hoje.getMonth()+1).padStart(2,'0');
