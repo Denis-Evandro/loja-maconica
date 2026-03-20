@@ -6032,7 +6032,11 @@ function renderComissoes(access) {
             <td><strong style="font-family:'Cinzel',serif;font-size:11px">${c.nome}</strong>${c.missao?`<br><span style="font-size:10px;color:var(--text-muted);font-style:italic">${c.missao.substring(0,60)}${c.missao.length>60?'...':''}</span>`:''}
             </td>
             <td>${c.presidente||'—'}</td>
-            <td><div style="display:flex;flex-wrap:wrap;gap:3px">${(c.membros||[]).map(m=>`<span style="background:rgba(27,58,107,0.08);border:1px solid rgba(27,58,107,0.15);border-radius:3px;padding:1px 6px;font-size:10px">${m}</span>`).join('')||'—'}</div></td>
+            <td><div style="display:flex;flex-wrap:wrap;gap:4px">${(c.membros_cargos||((c.membros||[]).map(m=>({nome:m,cargo_com:''})))).map(mc=>`
+              <span style="background:rgba(27,58,107,0.07);border:1px solid rgba(27,58,107,0.15);border-radius:20px;padding:2px 8px;font-size:11px;font-family:'Cormorant Garamond',serif;display:inline-flex;align-items:center;gap:5px">
+                ${mc.nome}
+                ${mc.cargo_com?`<span style="background:rgba(27,58,107,0.15);border-radius:10px;padding:1px 6px;font-size:9px;font-family:'Cinzel',serif;font-weight:700;letter-spacing:0.04em;color:var(--navy)">${mc.cargo_com}</span>`:''}
+              </span>`).join('')||'—'}</div></td>
             ${tipo==='temporaria'?`<td><div style="font-size:11px">${c.evento||'—'}</div>${c.data_inicio?`<div style="font-size:10px;color:var(--text-muted)">${fmtData(c.data_inicio)}${c.data_fim?' → '+fmtData(c.data_fim):''}</div>`:''}</td>`:''}
             <td>${statusComissao(c)}</td>
             ${canEdit?`<td style="display:flex;gap:4px">
@@ -6078,7 +6082,6 @@ function abrirModalComissao(tipoInicial='permanente', comissaoExistente=null) {
     ...DATA.membros.filter(m=>m.tipo_membro==='visitante')
   ];
 
-  // Cargos possíveis na comissão
   const CARGOS_COM = ['Presidente','Vice-Presidente','Secretário','Tesoureiro','Relator','Membro','Convidado','Assessor'];
 
   const listaMembrosCom = todosMembros.map(m=>{
@@ -6087,23 +6090,55 @@ function abrirModalComissao(tipoInicial='permanente', comissaoExistente=null) {
     const tipo_m = m.tipo_membro||'membro';
     const tipoIcon = tipo_m==='visitante'?'🤝':tipo_m==='filiado'?'🔗':'🏛️';
     const tipoLabel = tipo_m==='visitante'?'Visitante':tipo_m==='filiado'?'Filiado':'Membro';
-    return `<div class="linha-membro-com" data-nome="${m.nome_maconico.toLowerCase()}" data-tipo="${tipo_m}" style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border);background:${selecionado?'rgba(27,58,107,0.05)':'transparent'}">
-      <input type="checkbox" id="chk-${m.id}" value="${m.nome_maconico}" ${selecionado?'checked':''} style="width:15px;height:15px;cursor:pointer;accent-color:var(--navy);flex-shrink:0" onchange="toggleMembroCom('${m.id}')">
+    return `<div class="linha-membro-com" data-nome="${m.nome_maconico.toLowerCase()}" data-tipo="${tipo_m}"
+      style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);background:${selecionado?'rgba(27,58,107,0.06)':'transparent'};transition:background 0.15s">
+      <!-- Checkbox -->
+      <input type="checkbox" id="chk-${m.id}" value="${m.nome_maconico}" ${selecionado?'checked':''}
+        style="width:16px;height:16px;cursor:pointer;accent-color:var(--navy);flex-shrink:0"
+        onchange="toggleMembroCom('${m.id}')">
+      <!-- Nome + cargo da loja -->
       <div style="flex:1;min-width:0">
-        <span style="font-size:14px;font-weight:${selecionado?700:400};color:var(--text);font-family:'Cormorant Garamond',serif">${m.nome_maconico}</span>
-        <span style="font-size:10px;color:var(--text-muted);margin-left:8px">${m.cargo||''}</span>
+        <div style="font-size:14px;font-weight:${selecionado?700:400};color:var(--text);font-family:'Cormorant Garamond',serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.nome_maconico}</div>
+        <div style="font-size:10px;color:var(--text-muted)">${m.cargo||tipoLabel}</div>
       </div>
-      <span style="font-size:10px;padding:2px 7px;border-radius:3px;white-space:nowrap;
+      <!-- Badge de tipo -->
+      <span style="font-size:9px;padding:2px 7px;border-radius:3px;white-space:nowrap;flex-shrink:0;
         background:${tipo_m==='visitante'?'rgba(212,168,67,0.12)':tipo_m==='filiado'?'rgba(27,94,160,0.1)':'rgba(27,58,107,0.08)'};
         color:${tipo_m==='visitante'?'var(--gold-dark)':tipo_m==='filiado'?'#1B5EA0':'var(--navy)'};
         border:1px solid ${tipo_m==='visitante'?'rgba(212,168,67,0.3)':tipo_m==='filiado'?'rgba(27,94,160,0.25)':'rgba(27,58,107,0.2)'};
         font-family:'Cinzel',serif;font-weight:700;letter-spacing:0.06em">
         ${tipoIcon} ${tipoLabel}
       </span>
-      <select id="cargo-com-${m.id}" style="border:1px solid var(--border-mid);border-radius:3px;padding:3px 6px;font-family:'Cormorant Garamond',serif;font-size:12px;background:var(--cream);color:var(--text);opacity:${selecionado?1:0.4};cursor:${selecionado?'pointer':'default'};min-width:130px" ${selecionado?'':'disabled'}>
-        <option value="">Cargo na comissão</option>
-        ${CARGOS_COM.map(cg=>`<option value="${cg}" ${cargoAtual===cg?'selected':''}>${cg}</option>`).join('')}
-      </select>
+      <!-- Cargo na comissão — sempre visível, editável -->
+      <div id="cargo-wrap-${m.id}" style="display:flex;align-items:center;gap:5px;min-width:140px;justify-content:flex-end">
+        <!-- Badge do cargo (aparece após confirmar) -->
+        <span id="cargo-badge-${m.id}"
+          style="display:${cargoAtual?'inline-flex':'none'};align-items:center;gap:5px;
+            background:rgba(27,58,107,0.12);border:1px solid rgba(27,58,107,0.35);
+            border-radius:20px;padding:3px 10px;font-family:'Cinzel',serif;
+            font-size:9px;font-weight:700;letter-spacing:0.06em;color:var(--navy);white-space:nowrap">
+          ${cargoAtual||''}
+          <span onclick="limparCargoCom('${m.id}')" title="Editar cargo"
+            style="cursor:pointer;color:var(--text-muted);font-size:12px;line-height:1">×</span>
+        </span>
+        <input type="hidden" id="cargo-com-${m.id}" value="${cargoAtual}">
+        <!-- Input + datalist sempre visível quando sem cargo -->
+        <div style="position:relative;display:${cargoAtual?'none':'flex'};align-items:center;gap:3px" id="cargo-input-wrap-${m.id}">
+          <input id="cargo-input-${m.id}"
+            list="sugestoes-cargo-${m.id}"
+            placeholder="✎ Cargo na comissão"
+            style="width:148px;border:1px solid var(--border-mid);border-radius:3px;padding:5px 8px;
+              font-family:'Cormorant Garamond',serif;font-size:12px;background:var(--cream);color:var(--text)"
+            onkeydown="if(event.key==='Enter'){event.preventDefault();confirmarCargoCom('${m.id}')}"
+            onblur="setTimeout(()=>{if(document.getElementById('cargo-input-${m.id}')?.value.trim())confirmarCargoCom('${m.id}')},150)">
+          <datalist id="sugestoes-cargo-${m.id}">
+            ${CARGOS_COM.map(cg=>`<option value="${cg}">`).join('')}
+          </datalist>
+          <button type="button" onclick="confirmarCargoCom('${m.id}')"
+            title="Confirmar cargo"
+            style="padding:4px 8px;border:1px solid var(--navy);border-radius:3px;background:rgba(27,58,107,0.1);color:var(--navy);font-size:11px;cursor:pointer;font-weight:700">✓</button>
+        </div>
+      </div>
     </div>`;
   }).join('');
 
@@ -6196,6 +6231,36 @@ function abrirModalComissao(tipoInicial='permanente', comissaoExistente=null) {
     </div>`);
 }
 
+function confirmarCargoCom(membroId) {
+  const input = document.getElementById('cargo-input-'+membroId);
+  const hidden = document.getElementById('cargo-com-'+membroId);
+  const badge  = document.getElementById('cargo-badge-'+membroId);
+  const wrap   = document.getElementById('cargo-input-wrap-'+membroId);
+  const val = input?.value.trim();
+  if (!val) return;
+  if (hidden) hidden.value = val;
+  if (badge) {
+    badge.style.display = 'inline-flex';
+    badge.innerHTML = `${val} <span onclick="limparCargoCom('${membroId}')" title="Editar cargo" style="cursor:pointer;color:var(--text-muted);font-size:12px;line-height:1;margin-left:2px">×</span>`;
+  }
+  if (wrap)  { wrap.style.display = 'none'; }
+  if (input) { input.value = ''; }
+  // Marcar automaticamente o checkbox se ainda não estiver marcado
+  const chk = document.getElementById('chk-'+membroId);
+  if (chk && !chk.checked) { chk.checked = true; toggleMembroCom(membroId); }
+}
+
+function limparCargoCom(membroId) {
+  const hidden = document.getElementById('cargo-com-'+membroId);
+  const badge  = document.getElementById('cargo-badge-'+membroId);
+  const wrap   = document.getElementById('cargo-input-wrap-'+membroId);
+  const input  = document.getElementById('cargo-input-'+membroId);
+  if (hidden) hidden.value = '';
+  if (badge)  { badge.style.display = 'none'; badge.innerHTML = ''; }
+  if (wrap)   { wrap.style.display = 'flex'; }
+  if (input)  { input.value = ''; setTimeout(()=>input.focus(), 50); }
+}
+
 let _filtroTipoCom = '';
 
 function filtrarTipoCom(tipo, idx) {
@@ -6227,12 +6292,10 @@ function filtrarMembrosCom() {
 }
 
 function toggleMembroCom(membroId) {
-  const chk = document.getElementById('chk-'+membroId);
-  const sel = document.getElementById('cargo-com-'+membroId);
+  const chk   = document.getElementById('chk-'+membroId);
   const linha = chk?.closest('.linha-membro-com');
   const checked = chk?.checked;
-  if (sel) { sel.disabled = !checked; sel.style.opacity = checked?'1':'0.4'; sel.style.cursor = checked?'pointer':'default'; }
-  if (linha) linha.style.background = checked?'rgba(27,58,107,0.05)':'transparent';
+  if (linha) linha.style.background = checked ? 'rgba(27,58,107,0.06)' : 'transparent';
   const selecionados = document.querySelectorAll('#lista-membros-com input[type="checkbox"]:checked').length;
   const cont = document.getElementById('cont-selecionados-com');
   if (cont) cont.textContent = selecionados > 0 ? `${selecionados} selecionado(s)` : '';
