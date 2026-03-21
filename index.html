@@ -6813,71 +6813,40 @@ function renderAssinaturas() {
   if (!grid) return;
 
   grid.innerHTML = `
-    <div style="background:rgba(27,58,107,0.04);border:1px solid rgba(27,58,107,0.12);border-radius:4px;padding:10px 16px;margin-bottom:16px;font-size:12px;color:var(--text-muted)">
-      💡 Faça upload da foto/scan da assinatura em papel branco. O sistema remove o fundo automaticamente, deixando só a tinta.
-      Se a assinatura ficar cortada ou com ruído, ajuste o slider de <strong>sensibilidade</strong>.
-    </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
       ${CARGOS_ASSIN.map(c => {
         const img = localStorage.getItem('assinatura_' + c.id) || '';
         return `
         <div style="border:1px solid var(--border-mid);border-radius:6px;overflow:hidden;background:var(--white)">
-          <!-- Cabeçalho do card -->
           <div style="background:rgba(27,58,107,0.06);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;gap:8px">
             <span style="font-size:16px">${c.icon}</span>
             <span style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;letter-spacing:0.1em;color:var(--navy)">${c.label}</span>
-            ${img ? `<span style="margin-left:auto;background:rgba(34,139,34,0.1);border:1px solid rgba(34,139,34,0.3);border-radius:20px;padding:2px 10px;font-size:10px;color:var(--green);font-family:'Cinzel',serif;font-weight:700">✓ Cadastrada</span>`
-                  : `<span style="margin-left:auto;background:rgba(139,32,32,0.06);border:1px solid rgba(139,32,32,0.2);border-radius:20px;padding:2px 10px;font-size:10px;color:var(--text-muted);font-family:'Cinzel',serif">Sem imagem</span>`}
-          </div>
-          <!-- Preview — fundo quadriculado para mostrar transparência -->
-          <div id="prev-${c.id}" style="height:100px;display:flex;align-items:center;justify-content:center;border-bottom:1px solid var(--border);padding:8px;
-            background-image:linear-gradient(45deg,#e0e0e0 25%,transparent 25%),linear-gradient(-45deg,#e0e0e0 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#e0e0e0 75%),linear-gradient(-45deg,transparent 75%,#e0e0e0 75%);
-            background-size:12px 12px;background-position:0 0,0 6px,6px -6px,-6px 0px;background-color:#f5f5f5">
             ${img
-              ? `<img src="${img}" style="max-height:84px;max-width:100%;object-fit:contain">`
-              : `<div style="text-align:center">
-                   <div style="font-size:28px;margin-bottom:4px;opacity:0.3">✍️</div>
-                   <div style="font-size:11px;color:var(--text-muted);font-style:italic">Nenhuma imagem</div>
-                 </div>`}
+              ? `<span style="margin-left:auto;background:rgba(34,139,34,0.1);border:1px solid rgba(34,139,34,0.3);border-radius:20px;padding:2px 10px;font-size:10px;color:var(--green);font-family:'Cinzel',serif;font-weight:700">✓ Cadastrada</span>`
+              : `<span style="margin-left:auto;background:rgba(139,32,32,0.06);border:1px solid rgba(139,32,32,0.2);border-radius:20px;padding:2px 10px;font-size:10px;color:var(--text-muted);font-family:'Cinzel',serif">Sem imagem</span>`}
           </div>
-          <!-- Slider de sensibilidade (só aparece se tiver imagem carregada) -->
-          ${img ? `
-          <div style="padding:8px 14px;border-bottom:1px solid var(--border);background:rgba(27,58,107,0.02)">
-            <div style="display:flex;align-items:center;gap:8px">
-              <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;color:var(--text-muted);white-space:nowrap">SENSIBILIDADE</label>
-              <input type="range" min="100" max="240" value="200" id="limiar-${c.id}" class="sens-slider"
-                oninput="atualizarSlider(this);ajustarLimiarAssinatura('${c.id}',this.value)"
-                style="flex:1;height:6px;border-radius:3px;outline:none;cursor:pointer;
-                  background:linear-gradient(to right,#1B3A6B 72%,#D3D1C7 72%);border:none;appearance:none;-webkit-appearance:none">
-              <span id="limiar-val-${c.id}" style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:var(--navy);min-width:28px;text-align:right">200</span>
-            </div>
-            <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text-muted);margin-top:2px">
-              <span>← mais tinta</span><span>menos tinta →</span>
-            </div>
-          </div>` : ''}
-          <!-- Botões de ação -->
+          <!-- Preview com fundo quadriculado -->
+          <div style="height:90px;display:flex;align-items:center;justify-content:center;border-bottom:1px solid var(--border);padding:8px;
+            background-image:linear-gradient(45deg,#e0e0e0 25%,transparent 25%),linear-gradient(-45deg,#e0e0e0 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#e0e0e0 75%),linear-gradient(-45deg,transparent 75%,#e0e0e0 75%);
+            background-size:12px 12px;background-position:0 0,0 6px,6px -6px,-6px 0;background-color:#f5f5f5">
+            ${img
+              ? `<img src="${img}" style="max-height:74px;max-width:100%;object-fit:contain">`
+              : `<div style="text-align:center"><div style="font-size:26px;opacity:0.2">✍️</div><div style="font-size:11px;color:var(--text-muted);font-style:italic;margin-top:4px">Nenhuma imagem</div></div>`}
+          </div>
+          <!-- Botões -->
           <div style="padding:10px 14px;display:flex;gap:8px">
-            <input type="file" id="file-${c.id}" accept="image/png,image/jpeg,image/gif,image/webp,application/pdf" style="display:none"
-              onchange="previewAssinatura('${c.id}')">
-            <button class="btn btn-solid" onclick="document.getElementById('file-${c.id}').click()"
-              style="flex:1;font-size:11px;padding:7px 10px">
+            <input type="file" id="file-${c.id}" accept="image/png,image/jpeg,image/gif,image/webp,application/pdf" style="display:none" onchange="previewAssinatura('${c.id}')">
+            <button class="btn btn-solid" onclick="document.getElementById('file-${c.id}').click()" style="flex:1;font-size:11px;padding:7px 10px">
               📎 ${img ? 'Alterar imagem' : 'Escolher imagem'}
             </button>
-            ${img ? `<button class="btn" onclick="removerAssinatura('${c.id}')"
-              style="font-size:11px;padding:7px 12px;color:var(--red);border-color:rgba(139,32,32,0.35)">
-              🗑️
-            </button>` : ''}
+            ${img ? `<button class="btn" onclick="removerAssinatura('${c.id}')" style="font-size:11px;padding:7px 12px;color:var(--red);border-color:rgba(139,32,32,0.35)">🗑️</button>` : ''}
           </div>
         </div>`;
       }).join('')}
     </div>
-    <div style="margin-top:18px;font-size:12px;color:var(--text-muted);font-style:italic">
-      ✦ As assinaturas são salvas automaticamente ao processar cada imagem.
+    <div style="margin-top:14px;font-size:12px;color:var(--text-muted);font-style:italic">
+      ✦ Assinaturas salvas automaticamente. Use <strong>✂️ Recortar Imagem</strong> para ajuste fino de sensibilidade.
     </div>`;
-  // Inicializar visual de todos os sliders
-  setTimeout(() => {
-    document.querySelectorAll('input[type=range]').forEach(atualizarSlider);
-  }, 50);
 }
 
 function previewAssinatura(cargo) {
@@ -6959,60 +6928,6 @@ function atualizarSlider(el) {
   el.style.background = `linear-gradient(to right, #1B3A6B ${pct}%, #D3D1C7 ${pct}%)`;
 }
 
-function ajustarLimiarAssinatura(cargo, val) {
-  const el = document.getElementById('limiar-'+cargo);
-  atualizarSlider(el);
-  const img = window._assinaturaOrigem?.[cargo];
-  if (!img) { toast('Carregue a imagem primeiro'); return; }
-  document.getElementById('limiar-val-'+cargo).textContent = val;
-  _processarAssinatura(cargo, img, parseInt(val));
-}
-
-// Recortar canvas para a área onde há pixels visíveis (remove margens em branco)
-function _recortarAssinatura(canvas) {
-  const ctx = canvas.getContext('2d');
-  const { width, height } = canvas;
-  const data = ctx.getImageData(0, 0, width, height).data;
-  let minX = width, minY = height, maxX = 0, maxY = 0;
-
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const alpha = data[(y * width + x) * 4 + 3];
-      if (alpha > 30) {
-        if (x < minX) minX = x;
-        if (x > maxX) maxX = x;
-        if (y < minY) minY = y;
-        if (y > maxY) maxY = y;
-      }
-    }
-  }
-
-  // Sem pixels visíveis — retorna original
-  if (maxX < minX) return canvas;
-
-  // Margem de segurança de 10px
-  const pad = 10;
-  minX = Math.max(0, minX - pad);
-  minY = Math.max(0, minY - pad);
-  maxX = Math.min(width,  maxX + pad);
-  maxY = Math.min(height, maxY + pad);
-
-  const cropped = document.createElement('canvas');
-  cropped.width  = maxX - minX;
-  cropped.height = maxY - minY;
-  const cCtx = cropped.getContext('2d');
-  cCtx.drawImage(canvas, minX, minY, cropped.width, cropped.height, 0, 0, cropped.width, cropped.height);
-  return cropped;
-}
-
-function removerAssinatura(cargo) {
-  if (!confirm(`Remover assinatura de ${CARGOS_ASSIN.find(c=>c.id===cargo)?.label}?`)) return;
-  localStorage.removeItem('assinatura_' + cargo);
-  renderAssinaturas();
-  toast('Assinatura removida');
-}
-
-// ─── FOLHA PADRÃO DE ASSINATURAS ─────────────────────────────
 function imprimirFolhaAssinaturas() {
   const cargos = CARGOS_ASSIN;
   const quadros = cargos.map(c => `
@@ -7074,28 +6989,16 @@ function imprimirFolhaAssinaturas() {
   w.document.close();
 }
 
-// ─── EXTRAÇÃO AUTOMÁTICA DA FOLHA COMPLETA ───────────────────
 // ─── RECORTE MANUAL INTERATIVO ───────────────────────────────
 function abrirRecorteManual() {
   const opsCargos = CARGOS_ASSIN.map(c=>`<option value="${c.id}">${c.icon} ${c.label}</option>`).join('');
   document.body.insertAdjacentHTML('beforeend', `
     <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:999;display:flex;align-items:center;justify-content:center;padding:12px">
-      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:8px;width:720px;max-height:95vh;overflow-y:auto;position:relative">
+      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:8px;width:700px;max-height:95vh;overflow-y:auto;position:relative">
         <div style="height:3px;background:linear-gradient(90deg,var(--gold-dark),var(--gold-rich),var(--gold-light),var(--gold-dark));border-radius:8px 8px 0 0"></div>
         <div style="padding:20px 26px 14px">
-          <div style="font-family:'Cinzel',serif;font-size:14px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);margin-bottom:4px">✂️ Recortar / Corrigir Perspectiva</div>
-          <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px">Carregue a foto ou PDF. Escolha o modo:</div>
-
-          <!-- Modo: recorte manual ou correção de perspectiva -->
-          <div style="display:flex;gap:8px;margin-bottom:16px">
-            <button type="button" id="btn-modo-recorte" onclick="setModoRecorte('recorte')"
-              style="flex:1;padding:9px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.08em;cursor:pointer;border-radius:3px;border:2px solid var(--navy);background:rgba(27,58,107,0.12);color:var(--navy)">
-              ✂️ Recorte Livre ✓</button>
-            <button type="button" id="btn-modo-perspectiva" onclick="setModoRecorte('perspectiva')"
-              style="flex:1;padding:9px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.08em;cursor:pointer;border-radius:3px;border:2px solid var(--border-mid);background:var(--cream);color:var(--text-muted)">
-              📐 Corrigir Perspectiva (foto celular)</button>
-          </div>
-          <input type="hidden" id="rc-modo" value="recorte">
+          <div style="font-family:'Cinzel',serif;font-size:14px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);margin-bottom:4px">✂️ Recortar Assinatura</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px">Carregue a foto ou PDF, selecione o cargo, arraste para marcar a área da assinatura e clique em Recortar.</div>
 
           <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:flex-end">
             <div style="flex:2;min-width:200px">
@@ -7103,39 +7006,30 @@ function abrirRecorteManual() {
               <input type="file" id="rc-file" accept="image/*,application/pdf" style="display:none" onchange="carregarImagemRecorte()">
               <button class="btn btn-solid" onclick="document.getElementById('rc-file').click()" style="width:100%;font-size:11px;padding:8px">📎 Escolher arquivo</button>
             </div>
-            <div style="flex:1;min-width:160px" id="rc-cargo-wrap">
+            <div style="flex:1;min-width:160px">
               <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);display:block;margin-bottom:5px">CARGO</label>
               <select id="rc-cargo" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 10px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--cream);color:var(--text)">${opsCargos}</select>
             </div>
           </div>
 
-          <!-- Instrução dinâmica -->
           <div id="rc-instrucao" style="text-align:center;padding:16px;background:var(--cream);border-radius:4px;font-size:13px;color:var(--text-muted);font-style:italic;margin-bottom:10px">
             Carregue uma imagem para começar
           </div>
 
-          <!-- Canvas -->
+          <!-- Canvas de seleção -->
           <div style="position:relative;overflow:hidden;border-radius:4px;border:1px solid var(--border-mid);display:none" id="rc-canvas-wrap">
             <canvas id="rc-canvas" style="display:block;max-width:100%;cursor:crosshair"></canvas>
-            <!-- Overlay seleção (recorte livre) -->
             <div id="rc-sel" style="position:absolute;border:2px solid #1B5EA0;background:rgba(27,94,160,0.12);pointer-events:none;display:none"></div>
-            <!-- Pontos de perspectiva -->
-            <div id="rc-pontos-wrap" style="position:absolute;inset:0;pointer-events:none">
-              <svg id="rc-svg-linhas" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none"></svg>
-            </div>
           </div>
 
-          <!-- Contador de pontos (perspectiva) -->
-          <div id="rc-pontos-info" style="display:none;margin-top:8px;font-size:12px;color:var(--navy);font-family:'Cinzel',serif;font-weight:700;text-align:center"></div>
-
-          <!-- Preview do resultado -->
+          <!-- Preview do recorte -->
           <div id="rc-preview-wrap" style="display:none;margin-top:12px">
-            <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);margin-bottom:8px">PREVIEW — RESULTADO EXTRAÍDO</div>
+            <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);margin-bottom:8px">PREVIEW — ASSINATURA EXTRAÍDA</div>
             <div style="border:1px solid var(--border-mid);border-radius:4px;padding:10px;
               background-image:linear-gradient(45deg,#ddd 25%,transparent 25%),linear-gradient(-45deg,#ddd 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#ddd 75%),linear-gradient(-45deg,transparent 75%,#ddd 75%);
               background-size:10px 10px;background-position:0 0,0 5px,5px -5px,-5px 0;background-color:#f5f5f5;
-              min-height:80px;display:flex;align-items:center;justify-content:center">
-              <img id="rc-preview-img" style="max-height:90px;max-width:100%;object-fit:contain">
+              min-height:70px;display:flex;align-items:center;justify-content:center">
+              <img id="rc-preview-img" style="max-height:80px;max-width:100%;object-fit:contain">
             </div>
             <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
               <span style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;color:var(--text-muted)">SENSIBILIDADE</span>
@@ -7149,43 +7043,14 @@ function abrirRecorteManual() {
         <div style="padding:12px 26px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
           <button class="btn" onclick="fecharModal()" style="padding:8px 20px">Cancelar</button>
           <div style="display:flex;gap:8px">
-            <button class="btn" id="rc-btn-recortar" onclick="executarAcaoRecorte()" style="padding:8px 18px;display:none">✂️ Aplicar</button>
+            <button class="btn" id="rc-btn-recortar" onclick="executarRecorte()" style="padding:8px 18px;display:none">✂️ Recortar seleção</button>
             <button class="btn btn-solid" id="rc-btn-salvar" onclick="salvarRecorte()" style="padding:8px 18px;display:none">✅ Salvar assinatura</button>
           </div>
         </div>
       </div>
     </div>`);
 
-  window._rc = { img:null, canvas:null, ctx:null, sel:{x:0,y:0,w:0,h:0}, dragging:false, startX:0, startY:0, dataURL:null, scale:1, pontos:[], modo:'recorte' };
-}
-
-function setModoRecorte(modo) {
-  window._rc.modo = modo;
-  window._rc.pontos = [];
-  const btnR = document.getElementById('btn-modo-recorte');
-  const btnP = document.getElementById('btn-modo-perspectiva');
-  const cargoWrap = document.getElementById('rc-cargo-wrap');
-  const isPersp = modo === 'perspectiva';
-  btnR.style.border = isPersp ? '2px solid var(--border-mid)' : '2px solid var(--navy)';
-  btnR.style.background = isPersp ? 'var(--cream)' : 'rgba(27,58,107,0.12)';
-  btnR.style.color = isPersp ? 'var(--text-muted)' : 'var(--navy)';
-  btnR.textContent = '✂️ Recorte Livre' + (isPersp ? '' : ' ✓');
-  btnP.style.border = isPersp ? '2px solid var(--navy)' : '2px solid var(--border-mid)';
-  btnP.style.background = isPersp ? 'rgba(27,58,107,0.12)' : 'var(--cream)';
-  btnP.style.color = isPersp ? 'var(--navy)' : 'var(--text-muted)';
-  btnP.textContent = '📐 Corrigir Perspectiva (foto celular)' + (isPersp ? ' ✓' : '');
-  // No modo perspectiva não precisa selecionar cargo — processa a folha inteira
-  if (cargoWrap) cargoWrap.style.display = isPersp ? 'none' : 'block';
-  // Reconfigurar canvas se já tiver imagem
-  if (window._rc.img) _configurarCanvasParaModo(modo);
-  // Atualizar instrução
-  const instr = document.getElementById('rc-instrucao');
-  if (instr && window._rc.img) {
-    instr.style.display = 'block';
-    instr.textContent = isPersp
-      ? '📐 Clique nos 4 cantos da folha em ordem: ↖ superior-esquerdo → ↗ superior-direito → ↘ inferior-direito → ↙ inferior-esquerdo'
-      : '✂️ Arraste para selecionar a área da assinatura';
-  }
+  window._rc = { img:null, canvas:null, ctx:null, sel:{x:0,y:0,w:0,h:0}, dragging:false, startX:0, startY:0, dataURL:null, scale:1 };
 }
 
 function carregarImagemRecorte() {
@@ -7194,78 +7059,23 @@ function carregarImagemRecorte() {
 
   const mostrar = (imgEl) => {
     window._rc.img = imgEl;
-    const wrap = document.getElementById('rc-canvas-wrap');
+    const wrap   = document.getElementById('rc-canvas-wrap');
     const canvas = document.getElementById('rc-canvas');
-    const ctx = canvas.getContext('2d');
-    const maxW = 648;
-    const scale = imgEl.width > maxW ? maxW / imgEl.width : 1;
+    const ctx    = canvas.getContext('2d');
+    const maxW   = 648;
+    const scale  = imgEl.width > maxW ? maxW / imgEl.width : 1;
     canvas.width  = Math.round(imgEl.width  * scale);
     canvas.height = Math.round(imgEl.height * scale);
     canvas.style.width = canvas.width + 'px';
     window._rc.canvas = canvas;
-    window._rc.ctx = ctx;
-    window._rc.scale = scale;
+    window._rc.ctx    = ctx;
+    window._rc.scale  = scale;
     ctx.drawImage(imgEl, 0, 0, canvas.width, canvas.height);
     wrap.style.display = 'block';
-    // Configurar conforme o modo atual
-    _configurarCanvasParaModo(window._rc.modo || 'recorte');
-  };
-
-  if (file.type === 'application/pdf') {
-    _pdfParaImagem(file, mostrar);
-  } else {
-    const reader = new FileReader();
-    reader.onload = e => {
-      const img = new Image();
-      img.onload = () => mostrar(img);
-      img.src = e.target.result;
-    };
-    reader.readAsDataURL(file);
-  }
-}
-
-function _configurarCanvasParaModo(modo) {
-  const canvas = document.getElementById('rc-canvas');
-  if (!canvas || !window._rc.img) return;
-  window._rc.pontos = [];
-  _atualizarSVGPontos();
-
-  if (modo === 'perspectiva') {
-    canvas.style.cursor = 'crosshair';
-    document.getElementById('rc-sel').style.display = 'none';
+    const instr = document.getElementById('rc-instrucao');
+    if (instr) { instr.textContent = '✂️ Arraste para selecionar a área da assinatura'; }
     document.getElementById('rc-btn-recortar').style.display = 'inline-block';
-    document.getElementById('rc-btn-recortar').textContent = '📐 Corrigir Perspectiva';
-    const instr = document.getElementById('rc-instrucao');
-    if (instr) { instr.style.display = 'block'; instr.textContent = '📐 Clique nos 4 cantos da folha: ↖ sup-esq → ↗ sup-dir → ↘ inf-dir → ↙ inf-esq  (0/4)'; }
-    // Override click para coletar pontos
-    canvas.onclick = e => {
-      if (window._rc.pontos.length >= 4) return;
-      const r = canvas.getBoundingClientRect();
-      const x = (e.clientX - r.left) / window._rc.scale;
-      const y = (e.clientY - r.top)  / window._rc.scale;
-      window._rc.pontos.push({x, y});
-      _atualizarSVGPontos();
-      const n = window._rc.pontos.length;
-      const ordens = ['↖ sup-esq','↗ sup-dir','↘ inf-dir','↙ inf-esq'];
-      const instr2 = document.getElementById('rc-instrucao');
-      if (n < 4) {
-        if (instr2) instr2.textContent = `📐 Clique em ${ordens[n]}  (${n}/4)`;
-      } else {
-        if (instr2) instr2.textContent = '✅ 4 pontos marcados — clique em "📐 Corrigir Perspectiva"';
-      }
-      const pInfo = document.getElementById('rc-pontos-info');
-      if (pInfo) { pInfo.style.display = 'block'; pInfo.textContent = `${n}/4 pontos marcados`; }
-    };
-    canvas.onmousedown = null;
-    canvas.onmousemove = null;
-    canvas.onmouseup = null;
-  } else {
-    canvas.style.cursor = 'crosshair';
-    canvas.onclick = null;
-    document.getElementById('rc-btn-recortar').textContent = '✂️ Aplicar';
-    const instr = document.getElementById('rc-instrucao');
-    if (instr) { instr.style.display = 'block'; instr.textContent = '✂️ Arraste para selecionar a área da assinatura'; }
-    // Restaurar drag
+    // Eventos de arrasto
     canvas.onmousedown = e => {
       const r = canvas.getBoundingClientRect();
       window._rc.dragging = true;
@@ -7276,216 +7086,28 @@ function _configurarCanvasParaModo(modo) {
     };
     canvas.onmousemove = e => {
       if (!window._rc.dragging) return;
-      const r = canvas.getBoundingClientRect();
+      const r  = canvas.getBoundingClientRect();
       const cx = e.clientX - r.left, cy = e.clientY - r.top;
-      const x = Math.min(cx, window._rc.startX), y = Math.min(cy, window._rc.startY);
-      const w = Math.abs(cx - window._rc.startX), h = Math.abs(cy - window._rc.startY);
+      const x  = Math.min(cx, window._rc.startX), y = Math.min(cy, window._rc.startY);
+      const w  = Math.abs(cx - window._rc.startX), h = Math.abs(cy - window._rc.startY);
       window._rc.sel = {x, y, w, h};
       const sel = document.getElementById('rc-sel');
-      const wr = document.getElementById('rc-canvas-wrap').getBoundingClientRect();
-      const cr = canvas.getBoundingClientRect();
+      const wr  = document.getElementById('rc-canvas-wrap').getBoundingClientRect();
+      const cr  = canvas.getBoundingClientRect();
       sel.style.left = (cr.left - wr.left + x) + 'px';
       sel.style.top  = (cr.top  - wr.top  + y) + 'px';
       sel.style.width = w + 'px'; sel.style.height = h + 'px';
     };
     canvas.onmouseup = () => { window._rc.dragging = false; };
-  }
-}
+  };
 
-function _atualizarSVGPontos() {
-  const svg = document.getElementById('rc-svg-linhas');
-  if (!svg) return;
-  const pts = window._rc.pontos;
-  const scale = window._rc.scale;
-  const cores = ['#E53','#E80','#1A9','#35D'];
-  const labels = ['↖','↗','↘','↙'];
-  let html = '';
-  // Linha de contorno
-  if (pts.length >= 2) {
-    const coords = pts.map(p => `${p.x*scale},${p.y*scale}`).join(' ');
-    if (pts.length === 4) html += `<polygon points="${coords}" fill="rgba(27,94,160,0.08)" stroke="#1B5EA0" stroke-width="2" stroke-dasharray="6,3"/>`;
-    else html += `<polyline points="${coords}" fill="none" stroke="#1B5EA0" stroke-width="1.5" stroke-dasharray="5,4"/>`;
-  }
-  pts.forEach((p, i) => {
-    const px = p.x * scale, py = p.y * scale;
-    html += `<circle cx="${px}" cy="${py}" r="8" fill="${cores[i]}" stroke="white" stroke-width="2"/>`;
-    html += `<text x="${px}" y="${py+4}" text-anchor="middle" fill="white" font-size="10" font-weight="bold">${i+1}</text>`;
-  });
-  svg.innerHTML = html;
-}
-
-function executarAcaoRecorte() {
-  const modo = window._rc.modo || 'recorte';
-  if (modo === 'perspectiva') {
-    _executarCorrecaoPerspectiva();
+  if (file.type === 'application/pdf') {
+    _pdfParaImagem(file, mostrar);
   } else {
-    executarRecorte();
+    const reader = new FileReader();
+    reader.onload = e => { const img = new Image(); img.onload = () => mostrar(img); img.src = e.target.result; };
+    reader.readAsDataURL(file);
   }
-}
-
-function _executarCorrecaoPerspectiva() {
-  const pts = window._rc.pontos;
-  const img = window._rc.img;
-  if (!img || pts.length < 4) { toast('Marque os 4 cantos da folha primeiro'); return; }
-
-  // Calcular largura/altura de saída baseada nas distâncias dos lados
-  const dist = (a, b) => Math.sqrt((b.x-a.x)**2 + (b.y-a.y)**2);
-  const W = Math.round((dist(pts[0],pts[1]) + dist(pts[3],pts[2])) / 2);
-  const H = Math.round((dist(pts[0],pts[3]) + dist(pts[1],pts[2])) / 2);
-
-  const dst = [{x:0,y:0},{x:W,y:0},{x:W,y:H},{x:0,y:H}];
-  const src = pts;
-
-  // Calcular matriz de perspectiva (homografia) 4 pontos
-  const M = _calcularHomografia(src, dst);
-  if (!M) { toast('Erro ao calcular perspectiva'); return; }
-
-  // Aplicar transformação no canvas de saída
-  const out = document.createElement('canvas');
-  out.width = W; out.height = H;
-  const octx = out.getContext('2d');
-
-  // Renderizar pixel a pixel via mapeamento inverso
-  const Mi = _inverterMatriz3x3(M);
-  const srcCanvas = document.createElement('canvas');
-  srcCanvas.width = img.width; srcCanvas.height = img.height;
-  srcCanvas.getContext('2d').drawImage(img, 0, 0);
-  const srcData = srcCanvas.getContext('2d').getImageData(0, 0, img.width, img.height);
-  const outData = octx.createImageData(W, H);
-
-  for (let dy = 0; dy < H; dy++) {
-    for (let dx = 0; dx < W; dx++) {
-      const [sx, sy] = _aplicarHomografia(Mi, dx, dy);
-      const six = Math.round(sx), siy = Math.round(sy);
-      if (six >= 0 && six < img.width && siy >= 0 && siy < img.height) {
-        const si = (siy * img.width + six) * 4;
-        const di = (dy * W + dx) * 4;
-        outData.data[di]   = srcData.data[si];
-        outData.data[di+1] = srcData.data[si+1];
-        outData.data[di+2] = srcData.data[si+2];
-        outData.data[di+3] = srcData.data[si+3];
-      }
-    }
-  }
-  octx.putImageData(outData, 0, 0);
-
-  // Agora dividir em 4 quadrantes como a folha padrão
-  _quadrantesData = {};
-  const ordem = ['veneravel','secretario','tesoureiro','chanceler'];
-  const hw = Math.floor(W/2), hh = Math.floor(H/2);
-  const posicoes = [{x:0,y:0},{x:hw,y:0},{x:0,y:hh},{x:hw,y:hh}];
-  ordem.forEach((cargo, i) => {
-    const {x, y} = posicoes[i];
-    const qc = document.createElement('canvas');
-    qc.width = hw; qc.height = hh;
-    qc.getContext('2d').drawImage(out, x, y, hw, hh, 0, 0, hw, hh);
-    _quadrantesData[cargo] = { canvas: qc };
-    _aplicarExtracao(cargo, qc, 200);
-  });
-
-  // Mostrar preview da imagem corrigida no canvas principal
-  const canvas = document.getElementById('rc-canvas');
-  const wrap = document.getElementById('rc-canvas-wrap');
-  const maxW = 648;
-  const scale = W > maxW ? maxW / W : 1;
-  canvas.width = W; canvas.height = H;
-  canvas.style.width = Math.round(W * scale) + 'px';
-  canvas.getContext('2d').drawImage(out, 0, 0);
-  window._rc._cropCanvas = out;
-  window._rc.scale = scale;
-
-  // Mostrar preview dos quadrantes
-  let html = '<div style="font-family:\'Cinzel\',serif;font-size:10px;font-weight:700;color:var(--navy);margin-bottom:10px">ASSINATURAS EXTRAÍDAS DA FOLHA CORRIGIDA</div>';
-  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">';
-  CARGOS_ASSIN.forEach(c => {
-    const url = _quadrantesData[c.id]?.dataURL || '';
-    html += `<div style="border:1px solid var(--border-mid);border-radius:4px;overflow:hidden">
-      <div style="background:rgba(27,58,107,0.06);padding:6px 10px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:var(--navy)">${c.icon} ${c.label}</div>
-      <div style="height:60px;display:flex;align-items:center;justify-content:center;
-        background-image:linear-gradient(45deg,#ddd 25%,transparent 25%),linear-gradient(-45deg,#ddd 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#ddd 75%),linear-gradient(-45deg,transparent 75%,#ddd 75%);
-        background-size:10px 10px;background-position:0 0,0 5px,5px -5px,-5px 0;background-color:#f5f5f5">
-        ${url ? `<img src="${url}" style="max-height:52px;max-width:100%;object-fit:contain">` : '<span style="font-size:11px;color:#aaa">—</span>'}
-      </div>
-      <div style="padding:5px 8px;border-top:1px solid var(--border)">
-        <input type="range" min="100" max="240" value="200" step="5" oninput="atualizarSlider(this);reprocessarQuadrante('${c.id}',this.value);document.getElementById('qv-${c.id}').textContent=this.value"
-          style="width:calc(100% - 30px);accent-color:var(--navy);height:6px;border-radius:3px">
-        <span id="qv-${c.id}" style="font-size:9px;color:var(--navy);font-weight:700">200</span>
-      </div>
-    </div>`;
-  });
-  html += '</div><div style="margin-top:10px;display:flex;justify-content:flex-end"><button class="btn btn-solid" onclick="salvarQuadrantesExtraidos();fecharModal()" style="padding:8px 20px">✅ Salvar Todas</button></div>';
-
-  const prev = document.getElementById('rc-preview-wrap');
-  if (prev) { prev.style.display = 'block'; prev.innerHTML = html; }
-  document.getElementById('rc-btn-salvar').style.display = 'none';
-  document.getElementById('rc-instrucao').style.display = 'none';
-  toast('✅ Perspectiva corrigida! Ajuste a sensibilidade e salve.');
-}
-
-// Calcula homografia 4→4 pontos usando algoritmo DLT
-function _calcularHomografia(src, dst) {
-  const A = [];
-  for (let i = 0; i < 4; i++) {
-    const {x:sx, y:sy} = src[i], {x:dx, y:dy} = dst[i];
-    A.push([-sx,-sy,-1,0,0,0,dx*sx,dx*sy,dx]);
-    A.push([0,0,0,-sx,-sy,-1,dy*sx,dy*sy,dy]);
-  }
-  const h = _svdSolve(A);
-  if (!h) return null;
-  return [[h[0],h[1],h[2]],[h[3],h[4],h[5]],[h[6],h[7],1]];
-}
-
-function _aplicarHomografia(M, x, y) {
-  const w = M[2][0]*x + M[2][1]*y + M[2][2];
-  return [(M[0][0]*x + M[0][1]*y + M[0][2])/w, (M[1][0]*x + M[1][1]*y + M[1][2])/w];
-}
-
-function _inverterMatriz3x3(m) {
-  const det = m[0][0]*(m[1][1]*m[2][2]-m[1][2]*m[2][1])
-             -m[0][1]*(m[1][0]*m[2][2]-m[1][2]*m[2][0])
-             +m[0][2]*(m[1][0]*m[2][1]-m[1][1]*m[2][0]);
-  if (Math.abs(det)<1e-10) return null;
-  const inv = [[0,0,0],[0,0,0],[0,0,0]];
-  inv[0][0]=(m[1][1]*m[2][2]-m[1][2]*m[2][1])/det;
-  inv[0][1]=(m[0][2]*m[2][1]-m[0][1]*m[2][2])/det;
-  inv[0][2]=(m[0][1]*m[1][2]-m[0][2]*m[1][1])/det;
-  inv[1][0]=(m[1][2]*m[2][0]-m[1][0]*m[2][2])/det;
-  inv[1][1]=(m[0][0]*m[2][2]-m[0][2]*m[2][0])/det;
-  inv[1][2]=(m[0][2]*m[1][0]-m[0][0]*m[1][2])/det;
-  inv[2][0]=(m[1][0]*m[2][1]-m[1][1]*m[2][0])/det;
-  inv[2][1]=(m[0][1]*m[2][0]-m[0][0]*m[2][1])/det;
-  inv[2][2]=(m[0][0]*m[1][1]-m[0][1]*m[1][0])/det;
-  return inv;
-}
-
-// Mínimos quadrados simplificado (substituição de SVD para 8 equações)
-function _svdSolve(A) {
-  // Gauss-Jordan com pivô para resolver Ah=0, ||h||=1
-  const n = 9;
-  const rows = A.length;
-  // Montar ATA
-  const ATA = Array.from({length:n},()=>new Array(n).fill(0));
-  for (let r=0; r<rows; r++)
-    for (let i=0; i<n; i++)
-      for (let j=0; j<n; j++)
-        ATA[i][j] += A[r][i]*A[r][j];
-  // Eigenvector do menor eigenvalue via power iteration inversa (simplificado: Gram-Schmidt)
-  // Usamos eliminação de Gauss e back-substitution
-  const aug = ATA.map((row,i)=>[...row, i===n-1?1:0]);
-  for (let col=0; col<n-1; col++) {
-    let max=col;
-    for (let r=col+1; r<n; r++) if (Math.abs(aug[r][col])>Math.abs(aug[max][col])) max=r;
-    [aug[col],aug[max]]=[aug[max],aug[col]];
-    if (Math.abs(aug[col][col])<1e-12) continue;
-    for (let r=0; r<n; r++) {
-      if (r===col) continue;
-      const f=aug[r][col]/aug[col][col];
-      for (let c=col; c<=n; c++) aug[r][c]-=f*aug[col][c];
-    }
-  }
-  const h=aug.map((row,i)=>aug[i][i]>1e-12?row[n]/row[i]:0);
-  const norm=Math.sqrt(h.reduce((s,v)=>s+v*v,0));
-  return norm>0 ? h.map(v=>v/norm) : null;
 }
 
 function executarRecorte() {
