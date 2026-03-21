@@ -6994,16 +6994,57 @@ function getAssinatura(cargo) {
 // Gerar bloco HTML de assinaturas para impressão
 function htmlAssinaturas(cargos) {
   const labels = { veneravel:'Venerável Mestre', secretario:'Secretário', tesoureiro:'Tesoureiro', chanceler:'Chanceler' };
+  // Largura por número de assinantes para distribuição equilibrada
+  const pct = Math.floor(100 / cargos.length);
+
   const cols = cargos.map(cargo => {
-    const img = getAssinatura(cargo);
-    return `<div style="text-align:center;flex:1;padding:0 20px">
-      ${img
-        ? `<img src="${img}" style="max-height:52px;max-width:160px;object-fit:contain;display:block;margin:0 auto 4px">`
-        : `<div style="height:44px"></div>`}
-      <div style="border-top:1px solid #555;margin-top:4px;padding-top:5px;font-size:10px;color:#333;font-family:'Times New Roman',serif">${labels[cargo] || cargo}</div>
-    </div>`;
+    const imgSrc = getAssinatura(cargo);
+    return `
+      <div style="width:${pct}%;padding:0 24px;text-align:center;display:inline-block;vertical-align:bottom">
+        ${imgSrc
+          ? `<!-- assinatura PNG com transparência -->
+             <div style="height:70px;display:flex;align-items:flex-end;justify-content:center;margin-bottom:0">
+               <img src="${imgSrc}"
+                 style="max-height:68px;max-width:180px;width:auto;height:auto;object-fit:contain;display:block;margin:0 auto;
+                        mix-blend-mode:multiply;-webkit-print-color-adjust:exact;print-color-adjust:exact">
+             </div>`
+          : `<div style="height:70px"></div>`
+        }
+        <div style="border-top:1.5px solid #333;padding-top:6px;margin-top:0">
+          <div style="font-size:11px;font-weight:700;color:#1B3A6B;font-family:'Times New Roman',serif;letter-spacing:0.03em">
+            ${labels[cargo] || cargo}
+          </div>
+          <div style="font-size:9px;color:#555;margin-top:2px;font-family:'Times New Roman',serif;font-style:italic">
+            A.R.L.S. Fraternidade Acadêmica de Peruíbe Nº 3524
+          </div>
+        </div>
+      </div>`;
   }).join('');
-  return `<div style="margin-top:44px;display:flex;justify-content:center;gap:0">${cols}</div>`;
+
+  return `
+    <div style="margin-top:50px;page-break-inside:avoid">
+      <div style="display:flex;justify-content:space-around;align-items:flex-end;width:100%">
+        ${cargos.map(cargo => {
+          const imgSrc = getAssinatura(cargo);
+          return `
+          <div style="flex:1;padding:0 20px;text-align:center">
+            ${imgSrc
+              ? `<div style="height:72px;display:flex;align-items:flex-end;justify-content:center;margin-bottom:0">
+                   <img src="${imgSrc}"
+                     style="max-height:70px;max-width:200px;width:auto;object-fit:contain;display:block;margin:0 auto;
+                            mix-blend-mode:multiply;-webkit-print-color-adjust:exact;print-color-adjust:exact">
+                 </div>`
+              : `<div style="height:72px"></div>`
+            }
+            <div style="border-top:1.5px solid #222;padding-top:6px;margin-top:2px">
+              <div style="font-size:11px;font-weight:700;color:#1B3A6B;font-family:'Times New Roman',serif">
+                ${labels[cargo] || cargo}
+              </div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
 }
 
 function abrirJanelaPrint(html) {
@@ -7032,9 +7073,13 @@ function abrirJanelaPrint(html) {
     tr:nth-child(even) td { background:#fafaf7; }
     .print-rodape { margin-top:14px; padding-top:8px; border-top:1px solid #C9A84C; display:flex; justify-content:space-between; font-size:9px; color:#888; }
     .rel-section-title { font-weight:700; color:#5C3D14; background:#f5f0e8; padding:5px 8px; margin:10px 0 4px; font-size:12px; }
+    /* Assinaturas — transparência e blend corretos na impressão */
+    img { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    .assin-img { mix-blend-mode:multiply; max-height:70px; max-width:200px; width:auto; object-fit:contain; display:block; margin:0 auto; }
     @media print {
       body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       thead tr { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      img { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
     }
   </style></head><body>${html}
   <script>window.onload=function(){window.print();}<\/script>
