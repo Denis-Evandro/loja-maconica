@@ -6851,7 +6851,7 @@ function renderAssinaturas() {
           </div>` : ''}
           <!-- Botões de ação -->
           <div style="padding:10px 14px;display:flex;gap:8px">
-            <input type="file" id="file-${c.id}" accept="image/png,image/jpeg,image/gif,image/webp" style="display:none"
+            <input type="file" id="file-${c.id}" accept="image/png,image/jpeg,image/gif,image/webp,application/pdf" style="display:none"
               onchange="previewAssinatura('${c.id}')">
             <button class="btn btn-solid" onclick="document.getElementById('file-${c.id}').click()"
               style="flex:1;font-size:11px;padding:7px 10px">
@@ -6874,15 +6874,19 @@ function previewAssinatura(cargo) {
   const file = document.getElementById('file-' + cargo)?.files?.[0];
   if (!file) return;
 
-  const reader = new FileReader();
-  reader.onload = e => {
-    const img = new Image();
-    img.onload = () => {
-      _processarAssinatura(cargo, img, 200);
+  const processar = (img) => _processarAssinatura(cargo, img, 200);
+
+  if (file.type === 'application/pdf') {
+    _pdfParaImagem(file, processar);
+  } else {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => processar(img);
+      img.src = e.target.result;
     };
-    img.src = e.target.result;
-  };
-  reader.readAsDataURL(file);
+    reader.readAsDataURL(file);
+  }
 }
 
 function _processarAssinatura(cargo, img, limiar) {
@@ -7064,8 +7068,8 @@ function abrirExtracaoFolha() {
           <div style="border:2px dashed var(--border-mid);border-radius:6px;padding:24px;text-align:center;background:var(--cream);margin-bottom:16px" id="drop-folha">
             <div style="font-size:32px;margin-bottom:8px">📄</div>
             <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:var(--navy);margin-bottom:6px">FOTO DA FOLHA COMPLETA</div>
-            <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px">PNG, JPG — foto com a folha em posição retangular, sem perspectiva</div>
-            <input type="file" id="file-folha-completa" accept="image/*" style="display:none" onchange="processarFolhaCompleta()">
+            <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px">PNG, JPG ou PDF — foto/scan da folha em posição retangular</div>
+            <input type="file" id="file-folha-completa" accept="image/*,application/pdf" style="display:none" onchange="processarFolhaCompleta()">
             <button class="btn btn-solid" onclick="document.getElementById('file-folha-completa').click()" style="padding:8px 24px">📎 Escolher imagem</button>
           </div>
 
@@ -7112,36 +7116,85 @@ let _quadrantesData = {};
 function processarFolhaCompleta() {
   const file = document.getElementById('file-folha-completa')?.files?.[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    const img = new Image();
-    img.onload = () => {
-      // Dividir em 4 quadrantes: TL=veneravel, TR=secretario, BL=tesoureiro, BR=chanceler
-      const ordem = ['veneravel','secretario','tesoureiro','chanceler'];
-      const hw = Math.floor(img.width  / 2);
-      const hh = Math.floor(img.height / 2);
-      const posicoes = [{x:0,y:0},{x:hw,y:0},{x:0,y:hh},{x:hw,y:hh}];
 
-      _quadrantesData = {};
-      ordem.forEach((cargo, i) => {
-        const {x, y} = posicoes[i];
-        // Extrair quadrante em canvas
-        const qCanvas = document.createElement('canvas');
-        qCanvas.width  = hw;
-        qCanvas.height = hh;
-        const qCtx = qCanvas.getContext('2d');
-        qCtx.drawImage(img, x, y, hw, hh, 0, 0, hw, hh);
-        _quadrantesData[cargo] = { canvas: qCanvas, img: null };
-        // Processar com limiar padrão 200
-        _aplicarExtracao(cargo, qCanvas, 200);
-      });
+  const processar = (img) => _dividirEProcessarFolha(img);
 
-      document.getElementById('preview-quadrantes').style.display = 'block';
-      document.getElementById('btn-salvar-quadrantes').style.display = 'inline-block';
+  if (file.type === 'application/pdf') {
+    _pdfParaImagem(file, processar);
+  } else {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => processar(img);
+      img.src = e.target.result;
     };
-    img.src = e.target.result;
+    reader.readAsDataURL(file);
+  }
+}
+
+function _dividirEProcessarFolha(img) {
+  const ordem = ['veneravel','secretario','tesoureiro','chanceler'];
+  const hw = Math.floor(img.width  / 2);
+  const hh = Math.floor(img.height / 2);
+  const posicoes = [{x:0,y:0},{x:hw,y:0},{x:0,y:hh},{x:hw,y:hh}];
+
+  _quadrantesData = {};
+  ordem.forEach((cargo, i) => {
+    const {x, y} = posicoes[i];
+    const qCanvas = document.createElement('canvas');
+    qCanvas.width  = hw;
+    qCanvas.height = hh;
+    const qCtx = qCanvas.getContext('2d');
+    qCtx.drawImage(img, x, y, hw, hh, 0, 0, hw, hh);
+    _quadrantesData[cargo] = { canvas: qCanvas };
+    _aplicarExtracao(cargo, qCanvas, 200);
+  });
+
+  document.getElementById('preview-quadrantes').style.display = 'block';
+  document.getElementById('btn-salvar-quadrantes').style.display = 'inline-block';
+}
+
+// ─── Converter PDF (1ª página) para Image via PDF.js ─────────
+function _pdfParaImagem(file, callback) {
+  toast('⏳ Convertendo PDF...');
+  const carregarPdfJs = (cb) => {
+    if (window.pdfjsLib) { cb(); return; }
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    s.onload = () => {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      cb();
+    };
+    s.onerror = () => toast('Erro ao carregar PDF.js');
+    document.head.appendChild(s);
   };
-  reader.readAsDataURL(file);
+
+  carregarPdfJs(() => {
+    const reader = new FileReader();
+    reader.onload = async e => {
+      try {
+        const typedArray = new Uint8Array(e.target.result);
+        const pdf = await pdfjsLib.getDocument({ data: typedArray }).promise;
+        const page = await pdf.getPage(1);
+        // Renderizar em alta resolução
+        const scale = 2.5;
+        const viewport = page.getViewport({ scale });
+        const canvas = document.createElement('canvas');
+        canvas.width  = viewport.width;
+        canvas.height = viewport.height;
+        const ctx = canvas.getContext('2d');
+        await page.render({ canvasContext: ctx, viewport }).promise;
+        // Converter canvas para Image
+        const img = new Image();
+        img.onload = () => callback(img);
+        img.src = canvas.toDataURL('image/png');
+      } catch(err) {
+        toast('Erro ao processar PDF: ' + err.message);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  });
 }
 
 function _aplicarExtracao(cargo, srcCanvas, limiar) {
