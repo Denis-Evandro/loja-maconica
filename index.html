@@ -941,14 +941,14 @@ tr:hover td { background:rgba(184,134,11,0.03); }
 .rel-card { background:var(--white); border:1px solid var(--border-mid); border-radius:6px; padding:24px 22px; cursor:pointer; transition:all 0.18s; position:relative; overflow:hidden; }
 .rel-card:hover { border-color:var(--gold-mid); box-shadow:var(--shadow-md); transform:translateY(-2px); }
 .rel-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,var(--gold-dark),var(--gold-rich)); }
-.rel-card-icon { font-size:28px; margin-bottom:12px; }
-.rel-card-title { font-family:'Cinzel',serif; font-size:11px; font-weight:700; letter-spacing:0.12em; color:var(--gold-dark); text-transform:uppercase; margin-bottom:6px; }
-.rel-card-desc { font-size:12px; color:var(--text-muted); font-style:italic; line-height:1.5; }
+.rel-card-icon { font-size:32px; margin-bottom:14px; }
+.rel-card-title { font-family:'Cinzel',serif; font-size:13px; font-weight:700; letter-spacing:0.12em; color:var(--gold-dark); text-transform:uppercase; margin-bottom:8px; }
+.rel-card-desc { font-size:14px; color:var(--text-muted); font-style:italic; line-height:1.6; }
 .rel-filters { background:var(--cream); border:1px solid var(--border-mid); border-radius:4px; padding:18px 22px; margin-bottom:20px; display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; align-items:end; }
-.rel-filter-label { font-family:'Cinzel',serif; font-size:9px; font-weight:700; letter-spacing:0.15em; color:var(--text-muted); text-transform:uppercase; display:block; margin-bottom:6px; }
-.rel-filter-input { width:100%; border:1px solid var(--border-mid); border-radius:3px; padding:7px 10px; font-family:'Cormorant Garamond',serif; font-size:13px; background:var(--white); color:var(--text); }
-.rel-section-title { font-family:'Cinzel',serif; font-size:10px; font-weight:700; letter-spacing:0.2em; color:var(--gold-dark); text-transform:uppercase; border-bottom:1px solid var(--border); padding-bottom:8px; margin:20px 0 12px; }
-.apto-badge { display:inline-block; padding:3px 10px; border-radius:2px; font-size:10px; font-weight:700; font-family:'Cinzel',serif; letter-spacing:0.1em; }
+.rel-filter-label { font-family:'Cinzel',serif; font-size:11px; font-weight:700; letter-spacing:0.12em; color:var(--text-muted); text-transform:uppercase; display:block; margin-bottom:6px; }
+.rel-filter-input { width:100%; border:1px solid var(--border-mid); border-radius:3px; padding:8px 12px; font-family:'Cormorant Garamond',serif; font-size:15px; background:var(--white); color:var(--text); }
+.rel-section-title { font-family:'Cinzel',serif; font-size:12px; font-weight:700; letter-spacing:0.15em; color:var(--gold-dark); text-transform:uppercase; border-bottom:1px solid var(--border); padding-bottom:8px; margin:20px 0 12px; }
+.apto-badge { display:inline-block; padding:4px 12px; border-radius:3px; font-size:12px; font-weight:700; font-family:'Cinzel',serif; letter-spacing:0.08em; }
 .apto-sim { background:rgba(58,122,74,0.1); color:var(--green); border:1px solid rgba(58,122,74,0.3); }
 .apto-nao { background:rgba(139,32,32,0.1); color:var(--red); border:1px solid rgba(139,32,32,0.3); }
 
@@ -6809,7 +6809,7 @@ function abrirJanelaPrint(html) {
     td { padding:4px 7px; border-bottom:1px solid #e8e0d0; vertical-align:middle; }
     tr:nth-child(even) td { background:#fafaf7; }
     .print-rodape { margin-top:14px; padding-top:8px; border-top:1px solid #C9A84C; display:flex; justify-content:space-between; font-size:9px; color:#888; }
-    .rel-section-title { font-weight:700; color:#5C3D14; background:#f5f0e8; padding:5px 8px; margin:10px 0 4px; font-size:10px; }
+    .rel-section-title { font-weight:700; color:#5C3D14; background:#f5f0e8; padding:5px 8px; margin:10px 0 4px; font-size:12px; }
     @media print {
       body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       thead tr { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -7197,61 +7197,79 @@ function gerarRelFreqPeriodo() {
   const total = sessoesP.length;
   const resultado = membros.map(m=>{
     const presP = DATA.presencas.filter(p=>p.membro_id===m.id&&sessoesP.find(s=>s.id===p.sessao_id));
-    const pres   = presP.filter(p=>p.presente||p.situacao==='presente').length;
-    const abon   = presP.filter(p=>(p.situacao==='abonada'||p.situacao==='justificada')).length;
-    const pct = total?Math.round(pres/total*100):0;
+    // Abonada (justificada) conta como presente para frequência
+    const abon  = presP.filter(p=>(p.situacao==='abonada'||p.situacao==='justificada')).length;
+    const pres  = presP.filter(p=>p.presente||p.situacao==='presente').length; // já inclui abonadas (presente=true)
+    const total_freq = pres; // presente=true cobre tanto ✓ quanto ⊘
+    const pct = total ? Math.round(total_freq/total*100) : 0;
     // Detalhes das sessões (para quando filtrar por irmão)
     const detalhesSessoes = filtroIrmaoId ? sessoesP.map(s=>{
       const p = DATA.presencas.find(x=>x.membro_id===m.id&&x.sessao_id===s.id);
       const sit = !p ? 'ausente' : (p.situacao==='abonada'||p.situacao==='justificada') ? 'abonada' : (p.presente||p.situacao==='presente') ? 'presente' : 'ausente';
-      const justif = p?.justificativa?.match(/justif:(.+)/)?.[1]?.trim()||'';
-      return {data:s.data, tipo:s.tipo||'Sessão', sit, justif};
+      return {data:s.data, tipo:s.tipo||'Sessão', sit};
     }) : [];
-    return {...m, presentes:pres, abonadas:abon, pct, apto:pct>=pctMin, detalhesSessoes};
+    return {...m, presentes:total_freq, abonadas:abon, pct, apto:pct>=pctMin, detalhesSessoes};
   }).sort((a,b)=>b.pct-a.pct);
   const aptos = resultado.filter(m=>m.apto).length;
   const isUmIrmao = filtroIrmaoId && resultado.length === 1;
 
   const linhasSessoes = isUmIrmao && resultado[0]?.detalhesSessoes?.length
     ? `<div style="margin-top:20px">
-        <div style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.15em;color:var(--navy);margin-bottom:10px">HISTÓRICO DE SESSÕES NO PERÍODO</div>
+        <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;letter-spacing:0.15em;color:var(--navy);margin-bottom:10px">HISTÓRICO DE SESSÕES NO PERÍODO</div>
         <table><thead><tr><th>Data</th><th>Tipo</th><th>Situação</th></tr></thead>
         <tbody>${resultado[0].detalhesSessoes.map(s=>`<tr>
-          <td>${fmtData(s.data)}</td>
-          <td>${s.tipo}</td>
-          <td>${s.sit==='presente'
+          <td style="font-size:15px">${fmtData(s.data)}</td>
+          <td style="font-size:15px">${s.tipo}</td>
+          <td style="font-size:15px">${s.sit==='presente'
             ? `<span style="color:var(--green);font-weight:700">✓ Presente</span>`
             : s.sit==='abonada'
-            ? `<span style="color:#1B5EA0;font-weight:700">⊘ Abonada${s.justif?' — '+s.justif:''}</span>`
+            ? `<span style="color:#1B5EA0;font-weight:700">⊘ Abonada</span>`
             : `<span style="color:var(--red)">✗ Ausente</span>`
           }</td>
         </tr>`).join('')}</tbody></table>
       </div>` : '';
 
   const linhas = resultado.map(m=>`<tr>
-    <td>${m.nome_maconico}</td><td>${m.cargo||'—'}</td>
-    <td style="text-align:center">${m.presentes}/${total}</td>
-    <td style="text-align:center"><span style="font-size:12px;color:#1B5EA0">⊘ ${m.abonadas}</span></td>
+    <td style="font-size:15px;font-family:'Cormorant Garamond',serif;font-weight:700">${m.nome_maconico}</td>
+    <td style="font-size:14px">${m.cargo||'—'}</td>
+    <td style="text-align:center;font-size:15px;font-weight:700">${m.presentes}/${total}</td>
+    <td style="text-align:center">
+      ${m.abonadas>0
+        ? `<span style="font-size:14px;color:#1B5EA0;font-weight:700">⊘ ${m.abonadas}</span>`
+        : `<span style="font-size:13px;color:var(--text-muted)">—</span>`}
+    </td>
     <td><div style="display:flex;align-items:center;gap:8px">
-      <div style="background:var(--cream-mid);border-radius:2px;height:6px;width:70px;overflow:hidden">
+      <div style="background:var(--cream-mid);border-radius:2px;height:8px;width:80px;overflow:hidden">
         <div style="background:${m.pct>=pctMin?'var(--green)':m.pct>=30?'var(--gold-dark)':'var(--red)'};height:100%;width:${m.pct}%"></div></div>
-      <span style="font-size:12px;font-weight:700;color:${m.pct>=pctMin?'var(--green)':m.pct>=30?'var(--gold-dark)':'var(--red)'}">${m.pct}%</span></div></td>
-    <td><span class="apto-badge ${m.apto?'apto-sim':'apto-nao'}">${m.apto?'✓ APTO':'✗ INAPTO'}</span></td>
+      <span style="font-size:15px;font-weight:700;color:${m.pct>=pctMin?'var(--green)':m.pct>=30?'var(--gold-dark)':'var(--red)'}">${m.pct}%</span></div></td>
+    <td><span class="apto-badge ${m.apto?'apto-sim':'apto-nao'}" style="font-size:11px;padding:4px 12px">${m.apto?'✓ APTO':'✗ INAPTO'}</span></td>
   </tr>`).join('');
 
   document.getElementById('rel-freq-per-result').innerHTML = `
     <div style="display:flex;gap:12px;margin:16px 0;flex-wrap:wrap">
       <div class="stat-card" style="flex:1"><div class="stat-label">Sessões no período</div><div class="stat-value">${total}</div></div>
       ${!filtroIrmaoId?`
-      <div class="stat-card" style="flex:1"><div class="stat-label">✅ Aptos</div><div class="stat-value" style="color:var(--green)">${aptos}</div></div>
-      <div class="stat-card" style="flex:1"><div class="stat-label">❌ Inaptos</div><div class="stat-value" style="color:var(--red)">${resultado.length-aptos}</div></div>`
-      : `<div class="stat-card" style="flex:1"><div class="stat-label">Presenças</div><div class="stat-value" style="color:var(--green)">${resultado[0]?.presentes||0}</div></div>
+      <div class="stat-card" style="flex:1"><div class="stat-label">✅ Aptos (≥${pctMin}%)</div><div class="stat-value" style="color:var(--green)">${aptos}</div></div>
+      <div class="stat-card" style="flex:1"><div class="stat-label">❌ Inaptos</div><div class="stat-value" style="color:var(--red)">${resultado.length-aptos}</div></div>
+      <div class="stat-card" style="flex:1"><div class="stat-label">⊘ Com Abonadas</div><div class="stat-value" style="color:#1B5EA0">${resultado.filter(m=>m.abonadas>0).length}</div></div>`
+      : `<div class="stat-card" style="flex:1"><div class="stat-label">Presenças (incl. abonadas)</div><div class="stat-value" style="color:var(--green)">${resultado[0]?.presentes||0}</div></div>
          <div class="stat-card" style="flex:1"><div class="stat-label">⊘ Abonadas</div><div class="stat-value" style="color:#1B5EA0">${resultado[0]?.abonadas||0}</div></div>
          <div class="stat-card" style="flex:1"><div class="stat-label">Frequência</div><div class="stat-value" style="color:${resultado[0]?.pct>=pctMin?'var(--green)':'var(--red)'}">${resultado[0]?.pct||0}%</div></div>`}
     </div>
-    <table><thead><tr><th>Irmão</th><th>Cargo</th><th>Presenças</th><th>Abonadas</th><th>Frequência</th><th>Aptidão (≥${pctMin}%)</th></tr></thead>
-    <tbody>${linhas}</tbody></table>
-    <div style="font-size:11px;color:var(--text-muted);font-style:italic;margin-top:8px">* Faltas abonadas não são contadas como presenças para efeito de aptidão.</div>
+    <table style="font-size:15px">
+      <thead><tr>
+        <th style="font-size:13px">Irmão</th>
+        <th style="font-size:13px">Cargo</th>
+        <th style="font-size:13px;text-align:center">Presenças</th>
+        <th style="font-size:13px;text-align:center">Abonadas</th>
+        <th style="font-size:13px">Frequência</th>
+        <th style="font-size:13px">Aptidão (≥${pctMin}%)</th>
+      </tr></thead>
+      <tbody>${linhas}</tbody>
+    </table>
+    <div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-top:8px">
+      ✦ Faltas abonadas (⊘) contam como presença para o cálculo de frequência.
+    </div>
     ${linhasSessoes}
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap">
       <button class="btn" onclick="exportarFreqPeriodoExcel('${ini}','${fim}',${pctMin},'${filtroIrmaoId}')">📊 Exportar Excel</button>
