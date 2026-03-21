@@ -1389,9 +1389,42 @@ tr:hover td { background:rgba(184,134,11,0.03); }
             </tbody>
           </table>
         </div>
-      </div>
-
-    </div><!-- /content -->
+        <div class="card" style="margin-top:20px">
+          <div class="card-header">
+            <div class="card-title">✍️ Assinaturas para Relatórios</div>
+            <button class="btn btn-solid" onclick="salvarAssinaturas()" style="font-size:10px">💾 Salvar Assinaturas</button>
+          </div>
+          <div style="padding:14px 22px 6px;font-size:13px;color:var(--text-muted);font-style:italic;border-bottom:1px solid var(--border)">
+            Faça upload da imagem de assinatura de cada cargo. Ela aparecerá automaticamente nos relatórios impressos.
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:22px">
+            ${['veneravel','secretario','tesoureiro','chanceler'].map(cargo=>{
+              const labels = {veneravel:'👑 Venerável Mestre',secretario:'📜 Secretário',tesoureiro:'⚖️ Tesoureiro',chanceler:'🗂️ Chanceler'};
+              const saved  = localStorage.getItem('assinatura_'+cargo)||'';
+              return `<div style="background:var(--cream);border:1px solid var(--border-mid);border-radius:6px;padding:16px 18px">
+                <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;letter-spacing:0.1em;color:var(--navy);margin-bottom:12px">${labels[cargo]}</div>
+                <!-- Preview da assinatura -->
+                <div id="prev-${cargo}" style="min-height:60px;border:1px dashed var(--border-mid);border-radius:4px;background:var(--white);display:flex;align-items:center;justify-content:center;margin-bottom:10px;overflow:hidden">
+                  ${saved
+                    ? `<img src="${saved}" style="max-height:70px;max-width:100%;object-fit:contain">`
+                    : `<span style="font-size:12px;color:var(--text-muted);font-style:italic">Nenhuma assinatura cadastrada</span>`}
+                </div>
+                <!-- Upload -->
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                  <input type="file" id="file-${cargo}" accept="image/*" onchange="previewAssinatura('${cargo}')"
+                    style="display:none">
+                  <button type="button" onclick="document.getElementById('file-${cargo}').click()"
+                    class="btn" style="font-size:10px;padding:5px 14px;width:100%">
+                    📎 ${saved?'Alterar imagem':'Escolher imagem'}
+                  </button>
+                </label>
+                <input type="hidden" id="assin-${cargo}" value="${saved}">
+                ${saved?`<button type="button" onclick="removerAssinatura('${cargo}')" style="width:100%;margin-top:6px;padding:4px;border:1px solid rgba(139,32,32,0.3);border-radius:3px;background:transparent;color:var(--red);font-size:10px;cursor:pointer;font-family:'Cinzel',serif;letter-spacing:0.06em">✕ Remover</button>`:''}
+              </div>`;
+            }).join('')}
+          </div>
+        </div>
+      </div><!-- /panel-permissoes -->
   </main>
 </div><!-- /app-shell -->
 
@@ -3051,10 +3084,7 @@ function imprimirListaPresenca(sessaoId, data, tipo, local) {
       <thead><tr><th>Nº</th><th>Nome Maçônico</th><th>Cargo</th><th>Grau</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
-    <div style="margin-top:50px;display:flex;justify-content:space-between;font-size:11px">
-      <div style="text-align:center;width:45%"><div style="border-top:1px solid #333;padding-top:4px">Secretário</div></div>
-      <div style="text-align:center;width:45%"><div style="border-top:1px solid #333;padding-top:4px">Venerável Mestre</div></div>
-    </div>`);
+    ${htmlAssinaturas(['secretario','veneravel'])}`);  
 }
 
 function imprimirListaPresenca(sessaoId, data, tipo, local) {
@@ -3087,12 +3117,8 @@ function imprimirListaPresenca(sessaoId, data, tipo, local) {
       <thead><tr><th>Nº</th><th>Nome Maçônico</th><th>Cargo</th><th>Grau</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
-    <div style="margin-top:50px;display:flex;justify-content:space-between;font-size:11px">
-      <div style="text-align:center;width:45%"><div style="border-top:1px solid #333;padding-top:4px">Secretário</div></div>
-      <div style="text-align:center;width:45%"><div style="border-top:1px solid #333;padding-top:4px">Venerável Mestre</div></div>
-    </div>`);
+    ${htmlAssinaturas(['secretario','veneravel'])}`);  
 }
-
 async function abrirModalPresenca(sessaoId, dataSessao, tipoSessao) {
   const membros = DATA.membros.filter(m => m.status==='ativo'||m.status==='iniciado');
   const presExist = DATA.presencas.filter(p => p.sessao_id === sessaoId);
@@ -6784,6 +6810,57 @@ function renderRelatorios() {
 }
 
 // ─── HELPER IMPRESSÃO ───
+// ─── ASSINATURAS DIGITAIS ────────────────────────────────────
+function previewAssinatura(cargo) {
+  const file = document.getElementById('file-'+cargo)?.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const data = e.target.result;
+    document.getElementById('assin-'+cargo).value = data;
+    const prev = document.getElementById('prev-'+cargo);
+    if (prev) prev.innerHTML = `<img src="${data}" style="max-height:70px;max-width:100%;object-fit:contain">`;
+  };
+  reader.readAsDataURL(file);
+}
+
+function removerAssinatura(cargo) {
+  localStorage.removeItem('assinatura_'+cargo);
+  document.getElementById('assin-'+cargo).value = '';
+  const prev = document.getElementById('prev-'+cargo);
+  if (prev) prev.innerHTML = `<span style="font-size:12px;color:var(--text-muted);font-style:italic">Nenhuma assinatura cadastrada</span>`;
+  toast('Assinatura removida');
+}
+
+function salvarAssinaturas() {
+  ['veneravel','secretario','tesoureiro','chanceler'].forEach(cargo=>{
+    const val = document.getElementById('assin-'+cargo)?.value||'';
+    if (val) localStorage.setItem('assinatura_'+cargo, val);
+    else localStorage.removeItem('assinatura_'+cargo);
+  });
+  toast('✅ Assinaturas salvas com sucesso!');
+}
+
+function getAssinatura(cargo) {
+  return localStorage.getItem('assinatura_'+cargo)||'';
+}
+
+// Gerar bloco HTML de assinaturas para impressão
+function htmlAssinaturas(cargos) {
+  // cargos = array como ['veneravel','secretario'] ou ['tesoureiro']
+  const labels = {veneravel:'Venerável Mestre',secretario:'Secretário',tesoureiro:'Tesoureiro',chanceler:'Chanceler'};
+  const cols = cargos.map(cargo=>{
+    const img = getAssinatura(cargo);
+    return `<div style="text-align:center;flex:1;padding:0 16px">
+      ${img
+        ? `<img src="${img}" style="max-height:52px;max-width:160px;object-fit:contain;display:block;margin:0 auto 4px">`
+        : `<div style="height:52px"></div>`}
+      <div style="border-top:1px solid #555;margin-top:4px;padding-top:4px;font-size:10px;color:#333">${labels[cargo]||cargo}</div>
+    </div>`;
+  }).join('');
+  return `<div style="margin-top:40px;display:flex;justify-content:center;gap:0;flex-wrap:wrap">${cols}</div>`;
+}
+
 function abrirJanelaPrint(html) {
   const w = window.open('', '_blank', 'width=900,height=700');
   w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
@@ -7048,7 +7125,8 @@ function imprimirRelMembros() {
     <div class="print-header"><div class="print-lodge">A.R.L.S. Fraternidade Acadêmica de Peruíbe Nº 3524</div>
     <div class="print-title">Quadro de Irmãos</div>
     <div class="print-date">${new Date().toLocaleDateString('pt-BR')} · Total: ${DATA.membros.length}</div></div>
-    <table class="print-table"><thead><tr>${headers}</tr></thead><tbody>${linhas}</tbody></table>`);
+    <table class="print-table"><thead><tr>${headers}</tr></thead><tbody>${linhas}</tbody></table>
+    ${htmlAssinaturas(['veneravel','secretario'])}`);
 }
 
 // ─── FREQUÊNCIA POR SESSÃO ───
@@ -7148,7 +7226,8 @@ function imprimirFreqSessao(sessaoId) {
     </div>
     <table class="print-table"><thead><tr><th>Nome Maçônico</th><th>Cargo</th><th>Grau</th><th>Presença</th><th>Assinatura</th></tr></thead>
     <tbody>${linhas}${linhasVis}</tbody></table>
-    <div class="print-rodape"><span>Visto do Chanceler: _______________________</span><span>${new Date().toLocaleDateString('pt-BR')}</span></div>`);
+    ${htmlAssinaturas(['veneravel','chanceler'])}
+    <div class="print-rodape"><span>Fraternidade Acadêmica de Peruíbe Nº 3524</span><span>${new Date().toLocaleDateString('pt-BR')}</span></div>`);
 }
 
 // ─── FREQUÊNCIA POR PERÍODO / APTIDÃO ───
@@ -7327,10 +7406,7 @@ function imprimirFreqPeriodo(ini, fim, pctMin, filtroIrmaoId) {
       * Critério: presença mínima de ${pctMin}% no período de ${fmtData(ini)} a ${fmtData(fim)}.
       Documento gerado pela Secretaria da Fraternidade Acadêmica de Peruíbe Nº 3524 em ${new Date().toLocaleDateString('pt-BR')}.
     </div>
-    <div style="margin-top:30px;display:flex;justify-content:space-between;font-size:11px">
-      <div style="text-align:center">_________________________<br>Venerável Mestre</div>
-      <div style="text-align:center">_________________________<br>Secretário</div>
-    </div>
+    ${htmlAssinaturas(['veneravel','secretario'])}
     <div class="print-rodape"><span>Fraternidade Acadêmica de Peruíbe Nº 3524 — Secretaria</span><span>${new Date().toLocaleDateString('pt-BR')}</span></div>`);
 }
 
@@ -7430,7 +7506,7 @@ function imprimirRelFinancas(ini, fim, tipo, cat) {
     </div>
     <table class="print-table"><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Valor</th></tr></thead>
     <tbody>${linhas}</tbody></table>
-    <div style="margin-top:30px;text-align:center;font-size:11px">_________________________<br>Tesoureiro</div>
+    ${htmlAssinaturas(['tesoureiro','veneravel'])}
     <div class="print-rodape"><span>Fraternidade Acadêmica de Peruíbe Nº 3524 — Tesouraria</span><span>${new Date().toLocaleDateString('pt-BR')}</span></div>`);
 }
 
@@ -7523,6 +7599,7 @@ function imprimirRelDebitos() {
     </div>
     <table class="print-table"><thead><tr><th>Nome Maçônico</th><th>Cargo</th><th>Mensalidade</th><th>Atraso</th><th>Valor Aberto</th></tr></thead>
     <tbody>${linhas}</tbody></table>
+    ${htmlAssinaturas(['tesoureiro','veneravel'])}
     <div class="print-rodape"><span>Fraternidade Acadêmica de Peruíbe Nº 3524 — Tesouraria</span><span>${new Date().toLocaleDateString('pt-BR')}</span></div>`);
 }
 
@@ -7722,7 +7799,8 @@ function imprimirRelComissoes() {
     <div class="print-date">${dataHoje.getDate()} de ${meses[dataHoje.getMonth()]} de ${dataHoje.getFullYear()}</div></div>
     <table class="print-table"><thead><tr>
       <th>Comissão</th><th>Tipo</th><th>Presidente</th><th>Membros</th><th>Período</th><th>Status</th>
-    </tr></thead><tbody>${todasLinhas}</tbody></table>`);
+    </tr></thead><tbody>${todasLinhas}</tbody></table>
+    ${htmlAssinaturas(['veneravel','secretario'])}`);
 }
 
 function abrirModalLancamentoTronco() {
@@ -7786,6 +7864,7 @@ function imprimirRelTronco() {
     </div>
     <table class="print-table"><thead><tr><th>Data</th><th>Descrição</th><th>Valor</th></tr></thead>
     <tbody>${linhas}</tbody></table>
+    ${htmlAssinaturas(['tesoureiro','chanceler','veneravel'])}
     <div class="print-rodape"><span>Fraternidade Acadêmica de Peruíbe Nº 3524 — Tesouraria</span><span>${new Date().toLocaleDateString('pt-BR')}</span></div>`);
 }
 
