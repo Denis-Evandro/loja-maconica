@@ -3106,7 +3106,7 @@ async function abrirModalPresenca(sessaoId, dataSessao, tipoSessao) {
   // Detectar situação atual: 'presente' | 'abonada' | 'ausente'
   const getSituacaoAtual = (p) => {
     if (!p) return 'ausente';
-    if (p.situacao === 'abonada') return 'abonada';
+    if (p.situacao === 'abonada' || p.situacao === 'justificada') return 'abonada';
     if (p.presente || p.situacao === 'presente') return 'presente';
     return 'ausente';
   };
@@ -3149,8 +3149,8 @@ async function abrirModalPresenca(sessaoId, dataSessao, tipoSessao) {
     </tr>`;
   }).join('');
 
-  const presentes = presExist.filter(p=>p.presente||p.situacao==='presente'||p.situacao==='abonada').length;
-  const abonadas  = presExist.filter(p=>p.situacao==='abonada').length;
+  const presentes = presExist.filter(p=>p.presente||p.situacao==='presente'||(p.situacao==='abonada'||p.situacao==='justificada')).length;
+  const abonadas  = presExist.filter(p=>(p.situacao==='abonada'||p.situacao==='justificada')).length;
 
   document.body.insertAdjacentHTML('beforeend', `
     <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px">
@@ -3252,7 +3252,7 @@ async function confirmarPresencas(sessaoId) {
       sessao_id: sessaoId,
       membro_id: m.id,
       presente: isPresente || isAbonada,
-      situacao: isPresente ? 'presente' : isAbonada ? 'abonada' : 'ausente',
+      situacao: isPresente ? 'presente' : isAbonada ? 'justificada' : 'ausente',
       justificativa: `cargo_sessao:${cargo}`
     };
   });
@@ -7198,12 +7198,12 @@ function gerarRelFreqPeriodo() {
   const resultado = membros.map(m=>{
     const presP = DATA.presencas.filter(p=>p.membro_id===m.id&&sessoesP.find(s=>s.id===p.sessao_id));
     const pres   = presP.filter(p=>p.presente||p.situacao==='presente').length;
-    const abon   = presP.filter(p=>p.situacao==='abonada').length;
+    const abon   = presP.filter(p=>(p.situacao==='abonada'||p.situacao==='justificada')).length;
     const pct = total?Math.round(pres/total*100):0;
     // Detalhes das sessões (para quando filtrar por irmão)
     const detalhesSessoes = filtroIrmaoId ? sessoesP.map(s=>{
       const p = DATA.presencas.find(x=>x.membro_id===m.id&&x.sessao_id===s.id);
-      const sit = !p ? 'ausente' : p.situacao==='abonada' ? 'abonada' : (p.presente||p.situacao==='presente') ? 'presente' : 'ausente';
+      const sit = !p ? 'ausente' : (p.situacao==='abonada'||p.situacao==='justificada') ? 'abonada' : (p.presente||p.situacao==='presente') ? 'presente' : 'ausente';
       const justif = p?.justificativa?.match(/justif:(.+)/)?.[1]?.trim()||'';
       return {data:s.data, tipo:s.tipo||'Sessão', sit, justif};
     }) : [];
@@ -7267,7 +7267,7 @@ function exportarFreqPeriodoExcel(ini, fim, pctMin, filtroIrmaoId) {
   const resultado = membros.map(m=>{
     const presP = DATA.presencas.filter(p=>p.membro_id===m.id&&sessoesP.find(s=>s.id===p.sessao_id));
     const pres = presP.filter(p=>p.presente||p.situacao==='presente').length;
-    const abon = presP.filter(p=>p.situacao==='abonada').length;
+    const abon = presP.filter(p=>(p.situacao==='abonada'||p.situacao==='justificada')).length;
     const pct = total?Math.round(pres/total*100):0;
     return {nome:m.nome_maconico, cargo:m.cargo||'', presentes:pres, abonadas:abon, total, pct, apto:pct>=pctMin?'APTO':'INAPTO'};
   }).sort((a,b)=>b.pct-a.pct);
