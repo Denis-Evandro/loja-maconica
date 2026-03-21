@@ -1389,7 +1389,7 @@ tr:hover td { background:rgba(184,134,11,0.03); }
             </tbody>
           </table>
         </div>
-        <div class="card" style="margin-top:20px">
+        <div class="card" style="margin-top:20px" id="card-assinaturas">
           <div class="card-header">
             <div class="card-title">✍️ Assinaturas para Relatórios</div>
             <button class="btn btn-solid" onclick="salvarAssinaturas()" style="font-size:10px">💾 Salvar Assinaturas</button>
@@ -1648,7 +1648,13 @@ function renderNav() {
   nav.innerHTML = html;
 }
 
-function abrirConfiguracoes() { showPanel('permissoes'); }
+function abrirConfiguracoes() {
+  showPanel('permissoes');
+  setTimeout(() => {
+    const el = document.getElementById('card-assinaturas');
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 150);
+}
 
 // ===================== PANELS =====================
 function showPanel(id) {
