@@ -952,6 +952,11 @@ tr:hover td { background:rgba(184,134,11,0.03); }
 .apto-sim { background:rgba(58,122,74,0.1); color:var(--green); border:1px solid rgba(58,122,74,0.3); }
 .apto-nao { background:rgba(139,32,32,0.1); color:var(--red); border:1px solid rgba(139,32,32,0.3); }
 
+/* ── SLIDERS DE SENSIBILIDADE ── */
+input[type=range].sens-slider { -webkit-appearance:none; appearance:none; height:6px; border-radius:3px; outline:none; cursor:pointer; border:none; }
+input[type=range].sens-slider::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:16px; height:16px; border-radius:50%; background:#1B3A6B; cursor:pointer; border:2px solid #fff; box-shadow:0 1px 4px rgba(27,58,107,0.4); }
+input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; border-radius:50%; background:#1B3A6B; cursor:pointer; border:2px solid #fff; }
+
 /* ── IMPRESSÃO ── */
 @media print {
   body * { visibility:hidden !important; }
@@ -6840,10 +6845,11 @@ function renderAssinaturas() {
           <div style="padding:8px 14px;border-bottom:1px solid var(--border);background:rgba(27,58,107,0.02)">
             <div style="display:flex;align-items:center;gap:8px">
               <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;color:var(--text-muted);white-space:nowrap">SENSIBILIDADE</label>
-              <input type="range" min="100" max="240" value="200" id="limiar-${c.id}"
-                oninput="ajustarLimiarAssinatura('${c.id}',this.value)"
-                style="flex:1;accent-color:var(--navy);height:4px">
-              <span id="limiar-val-${c.id}" style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:var(--navy);min-width:24px;text-align:right">200</span>
+              <input type="range" min="100" max="240" value="200" id="limiar-${c.id}" class="sens-slider"
+                oninput="atualizarSlider(this);ajustarLimiarAssinatura('${c.id}',this.value)"
+                style="flex:1;height:6px;border-radius:3px;outline:none;cursor:pointer;
+                  background:linear-gradient(to right,#1B3A6B 72%,#D3D1C7 72%);border:none;appearance:none;-webkit-appearance:none">
+              <span id="limiar-val-${c.id}" style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:var(--navy);min-width:28px;text-align:right">200</span>
             </div>
             <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text-muted);margin-top:2px">
               <span>← mais tinta</span><span>menos tinta →</span>
@@ -6868,6 +6874,10 @@ function renderAssinaturas() {
     <div style="margin-top:18px;font-size:12px;color:var(--text-muted);font-style:italic">
       ✦ As assinaturas são salvas automaticamente ao processar cada imagem.
     </div>`;
+  // Inicializar visual de todos os sliders
+  setTimeout(() => {
+    document.querySelectorAll('input[type=range]').forEach(atualizarSlider);
+  }, 50);
 }
 
 function previewAssinatura(cargo) {
@@ -6939,7 +6949,19 @@ function _processarAssinatura(cargo, img, limiar) {
 }
 
 // Reprocessar com novo limiar (chamado pelo slider)
+// ─── Atualizar visual do slider (preenchimento da barra) ───────
+function atualizarSlider(el) {
+  if (!el) return;
+  const min = parseFloat(el.min)||0;
+  const max = parseFloat(el.max)||100;
+  const val = parseFloat(el.value)||0;
+  const pct = Math.round((val - min) / (max - min) * 100);
+  el.style.background = `linear-gradient(to right, #1B3A6B ${pct}%, #D3D1C7 ${pct}%)`;
+}
+
 function ajustarLimiarAssinatura(cargo, val) {
+  const el = document.getElementById('limiar-'+cargo);
+  atualizarSlider(el);
   const img = window._assinaturaOrigem?.[cargo];
   if (!img) { toast('Carregue a imagem primeiro'); return; }
   document.getElementById('limiar-val-'+cargo).textContent = val;
@@ -7117,8 +7139,8 @@ function abrirRecorteManual() {
             </div>
             <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
               <span style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;color:var(--text-muted)">SENSIBILIDADE</span>
-              <input type="range" min="100" max="240" value="200" id="rc-limiar" step="5"
-                oninput="reaplicarRecorte()" style="flex:1;accent-color:var(--navy)">
+              <input type="range" min="100" max="240" value="200" id="rc-limiar" class="sens-slider" step="5"
+                oninput="atualizarSlider(this);reaplicarRecorte()" style="flex:1;background:linear-gradient(to right,#1B3A6B 72%,#D3D1C7 72%)">
               <span id="rc-limiar-val" style="font-size:10px;color:var(--navy);font-weight:700;min-width:28px">200</span>
             </div>
           </div>
@@ -7385,8 +7407,8 @@ function _executarCorrecaoPerspectiva() {
         ${url ? `<img src="${url}" style="max-height:52px;max-width:100%;object-fit:contain">` : '<span style="font-size:11px;color:#aaa">—</span>'}
       </div>
       <div style="padding:5px 8px;border-top:1px solid var(--border)">
-        <input type="range" min="100" max="240" value="200" step="5" oninput="reprocessarQuadrante('${c.id}',this.value);document.getElementById('qv-${c.id}').textContent=this.value"
-          style="width:calc(100% - 30px);accent-color:var(--navy)">
+        <input type="range" min="100" max="240" value="200" step="5" oninput="atualizarSlider(this);reprocessarQuadrante('${c.id}',this.value);document.getElementById('qv-${c.id}').textContent=this.value"
+          style="width:calc(100% - 30px);accent-color:var(--navy);height:6px;border-radius:3px">
         <span id="qv-${c.id}" style="font-size:9px;color:var(--navy);font-weight:700">200</span>
       </div>
     </div>`;
