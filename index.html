@@ -1392,37 +1392,12 @@ tr:hover td { background:rgba(184,134,11,0.03); }
         <div class="card" style="margin-top:20px" id="card-assinaturas">
           <div class="card-header">
             <div class="card-title">✍️ Assinaturas para Relatórios</div>
-            <button class="btn btn-solid" onclick="salvarAssinaturas()" style="font-size:10px">💾 Salvar Assinaturas</button>
+            <button class="btn btn-solid" onclick="salvarAssinaturas()" style="font-size:11px;padding:7px 16px">💾 Salvar</button>
           </div>
-          <div style="padding:14px 22px 6px;font-size:13px;color:var(--text-muted);font-style:italic;border-bottom:1px solid var(--border)">
-            Faça upload da imagem de assinatura de cada cargo. Ela aparecerá automaticamente nos relatórios impressos.
+          <div style="padding:10px 22px 8px;font-size:13px;color:var(--text-muted);font-style:italic;border-bottom:1px solid var(--border)">
+            Faça upload da imagem de assinatura de cada cargo. Aparecerá automaticamente nos relatórios impressos.
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:22px">
-            ${['veneravel','secretario','tesoureiro','chanceler'].map(cargo=>{
-              const labels = {veneravel:'👑 Venerável Mestre',secretario:'📜 Secretário',tesoureiro:'⚖️ Tesoureiro',chanceler:'🗂️ Chanceler'};
-              const saved  = localStorage.getItem('assinatura_'+cargo)||'';
-              return `<div style="background:var(--cream);border:1px solid var(--border-mid);border-radius:6px;padding:16px 18px">
-                <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;letter-spacing:0.1em;color:var(--navy);margin-bottom:12px">${labels[cargo]}</div>
-                <!-- Preview da assinatura -->
-                <div id="prev-${cargo}" style="min-height:60px;border:1px dashed var(--border-mid);border-radius:4px;background:var(--white);display:flex;align-items:center;justify-content:center;margin-bottom:10px;overflow:hidden">
-                  ${saved
-                    ? `<img src="${saved}" style="max-height:70px;max-width:100%;object-fit:contain">`
-                    : `<span style="font-size:12px;color:var(--text-muted);font-style:italic">Nenhuma assinatura cadastrada</span>`}
-                </div>
-                <!-- Upload -->
-                <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-                  <input type="file" id="file-${cargo}" accept="image/*" onchange="previewAssinatura('${cargo}')"
-                    style="display:none">
-                  <button type="button" onclick="document.getElementById('file-${cargo}').click()"
-                    class="btn" style="font-size:10px;padding:5px 14px;width:100%">
-                    📎 ${saved?'Alterar imagem':'Escolher imagem'}
-                  </button>
-                </label>
-                <input type="hidden" id="assin-${cargo}" value="${saved}">
-                ${saved?`<button type="button" onclick="removerAssinatura('${cargo}')" style="width:100%;margin-top:6px;padding:4px;border:1px solid rgba(139,32,32,0.3);border-radius:3px;background:transparent;color:var(--red);font-size:10px;cursor:pointer;font-family:'Cinzel',serif;letter-spacing:0.06em">✕ Remover</button>`:''}
-              </div>`;
-            }).join('')}
-          </div>
+          <div id="assinaturas-grid" style="padding:22px"></div>
         </div>
       </div><!-- /panel-permissoes -->
   </main>
@@ -1651,6 +1626,7 @@ function renderNav() {
 function abrirConfiguracoes() {
   showPanel('permissoes');
   setTimeout(() => {
+    renderAssinaturas();
     const el = document.getElementById('card-assinaturas');
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, 150);
@@ -6817,54 +6793,105 @@ function renderRelatorios() {
 
 // ─── HELPER IMPRESSÃO ───
 // ─── ASSINATURAS DIGITAIS ────────────────────────────────────
+const CARGOS_ASSIN = [
+  { id:'veneravel',  label:'Venerável Mestre', icon:'👑' },
+  { id:'secretario', label:'Secretário',        icon:'📜' },
+  { id:'tesoureiro', label:'Tesoureiro',         icon:'⚖️' },
+  { id:'chanceler',  label:'Chanceler',          icon:'🗂️' }
+];
+
+function renderAssinaturas() {
+  const grid = document.getElementById('assinaturas-grid');
+  if (!grid) return;
+
+  grid.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+      ${CARGOS_ASSIN.map(c => {
+        const img = localStorage.getItem('assinatura_' + c.id) || '';
+        return `
+        <div style="border:1px solid var(--border-mid);border-radius:6px;overflow:hidden;background:var(--white)">
+          <!-- Cabeçalho do card -->
+          <div style="background:rgba(27,58,107,0.06);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;gap:8px">
+            <span style="font-size:16px">${c.icon}</span>
+            <span style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;letter-spacing:0.1em;color:var(--navy)">${c.label}</span>
+            ${img ? `<span style="margin-left:auto;background:rgba(34,139,34,0.1);border:1px solid rgba(34,139,34,0.3);border-radius:20px;padding:2px 10px;font-size:10px;color:var(--green);font-family:'Cinzel',serif;font-weight:700">✓ Cadastrada</span>`
+                  : `<span style="margin-left:auto;background:rgba(139,32,32,0.06);border:1px solid rgba(139,32,32,0.2);border-radius:20px;padding:2px 10px;font-size:10px;color:var(--text-muted);font-family:'Cinzel',serif">Sem imagem</span>`}
+          </div>
+          <!-- Preview -->
+          <div id="prev-${c.id}" style="height:90px;display:flex;align-items:center;justify-content:center;background:var(--cream);border-bottom:1px solid var(--border);padding:8px">
+            ${img
+              ? `<img src="${img}" style="max-height:74px;max-width:100%;object-fit:contain">`
+              : `<div style="text-align:center">
+                   <div style="font-size:28px;margin-bottom:4px;opacity:0.3">✍️</div>
+                   <div style="font-size:11px;color:var(--text-muted);font-style:italic">Nenhuma imagem</div>
+                 </div>`}
+          </div>
+          <!-- Botões de ação -->
+          <div style="padding:10px 14px;display:flex;gap:8px">
+            <input type="file" id="file-${c.id}" accept="image/png,image/jpeg,image/gif,image/webp" style="display:none"
+              onchange="previewAssinatura('${c.id}')">
+            <button class="btn btn-solid" onclick="document.getElementById('file-${c.id}').click()"
+              style="flex:1;font-size:11px;padding:7px 10px">
+              📎 ${img ? 'Alterar' : 'Escolher imagem'}
+            </button>
+            ${img ? `<button class="btn" onclick="removerAssinatura('${c.id}')"
+              style="font-size:11px;padding:7px 12px;color:var(--red);border-color:rgba(139,32,32,0.35)">
+              🗑️ Excluir
+            </button>` : ''}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div style="margin-top:18px;display:flex;justify-content:flex-end">
+      <button class="btn btn-solid" onclick="salvarAssinaturas()" style="padding:9px 28px;font-size:12px">
+        💾 Salvar Assinaturas
+      </button>
+    </div>`;
+}
+
 function previewAssinatura(cargo) {
-  const file = document.getElementById('file-'+cargo)?.files?.[0];
+  const file = document.getElementById('file-' + cargo)?.files?.[0];
   if (!file) return;
   const reader = new FileReader();
   reader.onload = e => {
     const data = e.target.result;
-    document.getElementById('assin-'+cargo).value = data;
-    const prev = document.getElementById('prev-'+cargo);
-    if (prev) prev.innerHTML = `<img src="${data}" style="max-height:70px;max-width:100%;object-fit:contain">`;
+    // Salva imediatamente no localStorage
+    localStorage.setItem('assinatura_' + cargo, data);
+    // Re-renderiza o grid (já vai mostrar a imagem salva)
+    renderAssinaturas();
+    toast('✅ Assinatura carregada e salva!');
   };
   reader.readAsDataURL(file);
 }
 
 function removerAssinatura(cargo) {
-  localStorage.removeItem('assinatura_'+cargo);
-  document.getElementById('assin-'+cargo).value = '';
-  const prev = document.getElementById('prev-'+cargo);
-  if (prev) prev.innerHTML = `<span style="font-size:12px;color:var(--text-muted);font-style:italic">Nenhuma assinatura cadastrada</span>`;
+  if (!confirm(`Remover assinatura de ${CARGOS_ASSIN.find(c=>c.id===cargo)?.label}?`)) return;
+  localStorage.removeItem('assinatura_' + cargo);
+  renderAssinaturas();
   toast('Assinatura removida');
 }
 
 function salvarAssinaturas() {
-  ['veneravel','secretario','tesoureiro','chanceler'].forEach(cargo=>{
-    const val = document.getElementById('assin-'+cargo)?.value||'';
-    if (val) localStorage.setItem('assinatura_'+cargo, val);
-    else localStorage.removeItem('assinatura_'+cargo);
-  });
-  toast('✅ Assinaturas salvas com sucesso!');
+  toast('✅ Assinaturas já salvas automaticamente!');
 }
 
 function getAssinatura(cargo) {
-  return localStorage.getItem('assinatura_'+cargo)||'';
+  return localStorage.getItem('assinatura_' + cargo) || '';
 }
 
 // Gerar bloco HTML de assinaturas para impressão
 function htmlAssinaturas(cargos) {
-  // cargos = array como ['veneravel','secretario'] ou ['tesoureiro']
-  const labels = {veneravel:'Venerável Mestre',secretario:'Secretário',tesoureiro:'Tesoureiro',chanceler:'Chanceler'};
-  const cols = cargos.map(cargo=>{
+  const labels = { veneravel:'Venerável Mestre', secretario:'Secretário', tesoureiro:'Tesoureiro', chanceler:'Chanceler' };
+  const cols = cargos.map(cargo => {
     const img = getAssinatura(cargo);
-    return `<div style="text-align:center;flex:1;padding:0 16px">
+    return `<div style="text-align:center;flex:1;padding:0 20px">
       ${img
         ? `<img src="${img}" style="max-height:52px;max-width:160px;object-fit:contain;display:block;margin:0 auto 4px">`
-        : `<div style="height:52px"></div>`}
-      <div style="border-top:1px solid #555;margin-top:4px;padding-top:4px;font-size:10px;color:#333">${labels[cargo]||cargo}</div>
+        : `<div style="height:44px"></div>`}
+      <div style="border-top:1px solid #555;margin-top:4px;padding-top:5px;font-size:10px;color:#333;font-family:'Times New Roman',serif">${labels[cargo] || cargo}</div>
     </div>`;
   }).join('');
-  return `<div style="margin-top:40px;display:flex;justify-content:center;gap:0;flex-wrap:wrap">${cols}</div>`;
+  return `<div style="margin-top:44px;display:flex;justify-content:center;gap:0">${cols}</div>`;
 }
 
 function abrirJanelaPrint(html) {
