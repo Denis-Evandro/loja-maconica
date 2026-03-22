@@ -6918,12 +6918,51 @@ function _processarAssinatura(cargo, img, limiar) {
 }
 
 // Reprocessar com novo limiar (chamado pelo slider)
+function removerAssinatura(cargo) {
+  const label = CARGOS_ASSIN.find(c => c.id === cargo)?.label || cargo;
+  if (!confirm('Remover assinatura de ' + label + '?')) return;
+  localStorage.removeItem('assinatura_' + cargo);
+  renderAssinaturas();
+  toast('Assinatura removida');
+}
+
+function getAssinatura(cargo) {
+  return localStorage.getItem('assinatura_' + cargo) || '';
+}
+
+// Recortar canvas para bounding box dos pixels visíveis
+function _recortarAssinatura(canvas) {
+  const ctx  = canvas.getContext('2d');
+  const {width, height} = canvas;
+  const data = ctx.getImageData(0, 0, width, height).data;
+  let minX = width, minY = height, maxX = 0, maxY = 0;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (data[(y * width + x) * 4 + 3] > 20) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+  if (maxX < minX) return canvas; // sem pixels — retorna original
+  const pad = 8;
+  minX = Math.max(0, minX - pad); minY = Math.max(0, minY - pad);
+  maxX = Math.min(width,  maxX + pad); maxY = Math.min(height, maxY + pad);
+  const out = document.createElement('canvas');
+  out.width  = maxX - minX;
+  out.height = maxY - minY;
+  out.getContext('2d').drawImage(canvas, minX, minY, out.width, out.height, 0, 0, out.width, out.height);
+  return out;
+}
+
 // ─── Atualizar visual do slider (preenchimento da barra) ───────
 function atualizarSlider(el) {
   if (!el) return;
-  const min = parseFloat(el.min)||0;
-  const max = parseFloat(el.max)||100;
-  const val = parseFloat(el.value)||0;
+  const min = parseFloat(el.min) || 0;
+  const max = parseFloat(el.max) || 100;
+  const val = parseFloat(el.value) || 0;
   const pct = Math.round((val - min) / (max - min) * 100);
   el.style.background = `linear-gradient(to right, #1B3A6B ${pct}%, #D3D1C7 ${pct}%)`;
 }
@@ -7016,9 +7055,8 @@ function abrirRecorteManual() {
             Carregue uma imagem para começar
           </div>
 
-          <div style="position:relative;border-radius:4px;border:1px solid var(--border-mid);display:none;overflow:auto" id="rc-canvas-wrap">
-            <canvas id="rc-canvas" style="display:block;cursor:crosshair;user-select:none"></canvas>
-            <div id="rc-sel" style="position:absolute;border:2px solid #1B5EA0;background:rgba(27,94,160,0.15);pointer-events:none;display:none;box-sizing:border-box"></div>
+          <div style="display:none" id="rc-canvas-wrap">
+            <canvas id="rc-canvas" style="display:block;cursor:crosshair;max-width:100%;border:1px solid var(--border-mid);border-radius:4px"></canvas>
           </div>
 
           <!-- Preview do recorte -->
@@ -7062,55 +7100,81 @@ function carregarImagemRecorte() {
     const canvas = document.getElementById('rc-canvas');
     const ctx    = canvas.getContext('2d');
 
-    wrap.style.display = 'block';
-    const maxW  = wrap.offsetWidth || 640;
-    const scale = imgEl.naturalWidth > maxW ? maxW / imgEl.naturalWidth : 1;
+    // Calcular escala para caber na largura do modal (~640px)
+    const maxW  = 640;
+    const W     = imgEl.naturalWidth  || imgEl.width;
+    const H     = imgEl.naturalHeight || imgEl.height;
+    const scale = W > maxW ? maxW / W : 1;
 
-    canvas.width  = Math.round(imgEl.naturalWidth  * scale);
-    canvas.height = Math.round(imgEl.naturalHeight * scale);
-    canvas.style.width  = canvas.width  + 'px';
-    canvas.style.height = canvas.height + 'px';
+    canvas.width  = Math.round(W * scale);
+    canvas.height = Math.round(H * scale);
 
     window._rc.scale    = scale;
-    window._rc.sel      = {x:0, y:0, w:0, h:0};
+    window._rc.sel      = null;
     window._rc.dragging = false;
 
-    ctx.drawImage(imgEl, 0, 0, canvas.width, canvas.height);
+    // Função que redesenha imagem + seleção no canvas
+    const redesenhar = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(imgEl, 0, 0, canvas.width, canvas.height);
+      const s = window._rc.sel;
+      if (s && s.w > 2 && s.h > 2) {
+        // Overlay escuro fora da seleção
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // Limpar a área selecionada
+        ctx.clearRect(s.x, s.y, s.w, s.h);
+        ctx.drawImage(imgEl,
+          s.x / scale, s.y / scale, s.w / scale, s.h / scale,
+          s.x, s.y, s.w, s.h);
+        // Borda da seleção
+        ctx.strokeStyle = '#1B5EA0';
+        ctx.lineWidth   = 2;
+        ctx.setLineDash([6, 3]);
+        ctx.strokeRect(s.x, s.y, s.w, s.h);
+        ctx.setLineDash([]);
+      }
+    };
+
+    window._rc._redesenhar = redesenhar;
+    redesenhar();
+    wrap.style.display = 'block';
 
     const instr = document.getElementById('rc-instrucao');
-    if (instr) instr.textContent = 'Arraste sobre a assinatura para selecionar a área';
+    if (instr) instr.textContent = 'Arraste para selecionar a área da assinatura';
 
     document.getElementById('rc-btn-recortar').style.display = 'inline-block';
     document.getElementById('rc-preview-wrap').style.display = 'none';
     document.getElementById('rc-btn-salvar').style.display   = 'none';
-    const sel = document.getElementById('rc-sel');
-    if (sel) { sel.style.display = 'none'; sel.style.width='0'; sel.style.height='0'; }
 
     canvas.onmousedown = e => {
       e.preventDefault();
       const r = canvas.getBoundingClientRect();
+      const scaleCSS = canvas.width / r.width; // escala CSS se houver zoom
       window._rc.dragging = true;
-      window._rc.startX   = e.clientX - r.left;
-      window._rc.startY   = e.clientY - r.top;
+      window._rc.startX   = (e.clientX - r.left) * scaleCSS;
+      window._rc.startY   = (e.clientY - r.top)  * scaleCSS;
       window._rc.sel      = {x: window._rc.startX, y: window._rc.startY, w:0, h:0};
-      const s = document.getElementById('rc-sel');
-      if (s) { s.style.left='0'; s.style.top='0'; s.style.width='0'; s.style.height='0'; s.style.display='block'; }
     };
     canvas.onmousemove = e => {
       if (!window._rc.dragging) return;
       e.preventDefault();
-      const r  = canvas.getBoundingClientRect();
-      const cx = e.clientX - r.left;
-      const cy = e.clientY - r.top;
-      const x  = Math.min(cx, window._rc.startX);
-      const y  = Math.min(cy, window._rc.startY);
-      const w  = Math.abs(cx - window._rc.startX);
-      const h  = Math.abs(cy - window._rc.startY);
-      window._rc.sel = {x, y, w, h};
-      const s = document.getElementById('rc-sel');
-      if (s) { s.style.left=x+'px'; s.style.top=y+'px'; s.style.width=w+'px'; s.style.height=h+'px'; }
+      const r = canvas.getBoundingClientRect();
+      const scaleCSS = canvas.width / r.width;
+      const cx = (e.clientX - r.left) * scaleCSS;
+      const cy = (e.clientY - r.top)  * scaleCSS;
+      window._rc.sel = {
+        x: Math.min(cx, window._rc.startX),
+        y: Math.min(cy, window._rc.startY),
+        w: Math.abs(cx - window._rc.startX),
+        h: Math.abs(cy - window._rc.startY)
+      };
+      redesenhar();
     };
-    canvas.onmouseup = () => { window._rc.dragging = false; };
+    canvas.onmouseup = e => {
+      window._rc.dragging = false;
+      redesenhar();
+    };
   };
 
   if (file.type === 'application/pdf') {
@@ -7119,7 +7183,7 @@ function carregarImagemRecorte() {
     const reader = new FileReader();
     reader.onload = e => {
       const img = new Image();
-      img.onload = () => mostrar(img);
+      img.onload  = () => mostrar(img);
       img.onerror = () => toast('Erro ao carregar imagem');
       img.src = e.target.result;
     };
@@ -7130,19 +7194,21 @@ function carregarImagemRecorte() {
 function executarRecorte() {
   const rc = window._rc;
   if (!rc || !rc.img) { toast('Carregue uma imagem primeiro'); return; }
-  const {sel, scale} = rc;
-  const img = rc.img;
-  if (!sel || sel.w < 5 || sel.h < 5) { toast('Arraste para marcar a area da assinatura'); return; }
+  const sel = rc.sel;
+  if (!sel || sel.w < 5 || sel.h < 5) { toast('Arraste para selecionar a área da assinatura'); return; }
 
-  const W = img.naturalWidth  || img.width;
-  const H = img.naturalHeight || img.height;
+  const img   = rc.img;
+  const scale = rc.scale;
+  const W     = img.naturalWidth  || img.width;
+  const H     = img.naturalHeight || img.height;
 
+  // sel está em coordenadas do canvas escalado → converter para imagem original
   const sx = Math.max(0, Math.round(sel.x / scale));
   const sy = Math.max(0, Math.round(sel.y / scale));
   const sw = Math.min(Math.round(sel.w / scale), W - sx);
   const sh = Math.min(Math.round(sel.h / scale), H - sy);
 
-  if (sw < 5 || sh < 5) { toast('Selecao muito pequena, tente novamente'); return; }
+  if (sw < 5 || sh < 5) { toast('Seleção muito pequena, tente novamente'); return; }
 
   const crop = document.createElement('canvas');
   crop.width  = sw;
@@ -7261,10 +7327,6 @@ function salvarRecorte() {
 
 function salvarAssinaturas() {
   toast('✅ Assinaturas já salvas automaticamente!');
-}
-
-function getAssinatura(cargo) {
-  return localStorage.getItem('assinatura_' + cargo) || '';
 }
 
 // Gerar bloco HTML de assinaturas para impressão
