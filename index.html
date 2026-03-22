@@ -7016,10 +7016,9 @@ function abrirRecorteManual() {
             Carregue uma imagem para começar
           </div>
 
-          <!-- Canvas de seleção -->
-          <div style="position:relative;overflow:hidden;border-radius:4px;border:1px solid var(--border-mid);display:none" id="rc-canvas-wrap">
-            <canvas id="rc-canvas" style="display:block;max-width:100%;cursor:crosshair"></canvas>
-            <div id="rc-sel" style="position:absolute;border:2px solid #1B5EA0;background:rgba(27,94,160,0.12);pointer-events:none;display:none"></div>
+          <div style="position:relative;border-radius:4px;border:1px solid var(--border-mid);display:none;overflow:auto" id="rc-canvas-wrap">
+            <canvas id="rc-canvas" style="display:block;cursor:crosshair;user-select:none"></canvas>
+            <div id="rc-sel" style="position:absolute;border:2px solid #1B5EA0;background:rgba(27,94,160,0.15);pointer-events:none;display:none;box-sizing:border-box"></div>
           </div>
 
           <!-- Preview do recorte -->
@@ -7062,101 +7061,105 @@ function carregarImagemRecorte() {
     const wrap   = document.getElementById('rc-canvas-wrap');
     const canvas = document.getElementById('rc-canvas');
     const ctx    = canvas.getContext('2d');
-    const maxW   = 648;
-    const scale  = imgEl.width > maxW ? maxW / imgEl.width : 1;
-    canvas.width  = Math.round(imgEl.width  * scale);
-    canvas.height = Math.round(imgEl.height * scale);
-    canvas.style.width = canvas.width + 'px';
-    window._rc.canvas = canvas;
-    window._rc.ctx    = ctx;
-    window._rc.scale  = scale;
-    ctx.drawImage(imgEl, 0, 0, canvas.width, canvas.height);
+
     wrap.style.display = 'block';
+    const maxW  = wrap.offsetWidth || 640;
+    const scale = imgEl.naturalWidth > maxW ? maxW / imgEl.naturalWidth : 1;
+
+    canvas.width  = Math.round(imgEl.naturalWidth  * scale);
+    canvas.height = Math.round(imgEl.naturalHeight * scale);
+    canvas.style.width  = canvas.width  + 'px';
+    canvas.style.height = canvas.height + 'px';
+
+    window._rc.scale    = scale;
+    window._rc.sel      = {x:0, y:0, w:0, h:0};
+    window._rc.dragging = false;
+
+    ctx.drawImage(imgEl, 0, 0, canvas.width, canvas.height);
+
     const instr = document.getElementById('rc-instrucao');
-    if (instr) { instr.textContent = '✂️ Arraste para selecionar a área da assinatura'; }
+    if (instr) instr.textContent = 'Arraste sobre a assinatura para selecionar a área';
+
     document.getElementById('rc-btn-recortar').style.display = 'inline-block';
-    // Eventos de arrasto
+    document.getElementById('rc-preview-wrap').style.display = 'none';
+    document.getElementById('rc-btn-salvar').style.display   = 'none';
+    const sel = document.getElementById('rc-sel');
+    if (sel) { sel.style.display = 'none'; sel.style.width='0'; sel.style.height='0'; }
+
     canvas.onmousedown = e => {
       e.preventDefault();
       const r = canvas.getBoundingClientRect();
       window._rc.dragging = true;
-      window._rc.startX = e.clientX - r.left;
-      window._rc.startY = e.clientY - r.top;
-      window._rc.sel = {x: window._rc.startX, y: window._rc.startY, w:0, h:0};
-      const sel = document.getElementById('rc-sel');
-      if (sel) sel.style.display = 'block';
+      window._rc.startX   = e.clientX - r.left;
+      window._rc.startY   = e.clientY - r.top;
+      window._rc.sel      = {x: window._rc.startX, y: window._rc.startY, w:0, h:0};
+      const s = document.getElementById('rc-sel');
+      if (s) { s.style.left='0'; s.style.top='0'; s.style.width='0'; s.style.height='0'; s.style.display='block'; }
     };
     canvas.onmousemove = e => {
       if (!window._rc.dragging) return;
       e.preventDefault();
       const r  = canvas.getBoundingClientRect();
-      const cx = e.clientX - r.left, cy = e.clientY - r.top;
+      const cx = e.clientX - r.left;
+      const cy = e.clientY - r.top;
       const x  = Math.min(cx, window._rc.startX);
       const y  = Math.min(cy, window._rc.startY);
       const w  = Math.abs(cx - window._rc.startX);
       const h  = Math.abs(cy - window._rc.startY);
       window._rc.sel = {x, y, w, h};
-      const sel = document.getElementById('rc-sel');
-      const wr  = document.getElementById('rc-canvas-wrap').getBoundingClientRect();
-      const cr  = canvas.getBoundingClientRect();
-      if (sel) {
-        sel.style.left   = (cr.left - wr.left + x) + 'px';
-        sel.style.top    = (cr.top  - wr.top  + y) + 'px';
-        sel.style.width  = w + 'px';
-        sel.style.height = h + 'px';
-      }
+      const s = document.getElementById('rc-sel');
+      if (s) { s.style.left=x+'px'; s.style.top=y+'px'; s.style.width=w+'px'; s.style.height=h+'px'; }
     };
-    canvas.onmouseup = e => {
-      e.preventDefault();
-      window._rc.dragging = false;
-    };
+    canvas.onmouseup = () => { window._rc.dragging = false; };
   };
 
   if (file.type === 'application/pdf') {
     _pdfParaImagem(file, mostrar);
   } else {
     const reader = new FileReader();
-    reader.onload = e => { const img = new Image(); img.onload = () => mostrar(img); img.src = e.target.result; };
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => mostrar(img);
+      img.onerror = () => toast('Erro ao carregar imagem');
+      img.src = e.target.result;
+    };
     reader.readAsDataURL(file);
   }
 }
 
 function executarRecorte() {
-  const {img, sel, scale} = window._rc;
-  if (!img) { toast('Carregue uma imagem primeiro'); return; }
-  if (!sel || sel.w < 5 || sel.h < 5) { toast('Arraste para marcar a área da assinatura'); return; }
+  const rc = window._rc;
+  if (!rc || !rc.img) { toast('Carregue uma imagem primeiro'); return; }
+  const {sel, scale} = rc;
+  const img = rc.img;
+  if (!sel || sel.w < 5 || sel.h < 5) { toast('Arraste para marcar a area da assinatura'); return; }
 
-  // sel está em coordenadas do canvas (já escalado)
-  // Precisamos converter para coordenadas da imagem original
-  const rx = Math.round(sel.x / scale);
-  const ry = Math.round(sel.y / scale);
-  const rw = Math.round(sel.w / scale);
-  const rh = Math.round(sel.h / scale);
+  const W = img.naturalWidth  || img.width;
+  const H = img.naturalHeight || img.height;
 
-  // Garantir que não sai fora dos limites
-  const sx = Math.max(0, rx);
-  const sy = Math.max(0, ry);
-  const sw = Math.min(rw, img.width  - sx);
-  const sh = Math.min(rh, img.height - sy);
+  const sx = Math.max(0, Math.round(sel.x / scale));
+  const sy = Math.max(0, Math.round(sel.y / scale));
+  const sw = Math.min(Math.round(sel.w / scale), W - sx);
+  const sh = Math.min(Math.round(sel.h / scale), H - sy);
 
-  if (sw < 5 || sh < 5) { toast('Área selecionada muito pequena'); return; }
+  if (sw < 5 || sh < 5) { toast('Selecao muito pequena, tente novamente'); return; }
 
   const crop = document.createElement('canvas');
   crop.width  = sw;
   crop.height = sh;
   crop.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
 
-  window._rc._cropCanvas = crop;
-  const limiar = 200;
-  _aplicarRecorteExtracao(crop, limiar);
+  rc._cropCanvas = crop;
+  _aplicarRecorteExtracao(crop, 200);
 
   document.getElementById('rc-preview-wrap').style.display = 'block';
-  document.getElementById('rc-btn-salvar').style.display = 'inline-block';
-  // Inicializar slider agora que está visível
+  document.getElementById('rc-btn-salvar').style.display   = 'inline-block';
   const sl = document.getElementById('rc-limiar');
-  if (sl) { sl.value = limiar; atualizarSlider(sl); }
-  document.getElementById('rc-limiar-val').textContent = limiar;
+  if (sl) { sl.value = 200; atualizarSlider(sl); }
+  const lv = document.getElementById('rc-limiar-val');
+  if (lv) lv.textContent = '200';
 }
+
 
 function _aplicarRecorteExtracao(srcCanvas, limiar) {
   const canvas = document.createElement('canvas');
@@ -7184,6 +7187,60 @@ function _aplicarRecorteExtracao(srcCanvas, limiar) {
   window._rc.dataURL = url;
   const prev = document.getElementById('rc-preview-img');
   if (prev) prev.src = url;
+}
+
+// ─── PDF → Imagem via PDF.js ──────────────────────────────────
+function _pdfParaImagem(file, callback) {
+  toast('⏳ Convertendo PDF...');
+  const carregar = (cb) => {
+    if (window.pdfjsLib) { cb(); return; }
+    // Tentar cdnjs primeiro, depois jsdelivr
+    const urls = [
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
+      'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js'
+    ];
+    let idx = 0;
+    const tentarCarregar = () => {
+      if (idx >= urls.length) { toast('Erro: não foi possível carregar PDF.js'); return; }
+      const s = document.createElement('script');
+      s.src = urls[idx++];
+      s.onload = () => {
+        const workerUrls = [
+          'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js',
+          'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js'
+        ];
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrls[idx-1] || workerUrls[0];
+        cb();
+      };
+      s.onerror = () => tentarCarregar();
+      document.head.appendChild(s);
+    };
+    tentarCarregar();
+  };
+
+  carregar(() => {
+    const reader = new FileReader();
+    reader.onload = async e => {
+      try {
+        const typedArray = new Uint8Array(e.target.result);
+        const pdf  = await pdfjsLib.getDocument({ data: typedArray }).promise;
+        const page = await pdf.getPage(1);
+        const scale   = 2.5;
+        const viewport = page.getViewport({ scale });
+        const canvas  = document.createElement('canvas');
+        canvas.width  = viewport.width;
+        canvas.height = viewport.height;
+        await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+        const img = new Image();
+        img.onload = () => callback(img);
+        img.src = canvas.toDataURL('image/png');
+      } catch(err) {
+        toast('Erro ao processar PDF: ' + err.message);
+      }
+    };
+    reader.onerror = () => toast('Erro ao ler o arquivo PDF');
+    reader.readAsArrayBuffer(file);
+  });
 }
 
 function reaplicarRecorte() {
