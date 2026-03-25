@@ -1336,6 +1336,16 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
         <div id="comissoes-content"></div>
       </div>
 
+      <!-- ===== LEGISLAÇÃO ===== -->
+      <div class="panel" id="panel-legislacao">
+        <div class="section-header">
+          <div class="section-title">Legislação & Decretos</div>
+          <div class="section-subtitle">Leis, regulamentos e documentos maçônicos</div>
+          <div class="gold-rule"></div>
+        </div>
+        <div id="legislacao-content"></div>
+      </div>
+
       <!-- ===== PERMISSÕES ===== -->
       <!-- RELATÓRIOS -->
       <div class="panel" id="panel-relatorios">
@@ -1558,32 +1568,32 @@ const ROLES = {
   veneravel: {
     label:'Venerável Mestre', icon:'👑', badge:'Venerável',
     initials:'JL', name:'Ir. João da Luz', color:'#B8860B',
-    access:{ dashboard:'full', membros:'full', frequencia:'full', financas:'full', eventos:'full', permissoes:'full', comissoes:'full', 'minha-frequencia':'full', 'meu-financeiro':'full', atas:'full', relatorios:'full' }
+    access:{ dashboard:'full', membros:'full', frequencia:'full', financas:'full', eventos:'full', permissoes:'full', comissoes:'full', legislacao:'full', 'minha-frequencia':'full', 'meu-financeiro':'full', atas:'full', relatorios:'full' }
   },
   secretario: {
     label:'Secretário', icon:'📜', badge:'Secretário',
     initials:'LS', name:'Ir. Luís da Sabedoria', color:'#1E4A7A',
-    access:{ dashboard:'full', membros:'full', frequencia:'full', financas:'read', eventos:'full', permissoes:'none', comissoes:'full', 'minha-frequencia':'full', 'meu-financeiro':'full', atas:'full', relatorios:'full' }
+    access:{ dashboard:'full', membros:'full', frequencia:'full', financas:'read', eventos:'full', permissoes:'none', comissoes:'full', legislacao:'full', 'minha-frequencia':'full', 'meu-financeiro':'full', atas:'full', relatorios:'full' }
   },
   tesoureiro: {
     label:'Tesoureiro', icon:'⚖️', badge:'Tesoureiro',
     initials:'RP', name:'Ir. Rafael da Paz', color:'#7A4A00',
-    access:{ dashboard:'full', membros:'read', frequencia:'read', financas:'full', eventos:'read', permissoes:'none', comissoes:'read', 'minha-frequencia':'full', 'meu-financeiro':'full', atas:'full', relatorios:'full' }
+    access:{ dashboard:'full', membros:'read', frequencia:'read', financas:'full', eventos:'read', permissoes:'none', comissoes:'read', legislacao:'read', 'minha-frequencia':'full', 'meu-financeiro':'full', atas:'full', relatorios:'full' }
   },
   chanceler: {
     label:'Chanceler', icon:'🗂️', badge:'Chanceler',
     initials:'FO', name:'Ir. Fernando da Ordem', color:'#4A3A7A',
-    access:{ dashboard:'full', membros:'full', frequencia:'full', financas:'none', eventos:'read', permissoes:'none', comissoes:'full', 'minha-frequencia':'full', 'meu-financeiro':'full', atas:'full', relatorios:'full' }
+    access:{ dashboard:'full', membros:'full', frequencia:'full', financas:'none', eventos:'read', permissoes:'none', comissoes:'full', legislacao:'read', 'minha-frequencia':'full', 'meu-financeiro':'full', atas:'full', relatorios:'full' }
   },
   irmao: {
     label:'Irmão', icon:'🔵', badge:'Irmão',
     initials:'AE', name:'Ir. André da Esperança', color:'#1A5C8A',
-    access:{ dashboard:'read', membros:'read', frequencia:'read', financas:'none', eventos:'read', permissoes:'none', comissoes:'read', 'minha-frequencia':'full', 'meu-financeiro':'full', atas:'full', relatorios:'none' }
+    access:{ dashboard:'read', membros:'read', frequencia:'read', financas:'none', eventos:'read', permissoes:'none', comissoes:'read', legislacao:'read', 'minha-frequencia':'full', 'meu-financeiro':'full', atas:'full', relatorios:'none' }
   },
   admin: {
     label:'Administrador', icon:'🏛️', badge:'Admin',
     initials:'MF', name:'Ir. Marcos da Força', color:'#3A7A4A',
-    access:{ dashboard:'full', membros:'full', frequencia:'full', financas:'full', eventos:'full', permissoes:'full', comissoes:'full', 'minha-frequencia':'full', 'meu-financeiro':'full', atas:'full', relatorios:'full' }
+    access:{ dashboard:'full', membros:'full', frequencia:'full', financas:'full', eventos:'full', permissoes:'full', comissoes:'full', legislacao:'full', 'minha-frequencia':'full', 'meu-financeiro':'full', atas:'full', relatorios:'full' }
   }
 };
 
@@ -1599,6 +1609,7 @@ const NAV_ITEMS = [
   { id:'comissoes', label:'Comissões', icon:`<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke-width="1.5"/><circle cx="9" cy="7" r="4" stroke-width="1.5"/><path d="M23 21v-2a4 4 0 00-3-3.87" stroke-width="1.5"/><path d="M16 3.13a4 4 0 010 7.75" stroke-width="1.5"/>` },
   { id:'relatorios', label:'Relatórios', icon:`<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke-width="1.5"/><polyline points="14,2 14,8 20,8" stroke-width="1.5"/><line x1="16" y1="13" x2="8" y2="13" stroke-width="1.5"/><line x1="16" y1="17" x2="8" y2="17" stroke-width="1.5"/><polyline points="10,9 9,9 8,9" stroke-width="1.5"/>`, hideFor:['irmao'] },
   { id:'atas', label:'Atas & Eventos', icon:`<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke-width="1.5"/><polyline points="14,2 14,8 20,8" stroke-width="1.5"/>`, section:'pessoal' },
+  { id:'legislacao', label:'Legislação', icon:`<path d="M12 2L2 7l10 5 10-5-10-5z" stroke-width="1.5"/><path d="M2 17l10 5 10-5" stroke-width="1.5"/><path d="M2 12l10 5 10-5" stroke-width="1.5"/>`, section:'pessoal' },
   { id:'minha-frequencia', label:'Minha Frequência', icon:`<circle cx="12" cy="12" r="10" stroke-width="1.5"/><polyline points="12,6 12,12 16,14" stroke-width="1.5"/>`, section:'pessoal' },
   { id:'meu-financeiro', label:'Meu Financeiro', icon:`<rect x="2" y="5" width="20" height="14" rx="2" stroke-width="1.5"/><line x1="2" y1="10" x2="22" y2="10" stroke-width="1.5"/>`, section:'pessoal' },
   { id:'permissoes', label:'Permissões', icon:`<rect x="3" y="11" width="18" height="11" rx="2" stroke-width="1.5"/><path d="M7 11V7a5 5 0 0110 0v4" stroke-width="1.5"/>`, adminOnly:true, section:'sistema' },
@@ -1608,33 +1619,35 @@ const PANEL_TITLES = {
   dashboard:'Painel Geral', membros:'Membros / Irmãos',
   frequencia:'Frequência / Presenças', financas:'Finanças / Tesouraria',
   eventos:'Sessão / Convites', permissoes:'Gestão de Permissões',
-  comissoes:'Comissões da Loja',
+  comissoes:'Comissões da Loja', legislacao:'Legislação & Decretos',
   'minha-frequencia':'Minha Frequência', 'meu-financeiro':'Meu Financeiro', atas:'Atas & Eventos', relatorios:'Relatórios'
 };
 
 // ===================== DATA CACHE =====================
-let DATA = { membros: [], sessoes: [], presencas: [], financas: [], eventos: [], visitantes: [], atas: [], comissoes: [] };
+let DATA = { membros: [], sessoes: [], presencas: [], financas: [], eventos: [], visitantes: [], atas: [], comissoes: [], legislacao: [] };
 
 async function loadAllData() {
   try {
     const timeout = (ms) => new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms));
     const ft = (p) => Promise.race([p, timeout(8000)]);
 
-    const [m, s, p, f, e, c] = await Promise.allSettled([
+    const [m, s, p, f, e, c, leg] = await Promise.allSettled([
       ft(sb.from('membros').select('*').order('numero_sequencial')),
       ft(sb.from('sessoes').select('*').order('data', {ascending:false})),
       ft(sb.from('presencas').select('*')),
       ft(sb.from('financas').select('*').order('data', {ascending:false})),
       ft(sb.from('eventos').select('*').order('data')),
-      ft(sb.from('comissoes').select('*').order('data_criacao', {ascending:false}))
+      ft(sb.from('comissoes').select('*').order('data_criacao', {ascending:false})),
+      ft(sb.from('legislacao').select('*').order('ano', {ascending:false}))
     ]);
 
-    if (m.status==='fulfilled' && m.value?.data) DATA.membros   = m.value.data;
-    if (s.status==='fulfilled' && s.value?.data) DATA.sessoes   = s.value.data;
-    if (p.status==='fulfilled' && p.value?.data) DATA.presencas = p.value.data;
-    if (f.status==='fulfilled' && f.value?.data) DATA.financas  = f.value.data;
-    if (e.status==='fulfilled' && e.value?.data) DATA.eventos   = e.value.data;
-    if (c.status==='fulfilled' && c.value?.data) DATA.comissoes = _parseComissoes(c.value.data);
+    if (m.status==='fulfilled' && m.value?.data) DATA.membros    = m.value.data;
+    if (s.status==='fulfilled' && s.value?.data) DATA.sessoes    = s.value.data;
+    if (p.status==='fulfilled' && p.value?.data) DATA.presencas  = p.value.data;
+    if (f.status==='fulfilled' && f.value?.data) DATA.financas   = f.value.data;
+    if (e.status==='fulfilled' && e.value?.data) DATA.eventos    = e.value.data;
+    if (c.status==='fulfilled' && c.value?.data) DATA.comissoes  = _parseComissoes(c.value.data);
+    if (leg.status==='fulfilled' && leg.value?.data) DATA.legislacao = leg.value.data;
 
     reRenderActive();
     renderDashboard();
@@ -1652,6 +1665,7 @@ function reRenderActive() {
   if (id==="financas") { verificarAgendadosVencidos().then(()=>renderFinancas(access)); return; }
   if (id==='eventos') renderEventos(access);
   if (id==='comissoes') renderComissoes(access);
+  if (id==='legislacao') renderLegislacao(access);
   if (id==='minha-frequencia') renderMinhaFrequencia();
   if (id==='meu-financeiro') renderMeuFinanceiro();
   if (id==='atas') renderAtas();
@@ -1796,6 +1810,7 @@ function showPanel(id) {
   if (id==="financas") { verificarAgendadosVencidos().then(()=>renderFinancas(access)); return; }
   if (id==='eventos') renderEventos(access);
   if (id==='comissoes') renderComissoes(access);
+  if (id==='legislacao') renderLegislacao(access);
   if (id==='minha-frequencia') renderMinhaFrequencia();
   if (id==='meu-financeiro') renderMeuFinanceiro();
   if (id==='atas') renderAtas();
@@ -6503,6 +6518,243 @@ async function salvarPagamentoMembro(membroId) {
 // ===================== RELATÓRIOS =====================
 // ===================== COMISSÕES =====================
 // Armazenamento local (localStorage) até criar tabela no Supabase
+// ─── LEGISLAÇÃO & DECRETOS ───────────────────────────────────
+const CATEGORIAS_LEG = ['Lei', 'Decreto', 'RGF', 'Regimento', 'Circular', 'Portaria', 'Outro'];
+
+function renderLegislacao(access) {
+  const el = document.getElementById('legislacao-content');
+  if (!el) return;
+  const canEdit = access === 'full';
+  const docs = DATA.legislacao || [];
+
+  el.innerHTML = `
+    <!-- Toolbar -->
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:18px">
+      <div style="flex:1;min-width:200px;position:relative">
+        <svg style="position:absolute;left:12px;top:50%;transform:translateY(-50%);opacity:0.4;pointer-events:none" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--navy)" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input id="leg-busca" type="text" placeholder="Pesquisar documento..."
+          oninput="filtrarLegislacao()"
+          style="width:100%;padding:9px 12px 9px 36px;border:1px solid var(--border-mid);border-radius:4px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--white);color:var(--text)">
+      </div>
+      ${canEdit ? `<button class="btn btn-solid" onclick="abrirModalLegislacao(null)" style="white-space:nowrap;padding:9px 18px">+ Novo Documento</button>` : ''}
+    </div>
+
+    <!-- Filtros por categoria -->
+    <div id="leg-filtros" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px">
+      ${['Todos','Lei','Decreto','RGF','Regimento','Circular','Portaria','Outro'].map((cat,i) =>
+        `<button onclick="filtrarLegislacao('${cat}')" data-cat="${cat}"
+          class="leg-filtro-btn ${i===0?'ativo':''}"
+          style="padding:5px 14px;border-radius:20px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.08em;cursor:pointer;border:1px solid ${i===0?'var(--navy)':'var(--border-mid)'};background:${i===0?'rgba(27,58,107,0.1)':'transparent'};color:${i===0?'var(--navy)':'var(--text-muted)'};transition:all 0.15s">${cat.toUpperCase()}</button>`
+      ).join('')}
+    </div>
+
+    <!-- Grid de cards -->
+    <div id="leg-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">
+      ${docs.length === 0 ? _legVazio(canEdit) : docs.map(d => _legCard(d, canEdit)).join('')}
+    </div>`;
+
+  // Guardar estado dos filtros
+  window._legFiltroAtivo = 'Todos';
+}
+
+function _legVazio(canEdit) {
+  return `<div style="grid-column:1/-1;text-align:center;padding:48px 20px;color:var(--text-muted)">
+    <div style="font-size:40px;margin-bottom:12px;opacity:0.3">📚</div>
+    <div style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;letter-spacing:0.1em;margin-bottom:6px">NENHUM DOCUMENTO CADASTRADO</div>
+    <div style="font-size:13px;font-style:italic">${canEdit ? 'Clique em "+ Novo Documento" para adicionar.' : 'Aguarde o administrador adicionar documentos.'}</div>
+  </div>`;
+}
+
+function _legCard(d, canEdit) {
+  const isPDF = (d.url_arquivo || '').toLowerCase().includes('.pdf') || d.url_arquivo;
+  const isExterno = !!d.url_externa;
+  const url = d.url_arquivo || d.url_externa || '#';
+  const iconeType = isExterno ? '🌐' : '📄';
+  const catCor = {
+    'Lei':'#1B5EA0', 'Decreto':'#6B3A8A', 'RGF':'#1B6B3A',
+    'Regimento':'#8A3A1B', 'Circular':'#8A6B1B', 'Portaria':'#3A6B8A', 'Outro':'#5A5A5A'
+  }[d.categoria] || '#5A5A5A';
+
+  return `<div class="leg-card" data-titulo="${(d.titulo||'').toLowerCase()}" data-cat="${d.categoria||'Outro'}"
+    style="background:var(--white);border:1px solid var(--border-mid);border-radius:8px;overflow:hidden;display:flex;flex-direction:column;transition:box-shadow 0.15s"
+    onmouseover="this.style.boxShadow='0 4px 16px rgba(27,58,107,0.12)'" onmouseout="this.style.boxShadow='none'">
+    <!-- Topo colorido com ícone -->
+    <div style="background:rgba(27,58,107,0.04);border-bottom:1px solid var(--border);padding:16px 18px;display:flex;align-items:flex-start;gap:14px">
+      <div style="width:42px;height:42px;border-radius:6px;background:${catCor}18;border:1px solid ${catCor}30;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">${iconeType}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:var(--text);line-height:1.4;margin-bottom:6px;word-break:break-word">${d.titulo||'Sem título'}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+          <span style="background:${catCor}18;color:${catCor};border:1px solid ${catCor}30;border-radius:20px;padding:2px 10px;font-family:'Cinzel',serif;font-size:8px;font-weight:700;letter-spacing:0.08em">${d.categoria||'Outro'}</span>
+          ${d.ano ? `<span style="font-size:11px;color:var(--text-muted);font-style:italic">${d.ano}</span>` : ''}
+          ${isExterno ? `<span style="font-size:10px;color:#1B5EA0;font-family:'Cinzel',serif">🌐 Link externo</span>` : `<span style="font-size:10px;color:#1B6B3A;font-family:'Cinzel',serif">📎 Arquivo</span>`}
+        </div>
+      </div>
+    </div>
+    <!-- Rodapé com ações -->
+    <div style="padding:10px 18px;display:flex;gap:8px;align-items:center;margin-top:auto">
+      <a href="${url}" target="_blank" rel="noopener"
+        style="flex:1;text-align:center;padding:7px;background:var(--navy);color:var(--gold-pale);border-radius:4px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.08em;text-decoration:none;transition:opacity 0.15s"
+        onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+        ${isExterno ? '🌐 ACESSAR LINK' : '📥 ABRIR DOCUMENTO'}
+      </a>
+      ${canEdit ? `
+      <button onclick="abrirModalLegislacao('${d.id}')" title="Editar"
+        style="padding:7px 10px;border:1px solid var(--border-mid);border-radius:4px;background:none;cursor:pointer;font-size:13px;color:var(--text-muted)">✏️</button>
+      <button onclick="excluirLegislacao('${d.id}','${(d.titulo||'').replace(/'/g,"\\'")}')" title="Excluir"
+        style="padding:7px 10px;border:1px solid rgba(139,32,32,0.25);border-radius:4px;background:none;cursor:pointer;font-size:13px;color:var(--red)">🗑️</button>` : ''}
+    </div>
+  </div>`;
+}
+
+function filtrarLegislacao(cat) {
+  if (cat) window._legFiltroAtivo = cat;
+  const filtroAtivo = window._legFiltroAtivo || 'Todos';
+  const busca = (document.getElementById('leg-busca')?.value || '').toLowerCase();
+
+  // Atualizar visual dos botões
+  document.querySelectorAll('.leg-filtro-btn').forEach(btn => {
+    const isAtivo = btn.dataset.cat === filtroAtivo;
+    btn.style.border = isAtivo ? '1px solid var(--navy)' : '1px solid var(--border-mid)';
+    btn.style.background = isAtivo ? 'rgba(27,58,107,0.1)' : 'transparent';
+    btn.style.color = isAtivo ? 'var(--navy)' : 'var(--text-muted)';
+  });
+
+  // Filtrar cards
+  const docs = DATA.legislacao || [];
+  const filtrados = docs.filter(d => {
+    const matchCat = filtroAtivo === 'Todos' || d.categoria === filtroAtivo;
+    const matchBusca = !busca || (d.titulo||'').toLowerCase().includes(busca) || (d.categoria||'').toLowerCase().includes(busca) || String(d.ano||'').includes(busca);
+    return matchCat && matchBusca;
+  });
+  const canEdit = ROLES[currentRole]?.access['legislacao'] === 'full';
+  const grid = document.getElementById('leg-grid');
+  if (grid) grid.innerHTML = filtrados.length ? filtrados.map(d => _legCard(d, canEdit)).join('') : _legVazio(canEdit);
+}
+
+function abrirModalLegislacao(id) {
+  const d = id ? (DATA.legislacao||[]).find(x => x.id === id) : null;
+  const cats = CATEGORIAS_LEG.map(c => `<option value="${c}" ${d?.categoria===c?'selected':''}>${c}</option>`).join('');
+  const lb = (t, req='') => `<label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">${t}${req?` <span style="color:var(--red)">${req}</span>`:''}</label>`;
+  const inp = `style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:9px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"`;
+
+  document.body.insertAdjacentHTML('beforeend', `
+    <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px">
+      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:8px;width:520px;max-height:90vh;overflow-y:auto;position:relative">
+        <div style="height:3px;background:linear-gradient(90deg,var(--gold-dark),var(--gold-rich),var(--gold-light),var(--gold-dark));border-radius:8px 8px 0 0"></div>
+        <div style="padding:24px 28px">
+          <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);margin-bottom:20px">
+            ${d ? '✏️ Editar Documento' : '📚 Novo Documento'}
+          </div>
+          <div style="display:grid;gap:14px">
+            <div>${lb('Título','*')}<input id="leg-titulo" ${inp} value="${d?.titulo||''}" placeholder="Ex: Regulamento Geral da Maçonaria"></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div>${lb('Categoria','*')}<select id="leg-cat" ${inp}>${cats}</select></div>
+              <div>${lb('Ano')}<input id="leg-ano" type="number" ${inp} value="${d?.ano||new Date().getFullYear()}" min="1700" max="2100" placeholder="${new Date().getFullYear()}"></div>
+            </div>
+            <!-- Toggle tipo -->
+            <div>
+              ${lb('Tipo de documento')}
+              <div style="display:flex;border:1px solid var(--border-mid);border-radius:4px;overflow:hidden">
+                <button type="button" id="leg-btn-arquivo" onclick="legToggleTipo('arquivo')"
+                  style="flex:1;padding:9px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.08em;cursor:pointer;border:none;background:${!d?.url_externa?'rgba(27,58,107,0.12)':'transparent'};color:${!d?.url_externa?'var(--navy)':'var(--text-muted)'};border-right:1px solid var(--border-mid)">
+                  📎 Subir Arquivo (PDF)</button>
+                <button type="button" id="leg-btn-link" onclick="legToggleTipo('link')"
+                  style="flex:1;padding:9px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.08em;cursor:pointer;border:none;background:${d?.url_externa?'rgba(27,58,107,0.12)':'transparent'};color:${d?.url_externa?'var(--navy)':'var(--text-muted)'}">
+                  🌐 Colar Link Externo</button>
+              </div>
+            </div>
+            <div id="leg-campo-arquivo" style="display:${d?.url_externa?'none':'block'}">
+              ${lb('Arquivo PDF')}
+              <input type="file" id="leg-file" accept=".pdf,.doc,.docx" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:9px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--cream);cursor:pointer">
+              ${d?.url_arquivo ? `<div style="margin-top:6px;font-size:12px;color:var(--green)">✓ Arquivo atual: <a href="${d.url_arquivo}" target="_blank" style="color:var(--navy)">ver documento</a></div>` : ''}
+            </div>
+            <div id="leg-campo-link" style="display:${d?.url_externa?'block':'none'}">
+              ${lb('URL Externa')}
+              <input id="leg-link" ${inp} type="url" value="${d?.url_externa||''}" placeholder="https://gov.br/decreto/...">
+            </div>
+          </div>
+        </div>
+        <div style="padding:14px 28px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+          <button class="btn" onclick="fecharModal()" style="padding:8px 20px">Cancelar</button>
+          <button class="btn btn-solid" onclick="salvarLegislacao('${id||''}')" style="padding:8px 24px">💾 Salvar Documento</button>
+        </div>
+      </div>
+    </div>`);
+}
+
+function legToggleTipo(tipo) {
+  const isArquivo = tipo === 'arquivo';
+  document.getElementById('leg-campo-arquivo').style.display = isArquivo ? 'block' : 'none';
+  document.getElementById('leg-campo-link').style.display    = isArquivo ? 'none' : 'block';
+  const btnA = document.getElementById('leg-btn-arquivo');
+  const btnL = document.getElementById('leg-btn-link');
+  btnA.style.background = isArquivo ? 'rgba(27,58,107,0.12)' : 'transparent';
+  btnA.style.color      = isArquivo ? 'var(--navy)' : 'var(--text-muted)';
+  btnL.style.background = isArquivo ? 'transparent' : 'rgba(27,58,107,0.12)';
+  btnL.style.color      = isArquivo ? 'var(--text-muted)' : 'var(--navy)';
+}
+
+async function salvarLegislacao(id) {
+  const titulo = document.getElementById('leg-titulo')?.value.trim();
+  const categoria = document.getElementById('leg-cat')?.value;
+  const ano = parseInt(document.getElementById('leg-ano')?.value) || null;
+  const file = document.getElementById('leg-file')?.files?.[0];
+  const linkExt = document.getElementById('leg-link')?.value.trim();
+  const usaArquivo = document.getElementById('leg-campo-arquivo')?.style.display !== 'none';
+
+  if (!titulo || !categoria) { toast('Preencha título e categoria'); return; }
+  if (usaArquivo && !file && !id) { toast('Selecione um arquivo ou escolha "Link Externo"'); return; }
+  if (!usaArquivo && !linkExt) { toast('Informe o link externo'); return; }
+
+  toast('⏳ Salvando...');
+
+  let url_arquivo = null;
+  let url_externa = usaArquivo ? null : linkExt;
+
+  // Upload para Supabase Storage se houver arquivo
+  if (usaArquivo && file) {
+    const nomeArq = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
+    const { data: upData, error: upErr } = await sb.storage.from('documentos').upload(nomeArq, file, { upsert: true });
+    if (upErr) { toast('Erro no upload: ' + upErr.message); return; }
+    const { data: urlData } = sb.storage.from('documentos').getPublicUrl(nomeArq);
+    url_arquivo = urlData?.publicUrl || null;
+  } else if (id) {
+    // Manter arquivo existente ao editar sem novo upload
+    const existing = DATA.legislacao.find(x => x.id === id);
+    if (existing?.url_arquivo) url_arquivo = existing.url_arquivo;
+  }
+
+  const dados = { titulo, categoria, ano, url_arquivo, url_externa };
+  let res;
+  if (id) res = await sb.from('legislacao').update(dados).eq('id', id);
+  else     res = await sb.from('legislacao').insert(dados);
+
+  if (res.error) { toast('Erro: ' + res.error.message); return; }
+  toast('✅ Documento salvo com sucesso!');
+  fecharModal();
+  // Recarregar
+  const { data } = await sb.from('legislacao').select('*').order('ano', { ascending: false });
+  DATA.legislacao = data || [];
+  renderLegislacao(ROLES[currentRole].access['legislacao'] || 'read');
+}
+
+async function excluirLegislacao(id, titulo) {
+  if (!confirm(`Excluir "${titulo}"?`)) return;
+  const doc = DATA.legislacao.find(x => x.id === id);
+  // Remover do Storage se tiver arquivo
+  if (doc?.url_arquivo) {
+    const nome = doc.url_arquivo.split('/').pop();
+    await sb.storage.from('documentos').remove([nome]);
+  }
+  const res = await sb.from('legislacao').delete().eq('id', id);
+  if (res.error) { toast('Erro: ' + res.error.message); return; }
+  toast('🗑️ Documento excluído');
+  DATA.legislacao = DATA.legislacao.filter(x => x.id !== id);
+  renderLegislacao(ROLES[currentRole].access['legislacao'] || 'read');
+}
+
 // ─── COMISSÕES — Supabase ─────────────────────────────────────
 // Migração: comissões agora salvas no Supabase (tabela 'comissoes')
 // Migra dados antigos do localStorage automaticamente na primeira carga
