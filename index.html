@@ -6697,44 +6697,76 @@ function legToggleTipo(tipo) {
 }
 
 async function salvarLegislacao(id) {
-  const titulo = document.getElementById('leg-titulo')?.value.trim();
+  const titulo    = document.getElementById('leg-titulo')?.value.trim();
   const categoria = document.getElementById('leg-cat')?.value;
-  const ano = parseInt(document.getElementById('leg-ano')?.value) || null;
-  const file = document.getElementById('leg-file')?.files?.[0];
-  const linkExt = document.getElementById('leg-link')?.value.trim();
+  const ano       = parseInt(document.getElementById('leg-ano')?.value) || null;
+  const file      = document.getElementById('leg-file')?.files?.[0];
+  const linkExt   = document.getElementById('leg-link')?.value.trim();
   const usaArquivo = document.getElementById('leg-campo-arquivo')?.style.display !== 'none';
 
   if (!titulo || !categoria) { toast('Preencha título e categoria'); return; }
   if (usaArquivo && !file && !id) { toast('Selecione um arquivo ou escolha "Link Externo"'); return; }
   if (!usaArquivo && !linkExt) { toast('Informe o link externo'); return; }
 
-  toast('⏳ Salvando...');
-
   let url_arquivo = null;
   let url_externa = usaArquivo ? null : linkExt;
 
-  // Upload para Supabase Storage se houver arquivo
   if (usaArquivo && file) {
-    const nomeArq = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
-    const { data: upData, error: upErr } = await sb.storage.from('documentos').upload(nomeArq, file, { upsert: true });
-    if (upErr) { toast('Erro no upload: ' + upErr.message); return; }
-    const { data: urlData } = sb.storage.from('documentos').getPublicUrl(nomeArq);
-    url_arquivo = urlData?.publicUrl || null;
+    // Mostrar progresso
+    const btnSalvar = document.querySelector('[onclick*="salvarLegislacao"]');
+    if (btnSalvar) btnSalvar.textContent = '⏳ Enviando arquivo...';
+
+    // Sanitizar nome do arquivo
+    const ext     = file.name.split('.').pop().toLowerCase();
+    const nomeArq = `legislacao/${Date.now()}.${ext}`;
+
+    // Tentar bucket 'documentos' primeiro, fallback para 'atas-arquivos'
+    let upErr = null, publicUrl = null;
+
+    for (const bucket of ['documentos', 'atas-arquivos']) {
+      const { error } = await sb.storage.from(bucket).upload(nomeArq, file, {
+        upsert: true,
+        contentType: file.type || 'application/octet-stream'
+      });
+      if (!error) {
+        const { data: urlData } = sb.storage.from(bucket).getPublicUrl(nomeArq);
+        publicUrl = urlData?.publicUrl || null;
+        upErr = null;
+        break;
+      }
+      upErr = error;
+    }
+
+    if (upErr || !publicUrl) {
+      const msg = upErr?.message || 'Bucket não encontrado';
+      // Diagnóstico específico
+      if (msg.includes('row-level') || msg.includes('policy') || msg.includes('not authorized') || msg.includes('403')) {
+        toast('❌ Permissão negada no Storage. Verifique as políticas do bucket no Supabase (Storage → Policies → INSERT).');
+      } else if (msg.includes('not found') || msg.includes('404') || msg.includes('Bucket')) {
+        toast('❌ Bucket não encontrado. Crie o bucket "documentos" em Storage no Supabase.');
+      } else {
+        toast('❌ Erro no upload: ' + msg);
+      }
+      if (btnSalvar) btnSalvar.textContent = '💾 Salvar Documento';
+      return;
+    }
+    url_arquivo = publicUrl;
+    if (btnSalvar) btnSalvar.textContent = '💾 Salvar Documento';
+
   } else if (id) {
-    // Manter arquivo existente ao editar sem novo upload
     const existing = DATA.legislacao.find(x => x.id === id);
     if (existing?.url_arquivo) url_arquivo = existing.url_arquivo;
   }
 
   const dados = { titulo, categoria, ano, url_arquivo, url_externa };
   let res;
-  if (id) res = await sb.from('legislacao').update(dados).eq('id', id);
-  else     res = await sb.from('legislacao').insert(dados);
+  if (id && id !== '') res = await sb.from('legislacao').update(dados).eq('id', id);
+  else                  res = await sb.from('legislacao').insert(dados);
 
-  if (res.error) { toast('Erro: ' + res.error.message); return; }
+  if (res.error) { toast('❌ Erro ao salvar: ' + res.error.message); return; }
+
   toast('✅ Documento salvo com sucesso!');
   fecharModal();
-  // Recarregar
   const { data } = await sb.from('legislacao').select('*').order('ano', { ascending: false });
   DATA.legislacao = data || [];
   renderLegislacao(ROLES[currentRole].access['legislacao'] || 'read');
