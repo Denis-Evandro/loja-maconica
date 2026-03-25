@@ -2950,11 +2950,56 @@ function abrirFichaMembro(m) {
   const grauLabel = {1:'1º — Aprendiz', 2:'2º — Companheiro', 3:'3º — Mestre'};
   const statusLabel = {ativo:'✅ Ativo', inativo:'❌ Inativo', licenciado:'⏸️ Licenciado', iniciado:'🔵 Recém Iniciado'};
   const hist = JSON.parse(m._historico||'[]');
-  const fam = JSON.parse(m._familiares||'[]');
+  const fam  = JSON.parse(m._familiares||'[]');
   const campo = (label, val) => val ? `<div style="margin-bottom:10px">
     <div style="font-family:'Cinzel',serif;font-size:8px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;margin-bottom:2px">${label}</div>
     <div style="font-size:13px;color:var(--text)">${val}</div>
   </div>` : '';
+
+  // ── Regra de visibilidade ──────────────────────────────────
+  // Acesso completo: veneravel, secretario, chanceler, admin
+  // Acesso completo também: o próprio membro (verificado pelo nome)
+  const rolesCompleto = ['veneravel','secretario','chanceler','admin'];
+  const ehProprioMembro = ROLES[currentRole]?.name === m.nome_maconico || ROLES[currentRole]?.name === m.nome_civil;
+  const verCompleto = rolesCompleto.includes(currentRole) || ehProprioMembro;
+
+  // ─ Bloco de dados: completo ou restrito ──────────────────
+  const dadosCompletos = `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 24px">
+      ${campo('CIM / Doc. Maçônico', m.cim)}
+      ${campo('CPF', m.cpf)}
+      ${campo('RG', m.rg)}
+      ${campo('Data de Nascimento', fmtData(m.data_nascimento))}
+      ${campo('Data de Ingresso', fmtData(m.data_ingresso))}
+      ${campo('Mestre Instalado', m.mestre_instalado?'Sim':'Não')}
+      ${campo('E-mail', m.email)}
+      ${campo('Telefone', m.telefone)}
+      ${campo('Nome de Tratamento', m.apelido)}
+      ${campo('Mensalidade', m.tipo_membro==='visitante'?'Sem mensalidade':m.mensalidade?`R$ ${m.mensalidade}`:null)}
+      ${campo('Loja de Origem', m.loja_origem)}
+    </div>
+    ${(m.endereco||m.cidade)?`<div style="border-top:1px solid var(--border);margin-top:12px;padding-top:14px">
+      <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--text-muted);text-transform:uppercase;margin-bottom:10px">Endereço</div>
+      <div style="font-size:13px;color:var(--text)">${[m.endereco,m.numero,m.complemento].filter(Boolean).join(', ')}${m.cidade?` — ${m.cidade}/${m.estado}`:''}</div>
+    </div>`:''}`;
+
+  const dadosRestritos = `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 24px">
+      ${campo('CIM / Doc. Maçônico', m.cim)}
+      ${campo('Data de Nascimento', fmtData(m.data_nascimento))}
+      ${campo('E-mail', m.email)}
+      ${campo('Telefone', m.telefone)}
+    </div>
+    <div style="margin-top:10px;padding:8px 12px;background:rgba(27,58,107,0.04);border:1px solid rgba(27,58,107,0.12);border-radius:4px;font-size:11px;color:var(--text-muted);font-style:italic">
+      🔒 Dados completos disponíveis apenas para Venerável, Secretário e Chanceler.
+    </div>`;
+
+  const painelDados = verCompleto ? dadosCompletos : dadosRestritos;
+
+  // Abas: completo mostra todas, restrito só mostra Dados
+  const abas = verCompleto
+    ? ['dados','historico','familiares'].map((ab,i) => ({ id:ab, label:['Dados','Histórico','Familiares'][i], ativo:i===0 }))
+    : [{ id:'dados', label:'Dados', ativo:true }];
 
   document.body.insertAdjacentHTML('beforeend', `
     <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px">
@@ -2979,54 +3024,36 @@ function abrirFichaMembro(m) {
           <button onclick="fecharModal()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--text-muted);padding:0">✕</button>
         </div>
 
-        <!-- Abas de visualização -->
+        <!-- Abas -->
         <div style="padding:16px 28px 0;border-bottom:2px solid var(--border);display:flex;gap:0">
-          ${['dados','historico','familiares'].map((ab,i)=>
-            `<button onclick="switchTabMembro('${ab}')" id="tab-${ab}"
-              style="padding:8px 18px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;border:none;cursor:pointer;background:transparent;color:${i===0?'var(--gold-dark)':'var(--text-muted)'};border-bottom:${i===0?'2px solid var(--gold-dark)':'2px solid transparent'};margin-bottom:-2px">
-              ${['Dados','Histórico','Familiares'][i]}</button>`
-          ).join('')}
+          ${abas.map(ab => `
+            <button onclick="switchTabMembro('${ab.id}')" id="tab-${ab.id}"
+              style="padding:8px 18px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;border:none;cursor:pointer;background:transparent;color:${ab.ativo?'var(--gold-dark)':'var(--text-muted)'};border-bottom:${ab.ativo?'2px solid var(--gold-dark)':'2px solid transparent'};margin-bottom:-2px">
+              ${ab.label}</button>`).join('')}
         </div>
 
         <div id="tab-content-membro" style="padding:22px 28px 28px">
 
-          <div id="tabpanel-dados">
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 24px">
-              ${campo('CIM / Doc. Maçônico', m.cim)}
-              ${campo('CPF', m.cpf)}
-              ${campo('RG', m.rg)}
-              ${campo('Data de Nascimento', fmtData(m.data_nascimento))}
-              ${campo('Data de Ingresso', fmtData(m.data_ingresso))}
-              ${campo('Mestre Instalado', m.mestre_instalado?'Sim':'Não')}
-              ${campo('E-mail', m.email)}
-              ${campo('Telefone', m.telefone)}
-              ${campo('Nome de Tratamento', m.apelido)}
-              ${campo('Mensalidade', m.tipo_membro==='visitante'?'Sem mensalidade':m.mensalidade?`R$ ${m.mensalidade}`:null)}
-              ${campo('Loja de Origem', m.loja_origem)}
-            </div>
-            ${(m.endereco||m.cidade)?`<div style="border-top:1px solid var(--border);margin-top:12px;padding-top:14px">
-              <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--text-muted);text-transform:uppercase;margin-bottom:10px">Endereço</div>
-              <div style="font-size:13px;color:var(--text)">${[m.endereco,m.numero,m.complemento].filter(Boolean).join(', ')}${m.cidade?` — ${m.cidade}/${m.estado}`:''}</div>
-            </div>`:''}
-          </div>
+          <div id="tabpanel-dados">${painelDados}</div>
 
+          ${verCompleto ? `
           <div id="tabpanel-historico" style="display:none">
             ${hist.length?`<table><thead><tr><th>Tipo</th><th>Título</th><th>Data</th><th>Obs.</th></tr></thead><tbody>${
               hist.map(h=>`<tr><td>${h.tipo}</td><td>${h.titulo}</td><td>${fmtData(h.data)}</td><td style="font-size:11px;color:var(--text-muted)">${h.obs||'—'}</td></tr>`).join('')
             }</tbody></table>` : '<div style="font-style:italic;color:var(--text-muted);font-size:13px">Nenhum registro histórico.</div>'}
           </div>
-
           <div id="tabpanel-familiares" style="display:none">
             ${fam.length?`<table><thead><tr><th>Parentesco</th><th>Nome</th><th>Nascimento</th><th>Telefone</th><th>E-mail</th></tr></thead><tbody>${
               fam.map(f=>`<tr><td>${f.grau}</td><td>${f.nome}</td><td>${fmtData(f.nascimento)}</td><td>${f.telefone||'—'}</td><td>${f.email||'—'}</td></tr>`).join('')
             }</tbody></table>` : '<div style="font-style:italic;color:var(--text-muted);font-size:13px">Nenhum familiar cadastrado.</div>'}
-          </div>
+          </div>` : ''}
 
         </div>
 
         <div style="padding:14px 28px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px">
           <button class="btn" onclick="fecharModal()" style="padding:8px 20px">Fechar</button>
-          <button class="btn btn-solid" onclick="fecharModal();setTimeout(()=>abrirModalMembro(${JSON.stringify(m).replace(/'/g,"&#39;")}),50)" style="padding:8px 20px">✏️ Editar</button>
+          ${verCompleto && ['veneravel','secretario','chanceler','admin'].includes(currentRole) ?
+            `<button class="btn btn-solid" onclick="fecharModal();setTimeout(()=>abrirModalMembro(${JSON.stringify(m).replace(/'/g,"&#39;")}),50)" style="padding:8px 20px">✏️ Editar</button>` : ''}
         </div>
       </div>
     </div>`);
