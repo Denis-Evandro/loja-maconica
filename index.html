@@ -1119,49 +1119,64 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
       <div class="ornament-line"></div>
     </div>
 
-    <label class="field-label">Selecionar Perfil de Acesso</label>
-    <div class="profile-selector" id="profileSelector" style="grid-template-columns:1fr 1fr 1fr;">
-      <div class="profile-btn selected" data-role="veneravel" onclick="selectProfile(this)">
-        <div class="pb-icon">👑</div>
-        <span class="pb-name">Venerável</span>
-        <span class="pb-sub">Acesso Total</span>
-      </div>
-      <div class="profile-btn" data-role="secretario" onclick="selectProfile(this)">
-        <div class="pb-icon">📜</div>
-        <span class="pb-name">Secretário</span>
-        <span class="pb-sub">Membros & Eventos</span>
-      </div>
-      <div class="profile-btn" data-role="tesoureiro" onclick="selectProfile(this)">
-        <div class="pb-icon">⚖️</div>
-        <span class="pb-name">Tesoureiro</span>
-        <span class="pb-sub">Finanças & Cobranças</span>
-      </div>
-      <div class="profile-btn" data-role="chanceler" onclick="selectProfile(this)">
-        <div class="pb-icon">🗂️</div>
-        <span class="pb-name">Chanceler</span>
-        <span class="pb-sub">Freq. & Cadastros</span>
-      </div>
-      <div class="profile-btn" data-role="irmao" onclick="selectProfile(this)">
-        <div class="pb-icon">🔵</div>
-        <span class="pb-name">Irmão</span>
-        <span class="pb-sub">Área Pessoal</span>
-      </div>
-      <div class="profile-btn" data-role="admin" onclick="selectProfile(this)">
-        <div class="pb-icon">🏛️</div>
-        <span class="pb-name">Admin</span>
-        <span class="pb-sub">Sistema & Permissões</span>
-      </div>
+    <!-- Abas: Login Real / Demo -->
+    <div style="display:flex;border:1px solid rgba(212,168,67,0.3);border-radius:4px;overflow:hidden;margin-bottom:20px">
+      <button id="aba-real" onclick="alternarAbaLogin('real')"
+        style="flex:1;padding:9px;border:none;cursor:pointer;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;background:rgba(212,168,67,0.15);color:var(--gold-dark);border-right:1px solid rgba(212,168,67,0.3)">
+        🔐 ENTRAR COM MINHA CONTA
+      </button>
+      <button id="aba-demo" onclick="alternarAbaLogin('demo')"
+        style="flex:1;padding:9px;border:none;cursor:pointer;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;background:transparent;color:rgba(212,168,67,0.5)">
+        🧪 MODO DEMONSTRAÇÃO
+      </button>
     </div>
 
-    <label class="field-label">Usuário</label>
-    <input class="field-input" id="loginUser" type="text" placeholder="Nome de usuário ou e-mail" value="joao.mestre">
+    <!-- PAINEL LOGIN REAL -->
+    <div id="painel-real">
+      <label class="field-label">E-mail</label>
+      <input class="field-input" id="loginUser" type="email" placeholder="seu@email.com" autocomplete="email"
+        onkeydown="if(event.key==='Enter') doLogin()">
 
-    <label class="field-label">Senha</label>
-    <input class="field-input" id="loginPass" type="password" placeholder="••••••••" value="••••••">
+      <label class="field-label">Senha</label>
+      <input class="field-input" id="loginPass" type="password" placeholder="••••••••" autocomplete="current-password"
+        onkeydown="if(event.key==='Enter') doLogin()">
 
-    <button class="btn-login" onclick="doLogin()">Abrir Trabalhos ✦</button>
+      <div id="login-erro" style="display:none;background:rgba(139,32,32,0.1);border:1px solid rgba(139,32,32,0.3);border-radius:4px;padding:10px 14px;font-size:12px;color:#8B2020;font-style:italic;margin-bottom:4px"></div>
 
-    <div class="login-hint">Sistema restrito a membros regularizados da Loja</div>
+      <button class="btn-login" id="btn-login" onclick="doLogin()">Entrar na Loja ✦</button>
+
+      <div class="login-hint">Esqueceu a senha? Fale com o Secretário da Loja</div>
+    </div>
+
+    <!-- PAINEL DEMO -->
+    <div id="painel-demo" style="display:none">
+      <div style="background:rgba(212,168,67,0.08);border:1px solid rgba(212,168,67,0.3);border-radius:6px;padding:12px 16px;margin-bottom:16px;font-size:12px;color:rgba(245,225,153,0.7);font-style:italic">
+        ⚠️ Modo de demonstração — sem autenticação real. As travas de segurança refletem o perfil selecionado.
+      </div>
+      <label class="field-label">Selecionar Perfil para Teste</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px">
+        ${[
+          {role:'veneravel', icon:'👑', nome:'Venerável Mestre', sub:'Acesso total + aprovação todos os graus'},
+          {role:'secretario', icon:'📜', nome:'Secretário', sub:'Membros, sessões e frequência'},
+          {role:'tesoureiro', icon:'⚖️', nome:'Tesoureiro', sub:'Finanças e cobranças'},
+          {role:'chanceler', icon:'🗂️', nome:'Chanceler', sub:'Frequência e cadastros'},
+          {role:'vigilante1', icon:'🔷', nome:'1º Vigilante', sub:'Aprova trabalhos Grau 2'},
+          {role:'vigilante2', icon:'🔹', nome:'2º Vigilante', sub:'Aprova trabalhos Grau 1'},
+          {role:'irmao3', icon:'⭐', nome:'Mestre (Grau 3)', sub:'Vê todos os trabalhos aprovados'},
+          {role:'irmao2', icon:'🔵', nome:'Companheiro (Grau 2)', sub:'Vê trabalhos Grau 1 e 2'},
+          {role:'irmao1', icon:'🟢', nome:'Aprendiz (Grau 1)', sub:'Vê apenas trabalhos Grau 1'},
+        ].map((p,i) => `
+          <div class="demo-btn ${i===0?'selecionado':''}" data-demo="${p.role}" onclick="selecionarDemo(this)"
+            style="border:1px solid ${i===0?'rgba(212,168,67,0.6)':'rgba(255,255,255,0.1)'};border-radius:6px;padding:10px 8px;cursor:pointer;text-align:center;background:${i===0?'rgba(212,168,67,0.12)':'rgba(255,255,255,0.03)'};transition:all 0.15s">
+            <div style="font-size:20px;margin-bottom:4px">${p.icon}</div>
+            <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:${i===0?'var(--gold-pale)':'rgba(255,255,255,0.5)'};letter-spacing:0.05em">${p.nome}</div>
+            <div style="font-size:9px;color:rgba(255,255,255,0.35);margin-top:3px;line-height:1.4">${p.sub}</div>
+          </div>`).join('')}
+      </div>
+      <button class="btn-login" onclick="doLoginDemo()">Entrar como Demo ✦</button>
+    </div>
+
+    <div class="login-hint" style="margin-top:12px">Sistema restrito a membros regularizados da Loja</div>
   </div>
 </div>
 
@@ -1726,27 +1741,183 @@ function selectProfile(el) {
   selectedRole = el.dataset.role;
 }
 
-function doLogin() {
-  currentRole = selectedRole;
-  const r = ROLES[currentRole];
+// ─── PERFIS DEMO ─────────────────────────────────────────────
+const DEMO_PERFIS = {
+  veneravel:  { role:'veneravel',  grau:3, cargo:'Venerável Mestre', nome:'Ir. João da Luz (DEMO)',        id:null },
+  secretario: { role:'secretario', grau:3, cargo:'Secretário',       nome:'Ir. Luís da Sabedoria (DEMO)',  id:null },
+  tesoureiro: { role:'tesoureiro', grau:3, cargo:'Tesoureiro',       nome:'Ir. Rafael da Paz (DEMO)',      id:null },
+  chanceler:  { role:'chanceler',  grau:3, cargo:'Chanceler',        nome:'Ir. Fernando da Ordem (DEMO)',  id:null },
+  vigilante1: { role:'irmao',      grau:3, cargo:'1º Vigilante',     nome:'Ir. Pedro da Verdade (DEMO)',   id:null },
+  vigilante2: { role:'irmao',      grau:2, cargo:'2º Vigilante',     nome:'Ir. Marcos da Força (DEMO)',    id:null },
+  irmao3:     { role:'irmao',      grau:3, cargo:'Membro',           nome:'Ir. Carlos Mestre (DEMO)',      id:null },
+  irmao2:     { role:'irmao',      grau:2, cargo:'Membro',           nome:'Ir. André Companheiro (DEMO)',  id:null },
+  irmao1:     { role:'irmao',      grau:1, cargo:'Membro',           nome:'Ir. Bruno Aprendiz (DEMO)',     id:null },
+};
+
+let _demoSelecionado = 'veneravel';
+let _modoDemo = false;
+
+function alternarAbaLogin(aba) {
+  const isReal = aba === 'real';
+  document.getElementById('painel-real').style.display  = isReal ? 'block' : 'none';
+  document.getElementById('painel-demo').style.display  = isReal ? 'none'  : 'block';
+  const abaReal = document.getElementById('aba-real');
+  const abaDemo = document.getElementById('aba-demo');
+  if (abaReal) { abaReal.style.background = isReal ? 'rgba(212,168,67,0.15)' : 'transparent'; abaReal.style.color = isReal ? 'var(--gold-dark)' : 'rgba(212,168,67,0.5)'; }
+  if (abaDemo) { abaDemo.style.background = isReal ? 'transparent' : 'rgba(212,168,67,0.15)'; abaDemo.style.color = isReal ? 'rgba(212,168,67,0.5)' : 'var(--gold-dark)'; }
+}
+
+function selecionarDemo(el) {
+  document.querySelectorAll('.demo-btn').forEach(b => {
+    b.style.border      = '1px solid rgba(255,255,255,0.1)';
+    b.style.background  = 'rgba(255,255,255,0.03)';
+    b.querySelectorAll('div').forEach((d,i) => { if(i===1) d.style.color='rgba(255,255,255,0.5)'; });
+  });
+  el.style.border     = '1px solid rgba(212,168,67,0.6)';
+  el.style.background = 'rgba(212,168,67,0.12)';
+  el.querySelectorAll('div').forEach((d,i) => { if(i===1) d.style.color='var(--gold-pale)'; });
+  _demoSelecionado = el.dataset.demo;
+}
+
+function doLoginDemo() {
+  const perfil = DEMO_PERFIS[_demoSelecionado] || DEMO_PERFIS.irmao1;
+  _membroLogado = { id: perfil.id, grau: perfil.grau, cargo: perfil.cargo, nome_maconico: perfil.nome };
+  _modoDemo = true;
+  currentRole = perfil.role;
+  _aplicarRoleNaTela(perfil.role, {
+    nome_maconico: perfil.nome,
+    cargo: perfil.cargo,
+    grau: perfil.grau
+  });
+}
+
+// ─── LOGIN REAL (Supabase Auth) ───────────────────────────────
+function selectProfile(el) {
+  document.querySelectorAll('.profile-btn').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedRole = el.dataset.role;
+}
+
+async function doLogin() {
+  const email = document.getElementById('loginUser')?.value.trim();
+  const senha  = document.getElementById('loginPass')?.value;
+  const erro   = document.getElementById('login-erro');
+  const btn    = document.getElementById('btn-login');
+
+  if (!email || !senha) {
+    if (erro) { erro.textContent = 'Preencha e-mail e senha.'; erro.style.display = 'block'; }
+    return;
+  }
+  if (erro) erro.style.display = 'none';
+  if (btn)  { btn.textContent = '⏳ Verificando...'; btn.disabled = true; }
+
+  // 1. Autenticar via Supabase Auth
+  const { data: authData, error: authErr } = await sb.auth.signInWithPassword({ email, password: senha });
+
+  if (authErr || !authData?.user) {
+    const msg    = authErr?.message || '';
+    const msgPT  = msg.includes('Invalid login') || msg.includes('invalid_credentials')
+      ? 'E-mail ou senha incorretos.'
+      : msg.includes('Email not confirmed')
+      ? 'E-mail não confirmado. Verifique sua caixa de entrada.'
+      : msg.includes('User not found')
+      ? 'Usuário não encontrado.'
+      : 'Erro ao autenticar. Tente novamente.';
+    if (erro) { erro.textContent = '⚠️ ' + msgPT; erro.style.display = 'block'; }
+    if (btn)  { btn.textContent = 'Entrar na Loja ✦'; btn.disabled = false; }
+    return;
+  }
+
+  // 2. Buscar membro pelo email
+  const { data: membro, error: memErr } = await sb.from('membros').select('*').eq('email', email).maybeSingle();
+
+  if (!membro) {
+    if (erro) { erro.textContent = '⚠️ Seu cadastro não foi encontrado na loja. Fale com o Secretário.'; erro.style.display = 'block'; }
+    await sb.auth.signOut();
+    if (btn) { btn.textContent = 'Entrar na Loja ✦'; btn.disabled = false; }
+    return;
+  }
+
+  // 3. Determinar role pelo cargo real
+  _modoDemo = false;
+  _aplicarPorMembro(membro);
+  if (btn) { btn.textContent = 'Entrar na Loja ✦'; btn.disabled = false; }
+}
+
+function _cargoParaRole(cargo) {
+  const c = (cargo || '').toLowerCase();
+  if (c.includes('venerável') || c.includes('veneravel'))         return 'veneravel';
+  if (c.includes('secretário') || c.includes('secretario'))       return 'secretario';
+  if (c.includes('tesoureiro'))                                    return 'tesoureiro';
+  if (c.includes('chanceler'))                                     return 'chanceler';
+  return 'irmao';
+}
+
+function _aplicarPorMembro(membro) {
+  const role = _cargoParaRole(membro.cargo);
+  _membroLogado = {
+    id:            membro.id,
+    grau:          membro.grau || 3,
+    cargo:         membro.cargo || 'Membro',
+    nome_maconico: membro.nome_maconico || membro.nome_civil || membro.email
+  };
+  currentRole = role;
+  _aplicarRoleNaTela(role, membro);
+}
+
+function _aplicarRoleNaTela(role, membro) {
+  const r = ROLES[role];
   document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('app-shell').style.display = 'block';
-  document.getElementById('sidebarAvatar').textContent = r.initials;
-  document.getElementById('sidebarName').textContent = r.name;
-  document.getElementById('sidebarRole').textContent = r.label;
+  document.getElementById('app-shell').style.display    = 'block';
+
+  const nome     = membro.nome_maconico || membro.nome_civil || r.name || 'Irmão';
+  const iniciais = nome.split(' ').map(p => p[0]).join('').slice(0,2).toUpperCase();
+  const cargo    = membro.cargo || r.label;
+  const demoTag  = _modoDemo ? ' ·  DEMO' : '';
+
+  document.getElementById('sidebarAvatar').textContent    = iniciais;
+  document.getElementById('sidebarName').textContent      = nome;
+  document.getElementById('sidebarRole').textContent      = cargo + demoTag;
   document.getElementById('sidebarBadgeText').textContent = r.badge;
   document.getElementById('sidebarBadge').querySelector('span').textContent = r.icon;
-  document.getElementById('topbarRole').textContent = r.label;
+  document.getElementById('topbarRole').textContent       = cargo + demoTag;
+
   renderNav();
-  const defaultPanel = 'dashboard';
-  showPanel(defaultPanel);
+  showPanel('dashboard');
   loadAllData().catch(e => console.warn(e));
 }
 
-function doLogout() {
-  document.getElementById('app-shell').style.display = 'none';
+async function doLogout() {
+  if (!_modoDemo) await sb.auth.signOut().catch(() => {});
+  _membroLogado = null;
+  _modoDemo     = false;
+  currentRole   = 'irmao';
+  selectedRole  = 'irmao';
+  const u = document.getElementById('loginUser');
+  const p = document.getElementById('loginPass');
+  const e = document.getElementById('login-erro');
+  if (u) u.value = '';
+  if (p) p.value = '';
+  if (e) e.style.display = 'none';
+  alternarAbaLogin('real');
+  document.getElementById('app-shell').style.display    = 'none';
   document.getElementById('login-screen').style.display = 'flex';
 }
+
+// Verificar sessão ativa ao carregar (login persistente)
+async function verificarSessaoAtiva() {
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session?.user) return;
+    const email = session.user.email;
+    const { data: membro } = await sb.from('membros').select('*').eq('email', email).maybeSingle();
+    if (!membro) return;
+    _modoDemo = false;
+    _aplicarPorMembro(membro);
+  } catch(e) { console.warn('Sessão:', e); }
+}
+
+verificarSessaoAtiva();
 
 // ===================== NAV =====================
 function renderNav() {
