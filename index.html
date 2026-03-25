@@ -1228,6 +1228,24 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
       <div class="role-badge-sidebar" id="sidebarBadge">
         <span>👑</span> <span id="sidebarBadgeText">Venerável</span>
       </div>
+
+      <!-- Seletor rápido de perfil demo (só aparece no modo demo) -->
+      <div id="demo-switcher" style="display:none;margin:8px 0">
+        <div style="font-family:'Cinzel',serif;font-size:7px;font-weight:700;letter-spacing:0.2em;color:rgba(212,168,67,0.5);text-transform:uppercase;margin-bottom:5px">🧪 Trocar Perfil Demo</div>
+        <select id="demo-select" onchange="trocarPerfilDemo(this.value)"
+          style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(212,168,67,0.25);border-radius:3px;color:rgba(255,255,255,0.7);font-family:'Cinzel',serif;font-size:9px;padding:6px 8px;cursor:pointer">
+          <option value="veneravel">👑 Venerável Mestre</option>
+          <option value="secretario">📜 Secretário</option>
+          <option value="tesoureiro">⚖️ Tesoureiro</option>
+          <option value="chanceler">🗂️ Chanceler</option>
+          <option value="vigilante1">🔷 1º Vigilante (apr. Grau 2)</option>
+          <option value="vigilante2">🔹 2º Vigilante (apr. Grau 1)</option>
+          <option value="irmao3">⭐ Irmão Mestre — Grau 3</option>
+          <option value="irmao2">🔵 Irmão Companheiro — Grau 2</option>
+          <option value="irmao1">🟢 Irmão Aprendiz — Grau 1</option>
+        </select>
+      </div>
+
       <button class="btn-logout" onclick="doLogout()">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         Encerrar Sessão
@@ -1873,7 +1891,7 @@ function _aplicarRoleNaTela(role, membro) {
   const nome     = membro.nome_maconico || membro.nome_civil || r.name || 'Irmão';
   const iniciais = nome.split(' ').map(p => p[0]).join('').slice(0,2).toUpperCase();
   const cargo    = membro.cargo || r.label;
-  const demoTag  = _modoDemo ? ' ·  DEMO' : '';
+  const demoTag  = _modoDemo ? ' · DEMO' : '';
 
   document.getElementById('sidebarAvatar').textContent    = iniciais;
   document.getElementById('sidebarName').textContent      = nome;
@@ -1882,9 +1900,47 @@ function _aplicarRoleNaTela(role, membro) {
   document.getElementById('sidebarBadge').querySelector('span').textContent = r.icon;
   document.getElementById('topbarRole').textContent       = cargo + demoTag;
 
+  // Mostrar seletor de perfil apenas no modo demo
+  const switcher = document.getElementById('demo-switcher');
+  if (switcher) {
+    switcher.style.display = _modoDemo ? 'block' : 'none';
+    // Sincronizar select com perfil atual
+    const sel = document.getElementById('demo-select');
+    if (sel) {
+      const chave = Object.entries(DEMO_PERFIS).find(([k,v]) => v.nome === _membroLogado?.nome_maconico)?.[0] || 'veneravel';
+      sel.value = chave;
+    }
+  }
+
   renderNav();
   showPanel('dashboard');
   loadAllData().catch(e => console.warn(e));
+}
+
+// Troca rápida de perfil demo sem sair do sistema
+function trocarPerfilDemo(chave) {
+  if (!_modoDemo) return;
+  const perfil = DEMO_PERFIS[chave];
+  if (!perfil) return;
+  _membroLogado = { id: null, grau: perfil.grau, cargo: perfil.cargo, nome_maconico: perfil.nome };
+  currentRole   = perfil.role;
+
+  const r        = ROLES[perfil.role];
+  const iniciais = perfil.nome.split(' ').map(p => p[0]).join('').slice(0,2).toUpperCase();
+
+  document.getElementById('sidebarAvatar').textContent    = iniciais;
+  document.getElementById('sidebarName').textContent      = perfil.nome;
+  document.getElementById('sidebarRole').textContent      = perfil.cargo + ' · DEMO';
+  document.getElementById('sidebarBadgeText').textContent = r.badge;
+  document.getElementById('sidebarBadge').querySelector('span').textContent = r.icon;
+  document.getElementById('topbarRole').textContent       = perfil.cargo + ' · DEMO';
+
+  toast(`🧪 Perfil alterado: ${perfil.nome}`);
+  renderNav();
+  // Recarregar o painel ativo com as novas permissões
+  const active = document.querySelector('.panel.active');
+  const id     = active ? active.id.replace('panel-','') : 'dashboard';
+  showPanel(id);
 }
 
 async function doLogout() {
