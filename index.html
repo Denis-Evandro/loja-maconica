@@ -1620,22 +1620,24 @@ async function loadAllData() {
     const timeout = (ms) => new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms));
     const ft = (p) => Promise.race([p, timeout(8000)]);
 
-    const [m, s, p, f, e] = await Promise.allSettled([
+    const [m, s, p, f, e, c] = await Promise.allSettled([
       ft(sb.from('membros').select('*').order('numero_sequencial')),
       ft(sb.from('sessoes').select('*').order('data', {ascending:false})),
       ft(sb.from('presencas').select('*')),
       ft(sb.from('financas').select('*').order('data', {ascending:false})),
-      ft(sb.from('eventos').select('*').order('data'))
+      ft(sb.from('eventos').select('*').order('data')),
+      ft(sb.from('comissoes').select('*').order('data_criacao', {ascending:false}))
     ]);
 
-    if (m.status==='fulfilled' && m.value?.data) DATA.membros = m.value.data;
-    if (s.status==='fulfilled' && s.value?.data) DATA.sessoes = s.value.data;
+    if (m.status==='fulfilled' && m.value?.data) DATA.membros   = m.value.data;
+    if (s.status==='fulfilled' && s.value?.data) DATA.sessoes   = s.value.data;
     if (p.status==='fulfilled' && p.value?.data) DATA.presencas = p.value.data;
-    if (f.status==='fulfilled' && f.value?.data) DATA.financas = f.value.data;
-    if (e.status==='fulfilled' && e.value?.data) DATA.eventos = e.value.data;
+    if (f.status==='fulfilled' && f.value?.data) DATA.financas  = f.value.data;
+    if (e.status==='fulfilled' && e.value?.data) DATA.eventos   = e.value.data;
+    if (c.status==='fulfilled' && c.value?.data) DATA.comissoes = _parseComissoes(c.value.data);
 
     reRenderActive();
-    renderDashboard(); // sempre atualizar dashboard com dados reais
+    renderDashboard();
   } catch(err) { console.warn('Supabase:', err); }
 }
 
@@ -6501,17 +6503,60 @@ async function salvarPagamentoMembro(membroId) {
 // ===================== RELATÓRIOS =====================
 // ===================== COMISSÕES =====================
 // Armazenamento local (localStorage) até criar tabela no Supabase
-function getComissoes() {
-  try { return JSON.parse(localStorage.getItem('comissoes_loja')||'[]'); } catch(e){return[];}
-}
-function saveComissoes(arr) {
-  try { localStorage.setItem('comissoes_loja', JSON.stringify(arr)); } catch(e){}
+// ─── COMISSÕES — Supabase ─────────────────────────────────────
+// Migração: comissões agora salvas no Supabase (tabela 'comissoes')
+// Migra dados antigos do localStorage automaticamente na primeira carga
+
+async function loadComissoes() {
+  try {
+    const { data, error } = await sb.from('comissoes').select('*').order('data_criacao', { ascending: false });
+    if (error) throw error;
+    // Migração automática do localStorage (executa só uma vez)
+    const legacy = localStorage.getItem('comissoes_loja');
+    if (legacy && (!data || data.length === 0)) {
+      const antigas = JSON.parse(legacy);
+      if (antigas.length > 0) {
+        const rows = antigas.map(c => ({
+          nome: c.nome,
+          presidente: c.presidente || null,
+          membros: JSON.stringify(c.membros || []),
+          membros_cargos: JSON.stringify(c.membros_cargos || []),
+          tipo: c.tipo || 'permanente',
+          evento: c.evento || null,
+          data_inicio: c.data_inicio || null,
+          data_fim: c.data_fim || null,
+          missao: c.missao || null,
+          observacoes: c.observacoes || null,
+          ativa: c.ativa !== false,
+          data_criacao: c.data_criacao || new Date().toISOString().split('T')[0]
+        }));
+        const { data: migradas } = await sb.from('comissoes').insert(rows).select();
+        localStorage.removeItem('comissoes_loja');
+        toast(`✅ ${rows.length} comissão(ões) migradas para o banco!`);
+        DATA.comissoes = _parseComissoes(migradas || []);
+        return;
+      }
+    }
+    DATA.comissoes = _parseComissoes(data || []);
+  } catch(e) {
+    console.warn('Erro ao carregar comissões:', e);
+    // Fallback para localStorage se banco indisponível
+    try { DATA.comissoes = JSON.parse(localStorage.getItem('comissoes_loja')||'[]'); } catch(_){}
+  }
 }
 
-function renderComissoes(access) {
+function _parseComissoes(rows) {
+  return rows.map(c => ({
+    ...c,
+    membros: typeof c.membros === 'string' ? JSON.parse(c.membros || '[]') : (c.membros || []),
+    membros_cargos: typeof c.membros_cargos === 'string' ? JSON.parse(c.membros_cargos || '[]') : (c.membros_cargos || [])
+  }));
+}
+
+async function renderComissoes(access) {
   if (access === 'none') { document.getElementById('comissoes-content').innerHTML = accessDenied('Comissões'); return; }
   const canEdit = access === 'full';
-  DATA.comissoes = getComissoes();
+  await loadComissoes();
   const hoje = new Date().toISOString().split('T')[0];
 
   const permanentes = DATA.comissoes.filter(c => c.tipo === 'permanente');
@@ -6840,59 +6885,55 @@ function setTipoComissao(tipo) {
   document.getElementById('campos-temporaria').style.display = tipo === 'temporaria' ? 'block' : 'none';
 }
 
-function salvarComissao(id) {
+async function salvarComissao(id) {
   const nome = document.getElementById('com-nome')?.value.trim();
   const presidente = document.getElementById('com-presidente')?.value;
   if (!nome || !presidente) { toast('Preencha nome e presidente'); return; }
-  // Ler checkboxes com cargos
+
   const checkboxes = document.querySelectorAll('#lista-membros-com input[type="checkbox"]:checked');
-  const membros = Array.from(checkboxes).map(cb=>cb.value);
-  // Ler cargos específicos de cada membro na comissão
-  const membros_cargos = Array.from(checkboxes).map(cb=>{
+  const membros = Array.from(checkboxes).map(cb => cb.value);
+  const membros_cargos = Array.from(checkboxes).map(cb => {
     const memId = cb.id.replace('chk-','');
-    const cargoSel = document.getElementById('cargo-com-'+memId)?.value||'';
-    return {nome: cb.value, cargo_com: cargoSel};
+    return { nome: cb.value, cargo_com: document.getElementById('cargo-com-'+memId)?.value || '' };
   });
-  const tipo = document.getElementById('com-tipo')?.value;
+
   const comissao = {
-    id: id && id!=='null' ? id : 'com_'+Date.now(),
     nome,
     presidente,
-    membros,
-    membros_cargos,
-    tipo,
-    evento: document.getElementById('com-evento')?.value.trim()||null,
-    data_inicio: document.getElementById('com-data-ini')?.value||null,
-    data_fim: document.getElementById('com-data-fim')?.value||null,
-    missao: document.getElementById('com-missao')?.value.trim()||null,
-    observacoes: document.getElementById('com-obs')?.value.trim()||null,
+    membros: JSON.stringify(membros),
+    membros_cargos: JSON.stringify(membros_cargos),
+    tipo: document.getElementById('com-tipo')?.value,
+    evento: document.getElementById('com-evento')?.value.trim() || null,
+    data_inicio: document.getElementById('com-data-ini')?.value || null,
+    data_fim: document.getElementById('com-data-fim')?.value || null,
+    missao: document.getElementById('com-missao')?.value.trim() || null,
+    observacoes: document.getElementById('com-obs')?.value.trim() || null,
     ativa: document.getElementById('com-ativa')?.checked !== false,
     data_criacao: new Date().toISOString().split('T')[0]
   };
-  const lista = getComissoes();
-  if (id && id!=='null') {
-    const idx = lista.findIndex(x=>x.id===id);
-    if (idx>=0) lista[idx] = {...lista[idx], ...comissao};
-    else lista.push(comissao);
+
+  let res;
+  const isEdit = id && id !== 'null';
+  if (isEdit) {
+    res = await sb.from('comissoes').update(comissao).eq('id', id);
   } else {
-    lista.push(comissao);
+    res = await sb.from('comissoes').insert(comissao);
   }
-  saveComissoes(lista);
-  DATA.comissoes = lista;
-  toast(`✅ Comissão ${id&&id!=='null'?'atualizada':'criada'}!`);
+
+  if (res.error) { toast('Erro ao salvar: ' + res.error.message); return; }
+  toast(`✅ Comissão ${isEdit ? 'atualizada' : 'criada'}!`);
   fecharModal();
-  renderComissoes(ROLES[currentRole].access['comissoes']||'full');
+  await renderComissoes(ROLES[currentRole].access['comissoes'] || 'full');
 }
 
-function excluirComissao(id) {
-  const c = DATA.comissoes.find(x=>x.id===id);
-  if (!confirm(`Excluir a comissão "${c?.nome||id}"?`)) return;
-  const lista = getComissoes().filter(x=>x.id!==id);
-  saveComissoes(lista);
-  DATA.comissoes = lista;
+async function excluirComissao(id) {
+  const c = DATA.comissoes.find(x => x.id === id);
+  if (!confirm(`Excluir a comissão "${c?.nome || id}"?`)) return;
+  const res = await sb.from('comissoes').delete().eq('id', id);
+  if (res.error) { toast('Erro: ' + res.error.message); return; }
   toast('🗑️ Comissão excluída');
   fecharModal();
-  renderComissoes(ROLES[currentRole].access['comissoes']||'full');
+  await renderComissoes(ROLES[currentRole].access['comissoes'] || 'full');
 }
 
 // ─── EXPORTAR EXCEL (SheetJS) ───
@@ -8362,7 +8403,7 @@ function exportarTroncoExcel() {
 
 function mostrarRelComissoes() {
   const hoje = new Date().toISOString().split('T')[0];
-  const comissoes = getComissoes();
+  const comissoes = DATA.comissoes;
   const permanentes = comissoes.filter(c=>c.tipo==='permanente');
   const temporarias = comissoes.filter(c=>c.tipo==='temporaria');
 
@@ -8430,7 +8471,7 @@ function filtrarRelComissoes() {
   const tipo = document.getElementById('rf-com-tipo')?.value||'';
   const status = document.getElementById('rf-com-status')?.value||'';
   const nome = document.getElementById('rf-com-nome')?.value.toLowerCase()||'';
-  let lista = getComissoes();
+  let lista = DATA.comissoes;
   if (tipo) lista = lista.filter(c=>c.tipo===tipo);
   if (nome) lista = lista.filter(c=>c.nome.toLowerCase().includes(nome)||(c.presidente||'').toLowerCase().includes(nome));
   if (status==='ativa') lista = lista.filter(c=>c.ativa&&!(c.tipo==='temporaria'&&c.data_fim&&c.data_fim<hoje));
@@ -8471,7 +8512,7 @@ function exportarComissoesExcel() {
 
 function imprimirRelComissoes() {
   const hoje = new Date().toISOString().split('T')[0];
-  const comissoes = getComissoes();
+  const comissoes = DATA.comissoes;
   const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   const dataHoje = new Date();
   const todasLinhas = comissoes.map(c=>`
