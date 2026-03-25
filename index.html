@@ -380,6 +380,93 @@ body {
    ============================ */
 .main { margin-left:252px; min-height:100vh; background: linear-gradient(180deg, #DDE9F5 0%, #EEF4FB 300px); }
 
+/* ============================
+   RESPONSIVO — MOBILE
+   ============================ */
+@media (max-width: 768px) {
+  /* Sidebar vira drawer oculto */
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    z-index: 300;
+    width: 280px;
+  }
+  .sidebar.open { transform: translateX(0); }
+
+  /* Overlay escuro ao abrir sidebar */
+  #sidebar-backdrop {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 299;
+  }
+  #sidebar-backdrop.open { display: block; }
+
+  /* Main ocupa tela toda */
+  .main { margin-left: 0; padding-bottom: 70px; }
+
+  /* Topbar com botão hamburguer */
+  .topbar { padding: 0 16px; }
+  #btn-hamburger { display: flex !important; }
+
+  /* Bottom Navigation Bar */
+  #bottom-nav {
+    display: flex !important;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 62px;
+    background: var(--brown);
+    border-top: 1px solid rgba(255,255,255,0.08);
+    z-index: 200;
+    box-shadow: 0 -2px 16px rgba(61,43,15,0.3);
+  }
+
+  /* Paineis com padding menor */
+  .panel-content { padding: 16px !important; }
+  .section-header { padding: 16px 16px 0 !important; }
+}
+
+/* Desktop — esconder elementos mobile */
+@media (min-width: 769px) {
+  #bottom-nav   { display: none !important; }
+  #btn-hamburger { display: none !important; }
+  #sidebar-backdrop { display: none !important; }
+}
+
+/* Bottom nav itens */
+.bnav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: rgba(255,255,255,0.4);
+  font-family: 'Cinzel', serif;
+  font-size: 8px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 8px 4px;
+  transition: color 0.15s;
+  position: relative;
+}
+.bnav-item.active {
+  color: var(--gold-pale);
+}
+.bnav-item.active::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 20%; right: 20%;
+  height: 2px;
+  background: linear-gradient(90deg, var(--gold-dark), var(--gold-light));
+  border-radius: 0 0 2px 2px;
+}
+.bnav-item svg { width: 20px; height: 20px; flex-shrink: 0; }
+.bnav-more { font-size: 20px; line-height: 1; margin-bottom: 2px; }
+
 .topbar {
   height:60px;
   background: linear-gradient(90deg, #EEF4FB, #FFFFFF);
@@ -1136,6 +1223,12 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
   <!-- MAIN -->
   <main class="main">
     <div class="topbar">
+      <!-- Hamburguer só aparece no mobile via CSS -->
+      <button id="btn-hamburger" onclick="toggleSidebar()" style="display:none;background:none;border:none;cursor:pointer;padding:6px 8px 6px 0;color:var(--navy)">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
       <div class="page-title" id="pageTitle">Painel Geral</div>
       <div class="topbar-right">
         <div class="topbar-date" id="topbarDate"></div>
@@ -1409,6 +1502,43 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
         </div>
       </div><!-- /panel-permissoes -->
   </main>
+
+  <!-- Backdrop para fechar sidebar no mobile -->
+  <div id="sidebar-backdrop" onclick="toggleSidebar()"></div>
+
+  <!-- Bottom Navigation Bar (só mobile) -->
+  <nav id="bottom-nav" style="display:none">
+    <button class="bnav-item active" id="bnav-dashboard" onclick="bnavGo('dashboard')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"/>
+      </svg>
+      Painel
+    </button>
+    <button class="bnav-item" id="bnav-membros" onclick="bnavGo('membros')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/>
+        <path d="M16 3a4 4 0 010 7.75M21 21v-2a4 4 0 00-3-3.87"/>
+      </svg>
+      Irmãos
+    </button>
+    <button class="bnav-item" id="bnav-frequencia" onclick="bnavGo('frequencia')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+      </svg>
+      Freq.
+    </button>
+    <button class="bnav-item" id="bnav-financas" onclick="bnavGo('financas')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
+      </svg>
+      Financ.
+    </button>
+    <button class="bnav-item" id="bnav-more" onclick="toggleSidebar()">
+      <span class="bnav-more">⋯</span>
+      Mais
+    </button>
+  </nav>
+
 </div><!-- /app-shell -->
 
 <!-- PAINEL RELATÓRIOS - renderizado via JS por window.print() -->
@@ -1652,6 +1782,12 @@ function showPanel(id) {
   const navBtn = document.getElementById('nav-' + id);
   if (navBtn) navBtn.classList.add('active');
   document.getElementById('pageTitle').textContent = PANEL_TITLES[id] || id;
+  // Sincronizar bottom nav
+  document.querySelectorAll('.bnav-item').forEach(b => b.classList.remove('active'));
+  const bnav = document.getElementById('bnav-' + id);
+  if (bnav) bnav.classList.add('active');
+  // Fechar sidebar no mobile ao navegar
+  if (window.innerWidth <= 768) closeSidebar();
   if (id==='dashboard') renderDashboard();
   if (id==='membros') renderMembros(access);
   if (id==='frequencia') renderFrequencia(access);
@@ -1662,6 +1798,32 @@ function showPanel(id) {
   if (id==='meu-financeiro') renderMeuFinanceiro();
   if (id==='atas') renderAtas();
   if (id==='relatorios') renderRelatorios();
+}
+
+// ─── Mobile sidebar ────────────────────────────────────────
+function toggleSidebar() {
+  const sidebar  = document.querySelector('.sidebar');
+  const backdrop = document.getElementById('sidebar-backdrop');
+  const isOpen   = sidebar.classList.contains('open');
+  if (isOpen) { closeSidebar(); } else {
+    sidebar.classList.add('open');
+    backdrop.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+function closeSidebar() {
+  document.querySelector('.sidebar')?.classList.remove('open');
+  document.getElementById('sidebar-backdrop')?.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+// ─── Bottom nav ────────────────────────────────────────────
+function bnavGo(id) {
+  // Verificar acesso antes de navegar
+  const access = ROLES[currentRole]?.access[id] || 'none';
+  if (access === 'none') { toast('Acesso restrito ao seu perfil'); return; }
+  showPanel(id);
 }
 
 function accessDenied(module) {
