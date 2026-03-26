@@ -1155,23 +1155,70 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
       </div>
       <label class="field-label">Selecionar Perfil para Teste</label>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px">
-        ${[
-          {role:'veneravel', icon:'👑', nome:'Venerável Mestre', sub:'Acesso total + aprovação todos os graus'},
-          {role:'secretario', icon:'📜', nome:'Secretário', sub:'Membros, sessões e frequência'},
-          {role:'tesoureiro', icon:'⚖️', nome:'Tesoureiro', sub:'Finanças e cobranças'},
-          {role:'chanceler', icon:'🗂️', nome:'Chanceler', sub:'Frequência e cadastros'},
-          {role:'vigilante1', icon:'🔷', nome:'1º Vigilante', sub:'Aprova trabalhos Grau 2'},
-          {role:'vigilante2', icon:'🔹', nome:'2º Vigilante', sub:'Aprova trabalhos Grau 1'},
-          {role:'irmao3', icon:'⭐', nome:'Mestre (Grau 3)', sub:'Vê todos os trabalhos aprovados'},
-          {role:'irmao2', icon:'🔵', nome:'Companheiro (Grau 2)', sub:'Vê trabalhos Grau 1 e 2'},
-          {role:'irmao1', icon:'🟢', nome:'Aprendiz (Grau 1)', sub:'Vê apenas trabalhos Grau 1'},
-        ].map((p,i) => `
-          <div class="demo-btn ${i===0?'selecionado':''}" data-demo="${p.role}" onclick="selecionarDemo(this)"
-            style="border:1px solid ${i===0?'rgba(212,168,67,0.6)':'rgba(255,255,255,0.1)'};border-radius:6px;padding:10px 8px;cursor:pointer;text-align:center;background:${i===0?'rgba(212,168,67,0.12)':'rgba(255,255,255,0.03)'};transition:all 0.15s">
-            <div style="font-size:20px;margin-bottom:4px">${p.icon}</div>
-            <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:${i===0?'var(--gold-pale)':'rgba(255,255,255,0.5)'};letter-spacing:0.05em">${p.nome}</div>
-            <div style="font-size:9px;color:rgba(255,255,255,0.35);margin-top:3px;line-height:1.4">${p.sub}</div>
-          </div>`).join('')}
+
+        <div class="demo-btn" data-demo="veneravel" onclick="selecionarDemo(this)"
+          style="border:1px solid rgba(212,168,67,0.6);border-radius:6px;padding:10px 8px;cursor:pointer;text-align:center;background:rgba(212,168,67,0.12);transition:all 0.15s">
+          <div style="font-size:20px;margin-bottom:4px">👑</div>
+          <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:var(--gold-pale);letter-spacing:0.05em">Venerável Mestre</div>
+          <div style="font-size:9px;color:rgba(255,255,255,0.35);margin-top:3px;line-height:1.4">Acesso total + aprovação todos os graus</div>
+        </div>
+
+        <div class="demo-btn" data-demo="secretario" onclick="selecionarDemo(this)"
+          style="border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:10px 8px;cursor:pointer;text-align:center;background:rgba(255,255,255,0.03);transition:all 0.15s">
+          <div style="font-size:20px;margin-bottom:4px">📜</div>
+          <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:rgba(255,255,255,0.5);letter-spacing:0.05em">Secretário</div>
+          <div style="font-size:9px;color:rgba(255,255,255,0.35);margin-top:3px;line-height:1.4">Membros, sessões e frequência</div>
+        </div>
+
+        <div class="demo-btn" data-demo="tesoureiro" onclick="selecionarDemo(this)"
+          style="border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:10px 8px;cursor:pointer;text-align:center;background:rgba(255,255,255,0.03);transition:all 0.15s">
+          <div style="font-size:20px;margin-bottom:4px">⚖️</div>
+          <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:rgba(255,255,255,0.5);letter-spacing:0.05em">Tesoureiro</div>
+          <div style="font-size:9px;color:rgba(255,255,255,0.35);margin-top:3px;line-height:1.4">Finanças e cobranças</div>
+        </div>
+
+        <div class="demo-btn" data-demo="chanceler" onclick="selecionarDemo(this)"
+          style="border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:10px 8px;cursor:pointer;text-align:center;background:rgba(255,255,255,0.03);transition:all 0.15s">
+          <div style="font-size:20px;margin-bottom:4px">🗂️</div>
+          <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:rgba(255,255,255,0.5);letter-spacing:0.05em">Chanceler</div>
+          <div style="font-size:9px;color:rgba(255,255,255,0.35);margin-top:3px;line-height:1.4">Frequência e cadastros</div>
+        </div>
+
+        <div class="demo-btn" data-demo="vigilante1" onclick="selecionarDemo(this)"
+          style="border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:10px 8px;cursor:pointer;text-align:center;background:rgba(255,255,255,0.03);transition:all 0.15s">
+          <div style="font-size:20px;margin-bottom:4px">🔷</div>
+          <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:rgba(255,255,255,0.5);letter-spacing:0.05em">1º Vigilante</div>
+          <div style="font-size:9px;color:rgba(255,255,255,0.35);margin-top:3px;line-height:1.4">Aprova trabalhos Grau 2</div>
+        </div>
+
+        <div class="demo-btn" data-demo="vigilante2" onclick="selecionarDemo(this)"
+          style="border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:10px 8px;cursor:pointer;text-align:center;background:rgba(255,255,255,0.03);transition:all 0.15s">
+          <div style="font-size:20px;margin-bottom:4px">🔹</div>
+          <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:rgba(255,255,255,0.5);letter-spacing:0.05em">2º Vigilante</div>
+          <div style="font-size:9px;color:rgba(255,255,255,0.35);margin-top:3px;line-height:1.4">Aprova trabalhos Grau 1</div>
+        </div>
+
+        <div class="demo-btn" data-demo="irmao3" onclick="selecionarDemo(this)"
+          style="border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:10px 8px;cursor:pointer;text-align:center;background:rgba(255,255,255,0.03);transition:all 0.15s">
+          <div style="font-size:20px;margin-bottom:4px">⭐</div>
+          <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:rgba(255,255,255,0.5);letter-spacing:0.05em">Mestre — Grau 3</div>
+          <div style="font-size:9px;color:rgba(255,255,255,0.35);margin-top:3px;line-height:1.4">Vê todos os trabalhos aprovados</div>
+        </div>
+
+        <div class="demo-btn" data-demo="irmao2" onclick="selecionarDemo(this)"
+          style="border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:10px 8px;cursor:pointer;text-align:center;background:rgba(255,255,255,0.03);transition:all 0.15s">
+          <div style="font-size:20px;margin-bottom:4px">🔵</div>
+          <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:rgba(255,255,255,0.5);letter-spacing:0.05em">Companheiro — Grau 2</div>
+          <div style="font-size:9px;color:rgba(255,255,255,0.35);margin-top:3px;line-height:1.4">Vê trabalhos Grau 1 e 2</div>
+        </div>
+
+        <div class="demo-btn" data-demo="irmao1" onclick="selecionarDemo(this)"
+          style="border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:10px 8px;cursor:pointer;text-align:center;background:rgba(255,255,255,0.03);transition:all 0.15s">
+          <div style="font-size:20px;margin-bottom:4px">🟢</div>
+          <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:rgba(255,255,255,0.5);letter-spacing:0.05em">Aprendiz — Grau 1</div>
+          <div style="font-size:9px;color:rgba(255,255,255,0.35);margin-top:3px;line-height:1.4">Vê apenas trabalhos Grau 1</div>
+        </div>
+
       </div>
       <button class="btn-login" onclick="doLoginDemo()">Entrar como Demo ✦</button>
     </div>
