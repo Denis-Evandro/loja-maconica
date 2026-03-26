@@ -6845,8 +6845,9 @@ async function renderTrabalhos(access) {
   const el = document.getElementById('trabalhos-content');
   if (!el) return;
 
+  // Buscar trabalhos com dados do autor (left join — inclui trabalhos sem autor vinculado)
   const { data } = await sb.from('trabalhos')
-    .select('*,membros(nome_maconico,grau,cargo)')
+    .select('*,membros(id,nome_maconico,grau,cargo)')
     .order('data_postagem',{ascending:false});
   DATA.trabalhos = data || [];
 
@@ -6854,14 +6855,20 @@ async function renderTrabalhos(access) {
   const poder   = _poderAprovacao();
   const meuGrau = perfil.grau||3;
   const meuId   = perfil.id;
+  const meuNome = (perfil.nome_maconico||'').replace(' (DEMO)','').trim().toLowerCase();
 
   // Biblioteca: aprovados visíveis para o meu grau
   const biblioteca = DATA.trabalhos.filter(t =>
     t.status==='aprovado' && (t.grau_visibilidade||1)<=meuGrau
   );
 
-  // Meus trabalhos (todos os status)
-  const meus = meuId ? DATA.trabalhos.filter(t=>t.autor_id===meuId) : [];
+  // Meus trabalhos: por autor_id (login real) OU por nome do membro (demo/fallback)
+  const meus = DATA.trabalhos.filter(t => {
+    if (meuId && t.autor_id) return t.autor_id === meuId;
+    if (meuNome && t.membros?.nome_maconico)
+      return t.membros.nome_maconico.toLowerCase() === meuNome;
+    return false;
+  });
 
   // Fila de gestão: PENDENTES + AJUSTE do grau que posso aprovar
   const fila = DATA.trabalhos.filter(t =>
@@ -7196,9 +7203,18 @@ async function submeterTrabalho() {
   }
 
   const perfil = _getMeuPerfil();
+  let autorId  = perfil.id; // login real: tem UUID
+
+  // No demo: tentar encontrar o UUID do membro pelo nome no banco
+  if (!autorId && perfil.nome_maconico) {
+    const nomeLimpo = perfil.nome_maconico.replace(' (DEMO)','').trim();
+    const { data: memBusca } = await sb.from('membros').select('id').eq('nome_maconico', nomeLimpo).maybeSingle();
+    autorId = memBusca?.id || null;
+  }
+
   const { error } = await sb.from('trabalhos').insert({
     titulo, grau_autor:grau, grau_visibilidade:grau,
-    url_arquivo, autor_id:perfil.id,
+    url_arquivo, autor_id:autorId,
     status:'pendente',
     observacoes:null, feedback_texto:null, feedback_autor:null, feedback_data:null,
     data_postagem: new Date().toISOString().split('T')[0]
@@ -7208,6 +7224,7 @@ async function submeterTrabalho() {
   toast('✅ Trabalho enviado! Aguardando avaliação do Vigilante.');
   fecharModal();
   await renderTrabalhos(ROLES[currentRole].access['trabalhos']||'full');
+  ativarAbaTrabalhos('meus');
 }
 
 // ════════════════════════════════════════════════════════════
@@ -7218,11 +7235,12 @@ async function reenviarTrabalho(id) {
   const upd  = { status:'pendente', observacoes:null, feedback_texto:null, feedback_autor:null, feedback_data:null };
 
   if (file) {
-    toast('⏳ Fazendo upload...');
+    toast('⏳ Fazendo upload do novo arquivo...');
     const url = await _uploadArquivoTrabalho(file);
     if (!url) { toast('❌ Erro no upload'); return; }
     upd.url_arquivo = url;
   }
+  // Se não enviou novo arquivo, url_arquivo do banco é MANTIDO automaticamente (não está no upd)
 
   const { error } = await sb.from('trabalhos').update(upd).eq('id', id);
   if(error) { toast('❌ Erro: '+error.message); return; }
@@ -7283,471 +7301,6 @@ async function excluirTrabalho(id, titulo) {
   if(error) { toast('Erro: '+error.message); return; }
   toast('🗑️ Trabalho excluído');
   await renderTrabalhos(ROLES[currentRole].access['trabalhos']||'full');
-}
-
-// ─── BIBLIOTECA DE INSTRUÇÃO (TRABALHOS) ────────────────────
-
-function _getMeuPerfil() {
-  if (_membroLogado) return _membroLogado;
-  const gMap = { veneravel:3, secretario:3, tesoureiro:3, chanceler:3, irmao:1, admin:3 };
-  const cMap = { veneravel:'Venerável Mestre', secretario:'Secretário', tesoureiro:'Tesoureiro', chanceler:'Chanceler', irmao:'Membro', admin:'Administrador' };
-  return { id:null, grau:gMap[currentRole]||3, cargo:cMap[currentRole]||'Membro', nome_maconico:ROLES[currentRole]?.name||'Irmão' };
-}
-
-function _poderAprovacao() {
-  const p = _getMeuPerfil();
-  const c = (p.cargo||'').toLowerCase();
-  const isVen  = currentRole==='veneravel' || c.includes('venerável') || c.includes('veneravel');
-  const isAdm  = currentRole==='admin';
-  const is1Vig = c.includes('1º vigilante') || c.includes('1o vigilante');
-  const is2Vig = c.includes('2º vigilante') || c.includes('2o vigilante');
-  return {
-    podeAprovar: isVen||isAdm||is1Vig||is2Vig,
-    grausQueAprovam: isVen||isAdm ? [1,2,3] : is1Vig ? [2] : is2Vig ? [1] : [],
-    podeEscolherVisibilidade: isVen||isAdm,
-    isVeneravel: isVen||isAdm
-  };
-}
-
-
-async function renderTrabalhos(access) {
-  const el = document.getElementById('trabalhos-content');
-  if (!el) return;
-
-  const { data } = await sb.from('trabalhos')
-    .select('*,membros(nome_maconico,grau,cargo)')
-    .order('data_postagem', { ascending:false });
-  DATA.trabalhos = data || [];
-
-  const perfil  = _getMeuPerfil();
-  const poder   = _poderAprovacao();
-  const meuGrau = perfil.grau || 3;
-  const meuId   = perfil.id;
-
-  // Biblioteca: aprovados onde grau_visibilidade <= meu grau
-  const biblioteca = DATA.trabalhos.filter(t =>
-    t.status==='aprovado' && (t.grau_visibilidade||1) <= meuGrau
-  );
-
-  // Meus trabalhos (todos os status)
-  const meus = meuId ? DATA.trabalhos.filter(t => t.autor_id===meuId) : [];
-
-  // Fila gestão: pendentes E ajuste-aguardando do grau que posso aprovar
-  const fila = DATA.trabalhos.filter(t =>
-    (t.status==='pendente' || t.status==='ajuste') &&
-    poder.grausQueAprovam.includes(t.grau_autor)
-  );
-
-  // Notificação: meus trabalhos com pedido de revisão não lidos
-  const comRevisao = meus.filter(t => t.status==='ajuste');
-
-  const abas = [
-    { id:'biblioteca', label:'📚 Biblioteca',      badge: biblioteca.length,          destaque: false },
-    { id:'meus',       label:'📝 Meus Trabalhos',  badge: comRevisao.length||null,    destaque: comRevisao.length>0 },
-    ...(poder.podeAprovar ? [{ id:'gestao', label:'🔍 Gestão', badge: fila.filter(t=>t.status==='pendente').length||null, destaque: fila.some(t=>t.status==='pendente') }] : [])
-  ];
-
-  el.innerHTML = `
-    ${comRevisao.length ? `
-    <div style="background:rgba(212,168,67,0.1);border:1px solid rgba(212,168,67,0.5);border-radius:6px;padding:12px 18px;margin-bottom:16px;display:flex;gap:12px;align-items:center">
-      <span style="font-size:22px">💬</span>
-      <div>
-        <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:var(--gold-dark)">VOCÊ TEM ${comRevisao.length} TRABALHO(S) PARA REVISAR</div>
-        <div style="font-size:12px;color:var(--text-muted);margin-top:2px">Veja a aba "Meus Trabalhos" para ler os comentários e reenviar.</div>
-      </div>
-    </div>` : ''}
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
-      <div style="font-size:13px;color:var(--text-muted);font-style:italic">Seu perfil: <strong style="color:var(--navy)">${_GL(meuGrau)}</strong></div>
-      <button class="btn btn-solid" onclick="abrirModalEnviarTrabalho()" style="padding:8px 20px">📤 Enviar Meu Trabalho</button>
-    </div>
-    <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:20px">
-      ${abas.map((a,i) => `
-        <button id="trab-aba-${a.id}" onclick="ativarAbaTrabalhos('${a.id}')"
-          style="padding:10px 20px;border:none;background:none;cursor:pointer;font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.08em;color:${i===0?'var(--navy)':'var(--text-muted)'};border-bottom:${i===0?'2px solid var(--navy)':'2px solid transparent'};margin-bottom:-2px;transition:all 0.15s">
-          ${a.label}${a.badge ? ` <span style="background:${a.destaque?'var(--gold-dark)':'rgba(27,58,107,0.15)'};color:${a.destaque?'#fff':'var(--navy)'};border-radius:20px;padding:1px 8px;font-size:9px;margin-left:4px">${a.badge}</span>` : ''}
-        </button>`).join('')}
-    </div>
-    <div id="trab-cont-biblioteca">${_trabBiblioteca(biblioteca, poder.isVeneravel)}</div>
-    <div id="trab-cont-meus"       style="display:none">${_trabMeus(meus)}</div>
-    ${poder.podeAprovar ? `<div id="trab-cont-gestao" style="display:none">${_trabGestao(fila, poder)}</div>` : ''}`;
-}
-
-function ativarAbaTrabalhos(id) {
-  ['biblioteca','meus','gestao'].forEach(a => {
-    const btn  = document.getElementById(`trab-aba-${a}`);
-    const cont = document.getElementById(`trab-cont-${a}`);
-    const ativo = a===id;
-    if (btn)  { btn.style.color=ativo?'var(--navy)':'var(--text-muted)'; btn.style.borderBottom=ativo?'2px solid var(--navy)':'2px solid transparent'; }
-    if (cont)   cont.style.display = ativo ? 'block' : 'none';
-  });
-}
-
-// ── STATUS VISUAL ──────────────────────────────────────────
-const _STATUS_VISUAL = {
-  pendente: { label:'⏳ Aguardando aprovação', cor:'#7A5C00', bg:'rgba(212,168,67,0.12)', borda:'rgba(212,168,67,0.4)',  icone:'🕐' },
-  aprovado: { label:'✅ Aprovado',             cor:'#1B6B3A', bg:'rgba(27,107,58,0.10)',  borda:'rgba(27,107,58,0.35)', icone:'✅' },
-  ajuste:   { label:'🔄 Revisão solicitada',   cor:'#8A2020', bg:'rgba(139,32,32,0.10)',  borda:'rgba(139,32,32,0.35)', icone:'⚠️' }
-};
-
-// ── BIBLIOTECA ─────────────────────────────────────────────
-function _trabBiblioteca(lista, isAdm) {
-  if (!lista.length) return `
-    <div style="text-align:center;padding:48px;color:var(--text-muted)">
-      <div style="font-size:40px;opacity:0.25;margin-bottom:12px">📚</div>
-      <div style="font-family:'Cinzel',serif;font-size:11px;letter-spacing:0.1em">NENHUM TRABALHO DISPONÍVEL PARA SEU GRAU</div>
-    </div>`;
-  const grupos = [1,2,3].map(g => ({ g, items:lista.filter(t=>(t.grau_visibilidade||t.grau_autor||1)===g) })).filter(g=>g.items.length);
-  return grupos.map(({g,items}) => `
-    <div style="margin-bottom:28px">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
-        <span style="background:${_GB(g)};border:1px solid ${_GC(g)}40;border-radius:20px;padding:4px 14px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:${_GC(g)}">${_GL(g)}</span>
-        <span style="font-size:12px;color:var(--text-muted)">${items.length} trabalho(s)</span>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px">
-        ${items.map(t => _cardTrab(t, isAdm)).join('')}
-      </div>
-    </div>`).join('');
-}
-
-function _cardTrab(t, isAdm) {
-  const autor = t.membros?.nome_maconico || 'Irmão';
-  const gV = t.grau_visibilidade||t.grau_autor||1;
-  return `
-    <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:8px;overflow:hidden;transition:box-shadow 0.15s"
-      onmouseover="this.style.boxShadow='0 4px 16px rgba(27,58,107,0.12)'" onmouseout="this.style.boxShadow='none'">
-      <div style="background:${_GB(gV)};border-bottom:1px solid ${_GC(gV)}25;padding:14px 16px">
-        <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:var(--text);line-height:1.5;margin-bottom:8px">${t.titulo||'Sem título'}</div>
-        <div style="font-size:11px;color:var(--text-muted)">Ir. ${autor} · ${t.data_postagem?new Date(t.data_postagem).toLocaleDateString('pt-BR'):'—'}</div>
-        <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
-          <span style="background:${_GB(t.grau_autor||1)};border:1px solid ${_GC(t.grau_autor||1)}40;border-radius:20px;padding:2px 10px;font-family:'Cinzel',serif;font-size:8px;font-weight:700;color:${_GC(t.grau_autor||1)}">Autor: ${_GL(t.grau_autor||1).split(' — ')[0]}</span>
-          <span style="background:rgba(27,58,107,0.06);border:1px solid rgba(27,58,107,0.2);border-radius:20px;padding:2px 10px;font-family:'Cinzel',serif;font-size:8px;font-weight:700;color:var(--navy)">Visível: ${_GL(gV).split(' — ')[0]}+</span>
-        </div>
-      </div>
-      <div style="padding:10px 16px;display:flex;gap:8px">
-        ${t.url_arquivo?`<a href="${t.url_arquivo}" target="_blank" rel="noopener"
-          style="flex:1;text-align:center;padding:7px;background:var(--navy);color:var(--gold-pale);border-radius:4px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;text-decoration:none">📖 LER TRABALHO</a>`:''}
-        ${isAdm?`<button onclick="excluirTrabalho('${t.id}','${(t.titulo||'').replace(/'/g,"\\'")}')"
-          style="padding:7px 10px;border:1px solid rgba(139,32,32,0.25);border-radius:4px;background:none;cursor:pointer;font-size:12px;color:var(--red)">🗑️</button>`:''}
-      </div>
-    </div>`;
-}
-
-// ── MEUS TRABALHOS ─────────────────────────────────────────
-function _trabMeus(lista) {
-  if (!lista.length) return `
-    <div style="text-align:center;padding:40px;color:var(--text-muted)">
-      <div style="font-size:36px;opacity:0.25;margin-bottom:10px">📝</div>
-      <div style="font-family:'Cinzel',serif;font-size:11px">VOCÊ AINDA NÃO ENVIOU NENHUM TRABALHO</div>
-      <div style="font-size:13px;margin-top:6px;font-style:italic">Use o botão "Enviar Meu Trabalho" acima.</div>
-    </div>`;
-
-  return `<div style="display:flex;flex-direction:column;gap:14px">
-    ${lista.map(t => {
-      const sv = _STATUS_VISUAL[t.status] || _STATUS_VISUAL.pendente;
-      const isAjuste = t.status === 'ajuste';
-      return `
-      <div style="background:var(--white);border:2px solid ${sv.borda};border-radius:8px;overflow:hidden">
-        <!-- Barra de status colorida no topo -->
-        <div style="background:${sv.bg};border-bottom:1px solid ${sv.borda};padding:8px 16px;display:flex;align-items:center;justify-content:space-between">
-          <span style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;color:${sv.cor}">${sv.icone} ${sv.label.toUpperCase()}</span>
-          <span style="font-size:11px;color:var(--text-muted)">${_GL(t.grau_autor||1)}</span>
-        </div>
-        <!-- Conteúdo -->
-        <div style="padding:14px 18px">
-          <div style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;color:var(--text);margin-bottom:4px">${t.titulo}</div>
-          <div style="font-size:11px;color:var(--text-muted)">Enviado em ${t.data_postagem?new Date(t.data_postagem).toLocaleDateString('pt-BR'):'—'}</div>
-        </div>
-        ${isAjuste && t.observacoes ? `
-        <!-- Feedback do vigilante em destaque -->
-        <div style="margin:0 18px 14px;background:rgba(139,32,32,0.06);border:1px solid rgba(139,32,32,0.25);border-left:4px solid #8A2020;border-radius:4px;padding:12px 16px">
-          <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:#8A2020;letter-spacing:0.1em;margin-bottom:6px">💬 COMENTÁRIO DO APROVADOR</div>
-          <div style="font-size:13px;color:var(--text);line-height:1.6;font-style:italic">"${t.observacoes}"</div>
-          ${t.feedback_autor ? `<div style="font-size:11px;color:var(--text-muted);margin-top:6px">— ${t.feedback_autor} · ${t.feedback_data?new Date(t.feedback_data).toLocaleDateString('pt-BR'):''}</div>` : ''}
-        </div>` : ''}
-        <!-- Ações -->
-        <div style="padding:10px 18px;border-top:1px solid var(--border);display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          ${t.url_arquivo ? `<a href="${t.url_arquivo}" target="_blank" style="font-size:12px;color:var(--navy)">📄 Ver arquivo</a>` : ''}
-          ${isAjuste ? `
-          <button onclick="abrirModalReenviar('${t.id}')"
-            style="margin-left:auto;padding:7px 16px;background:var(--navy);color:var(--gold-pale);border:none;border-radius:4px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;cursor:pointer;letter-spacing:0.06em">
-            📤 Reenviar Trabalho Corrigido
-          </button>` : ''}
-        </div>
-      </div>`;
-    }).join('')}
-  </div>`;
-}
-
-// ── GESTÃO / APROVAÇÃO ─────────────────────────────────────
-function _trabGestao(fila, poder) {
-  const descricao = poder.isVeneravel
-    ? 'Todos os trabalhos pendentes ou aguardando correção.'
-    : poder.grausQueAprovam.includes(2)
-      ? 'Trabalhos de Companheiro (2º Grau) para validação.'
-      : 'Trabalhos de Aprendiz (1º Grau) para validação.';
-
-  if (!fila.length) return `
-    <div>
-      <div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-bottom:16px">${descricao}</div>
-      <div style="text-align:center;padding:40px;color:var(--text-muted)">
-        <div style="font-size:36px;opacity:0.25;margin-bottom:10px">✅</div>
-        <div style="font-family:'Cinzel',serif;font-size:11px">NENHUM TRABALHO AGUARDANDO VALIDAÇÃO</div>
-      </div>
-    </div>`;
-
-  // Separar: pendentes primeiro, ajuste aguardando correção depois
-  const pendentes = fila.filter(t => t.status==='pendente');
-  const emAjuste  = fila.filter(t => t.status==='ajuste');
-
-  const renderSecao = (lista, titulo, corTitulo) => lista.length ? `
-    <div style="margin-bottom:24px">
-      <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:${corTitulo};text-transform:uppercase;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid ${corTitulo}30">${titulo} (${lista.length})</div>
-      <div style="display:flex;flex-direction:column;gap:12px">
-        ${lista.map(t => _cardGestao(t, poder)).join('')}
-      </div>
-    </div>` : '';
-
-  return `
-    <div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-bottom:16px">${descricao}</div>
-    ${renderSecao(pendentes, '⏳ Aguardando sua aprovação', '#7A5C00')}
-    ${renderSecao(emAjuste,  '🔄 Aguardando correção do autor', '#8A2020')}`;
-}
-
-function _cardGestao(t, poder) {
-  const autor = t.membros?.nome_maconico || 'Irmão';
-  const gA    = t.grau_autor||1;
-  const sv    = _STATUS_VISUAL[t.status] || _STATUS_VISUAL.pendente;
-  const isAjuste = t.status==='ajuste';
-  const optsVis  = [1,2,3].filter(g=>g<=gA).map(g=>`<option value="${g}">${_GL(g)}</option>`).join('');
-
-  return `
-    <div style="background:var(--white);border:1px solid ${sv.borda};border-radius:8px;overflow:hidden">
-      <!-- Status badge + info -->
-      <div style="background:${sv.bg};border-bottom:1px solid ${sv.borda};padding:10px 18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-        <div>
-          <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:var(--text);margin-bottom:4px">${t.titulo}</div>
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-            <span style="font-size:11px;color:var(--text-muted)">Ir. ${autor}</span>
-            <span style="background:${_GB(gA)};border:1px solid ${_GC(gA)}40;border-radius:20px;padding:2px 10px;font-family:'Cinzel',serif;font-size:8px;font-weight:700;color:${_GC(gA)}">${_GL(gA)}</span>
-            <span style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:${sv.cor}">${sv.icone} ${t.status==='ajuste'?'Aguardando correção':'Pendente'}</span>
-          </div>
-        </div>
-        ${t.url_arquivo?`<a href="${t.url_arquivo}" target="_blank"
-          style="padding:6px 14px;border:1px solid var(--border-mid);border-radius:4px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:var(--navy);text-decoration:none">📖 LER</a>`:''}
-      </div>
-
-      ${isAjuste && t.observacoes ? `
-      <!-- Mostrar observação anterior -->
-      <div style="padding:10px 18px;background:rgba(139,32,32,0.04);border-bottom:1px solid rgba(139,32,32,0.15)">
-        <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:#8A2020;margin-bottom:4px">OBSERVAÇÃO ENVIADA ANTERIORMENTE</div>
-        <div style="font-size:12px;color:var(--text-muted);font-style:italic">"${t.observacoes}"</div>
-      </div>` : ''}
-
-      <!-- Ações -->
-      <div style="padding:12px 18px;background:var(--cream);display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
-        <!-- Aprovar -->
-        <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
-          ${poder.podeEscolherVisibilidade ? `
-          <div>
-            <label style="font-family:'Cinzel',serif;font-size:8px;font-weight:700;letter-spacing:0.1em;color:var(--text-muted);display:block;margin-bottom:4px">VISÍVEL PARA</label>
-            <select id="vis-${t.id}" style="border:1px solid var(--border-mid);border-radius:3px;padding:7px 10px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--white);color:var(--text)">${optsVis}</select>
-          </div>` : ''}
-          <button onclick="aprovarTrabalho('${t.id}',${gA})"
-            style="padding:8px 16px;background:rgba(27,107,58,0.12);border:1px solid rgba(27,107,58,0.35);border-radius:4px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:#1B6B3A;cursor:pointer;white-space:nowrap">
-            ✅ Aprovar${poder.podeEscolherVisibilidade?' com visibilidade':''}
-          </button>
-        </div>
-
-        <!-- Pedir revisão -->
-        <div style="flex:1;min-width:220px;display:flex;gap:8px;align-items:flex-end">
-          <div style="flex:1">
-            <label style="font-family:'Cinzel',serif;font-size:8px;font-weight:700;letter-spacing:0.1em;color:var(--text-muted);display:block;margin-bottom:4px">COMENTÁRIO PARA O AUTOR${isAjuste?' (atualizar)':''}</label>
-            <input type="text" id="fb-${t.id}" value="${(t.observacoes||'').replace(/"/g,'&quot;')}" placeholder="Descreva o que precisa ser revisado..."
-              style="width:100%;border:1px solid var(--border-mid);border-radius:4px;padding:7px 10px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--white)">
-          </div>
-          <button onclick="pedirRevisao('${t.id}')"
-            style="padding:8px 14px;background:rgba(139,32,32,0.1);border:1px solid rgba(139,32,32,0.3);border-radius:4px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:#8A1B1B;cursor:pointer;white-space:nowrap">
-            🔄 ${isAjuste?'Atualizar Revisão':'Pedir Revisão'}
-          </button>
-        </div>
-      </div>
-    </div>`;
-}
-
-// ── ENVIAR TRABALHO ─────────────────────────────────────────
-function abrirModalEnviarTrabalho() {
-  const perfil  = _getMeuPerfil();
-  const grauMax = perfil.grau||3;
-  const opts    = [1,2,3].filter(g=>g<=grauMax).map(g=>`<option value="${g}">${_GL(g)}</option>`).join('');
-  const lb  = (t,r='') => `<label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">${t}${r?` <span style="color:var(--red)">${r}</span>`:''}</label>`;
-  const inp = `style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:9px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"`;
-
-  document.body.insertAdjacentHTML('beforeend', `
-    <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px">
-      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:8px;width:500px;max-height:90vh;overflow-y:auto">
-        <div style="height:3px;background:linear-gradient(90deg,var(--gold-dark),var(--gold-rich),var(--gold-light),var(--gold-dark));border-radius:8px 8px 0 0"></div>
-        <div style="padding:24px 28px">
-          <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);margin-bottom:6px">📤 Enviar Trabalho Maçônico</div>
-          <div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-bottom:18px">Após o envio, seu trabalho será analisado pelo Vigilante responsável antes de aparecer na biblioteca.</div>
-          <div style="display:grid;gap:14px">
-            <div>${lb('Título do Trabalho','*')}<input id="trab-titulo" ${inp} placeholder="Ex: A Simbologia do Esquadro e do Compasso"></div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-              <div>${lb('Grau do Trabalho','*')}<select id="trab-grau" ${inp}>${opts}</select></div>
-              <div>${lb('Arquivo PDF','*')}
-                <input type="file" id="trab-file" accept=".pdf,.doc,.docx"
-                  style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:9px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--cream);cursor:pointer">
-              </div>
-            </div>
-          </div>
-        </div>
-        <div style="padding:14px 28px;border-top:1px solid var(--border);display:flex;justify-content:space-between">
-          <button class="btn" onclick="fecharModal()">Cancelar</button>
-          <button class="btn btn-solid" id="btn-enviar-trab" onclick="submeterTrabalho()" style="padding:8px 24px">📤 Enviar para Aprovação</button>
-        </div>
-      </div>
-    </div>`);
-}
-
-// Modal reenvio após revisão
-function abrirModalReenviar(id) {
-  const t = DATA.trabalhos.find(x=>x.id===id);
-  if (!t) return;
-  document.body.insertAdjacentHTML('beforeend', `
-    <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px">
-      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:8px;width:500px;max-height:90vh;overflow-y:auto">
-        <div style="height:3px;background:linear-gradient(90deg,#8A2020,#C04040,#8A2020);border-radius:8px 8px 0 0"></div>
-        <div style="padding:24px 28px">
-          <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;letter-spacing:0.1em;color:#8A2020;margin-bottom:6px">🔄 Reenviar Trabalho Corrigido</div>
-          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px">${t.titulo}</div>
-          ${t.observacoes?`
-          <div style="background:rgba(139,32,32,0.06);border:1px solid rgba(139,32,32,0.2);border-left:3px solid #8A2020;border-radius:4px;padding:10px 14px;margin-bottom:16px">
-            <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:#8A2020;margin-bottom:4px">OBSERVAÇÃO DO VIGILANTE</div>
-            <div style="font-size:13px;color:var(--text);font-style:italic">"${t.observacoes}"</div>
-          </div>`:''}
-          <div>
-            <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">
-              Novo arquivo PDF <span style="color:var(--text-muted);font-style:italic">(deixe vazio para manter o atual)</span>
-            </label>
-            <input type="file" id="trab-reenvio-file" accept=".pdf,.doc,.docx"
-              style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:9px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--cream);cursor:pointer">
-          </div>
-        </div>
-        <div style="padding:14px 28px;border-top:1px solid var(--border);display:flex;justify-content:space-between">
-          <button class="btn" onclick="fecharModal()">Cancelar</button>
-          <button class="btn btn-solid" id="btn-reenviar" onclick="reenviarTrabalho('${id}')" style="padding:8px 24px;background:#8A2020;border-color:#8A2020;color:#fff">🔄 Reenviar para Aprovação</button>
-        </div>
-      </div>
-    </div>`);
-}
-
-// ── AÇÕES JS ────────────────────────────────────────────────
-async function submeterTrabalho() {
-  const titulo = document.getElementById('trab-titulo')?.value.trim();
-  const grau   = parseInt(document.getElementById('trab-grau')?.value);
-  const file   = document.getElementById('trab-file')?.files?.[0];
-  if (!titulo) { toast('Informe o título'); return; }
-  if (!file)   { toast('Selecione o arquivo PDF'); return; }
-
-  const btn = document.getElementById('btn-enviar-trab');
-  if (btn) btn.textContent = '⏳ Enviando...';
-
-  const url_arquivo = await _uploadArquivoTrabalho(file);
-  if (!url_arquivo) { if(btn) btn.textContent='📤 Enviar para Aprovação'; return; }
-
-  const perfil = _getMeuPerfil();
-  const { error } = await sb.from('trabalhos').insert({
-    titulo, grau_autor:grau, grau_visibilidade:grau,
-    url_arquivo, autor_id:perfil.id,
-    status:'pendente',
-    data_postagem: new Date().toISOString().split('T')[0]
-  });
-  if (error) { toast('❌ Erro: '+error.message); if(btn) btn.textContent='📤 Enviar para Aprovação'; return; }
-  toast('✅ Trabalho enviado! Aguardando aprovação do Vigilante.');
-  fecharModal();
-  await renderTrabalhos(ROLES[currentRole].access['trabalhos']||'full');
-}
-
-async function reenviarTrabalho(id) {
-  const btn  = document.getElementById('btn-reenviar');
-  const file = document.getElementById('trab-reenvio-file')?.files?.[0];
-  if (btn) btn.textContent = '⏳ Reenviando...';
-
-  let url_arquivo = null;
-  if (file) {
-    url_arquivo = await _uploadArquivoTrabalho(file);
-    if (!url_arquivo) { if(btn) btn.textContent='🔄 Reenviar para Aprovação'; return; }
-  }
-
-  const upd = { status:'pendente', observacoes:null, feedback_autor:null, feedback_data:null };
-  if (url_arquivo) upd.url_arquivo = url_arquivo;
-
-  const { error } = await sb.from('trabalhos').update(upd).eq('id', id);
-  if (error) { toast('❌ Erro: '+error.message); if(btn) btn.textContent='🔄 Reenviar para Aprovação'; return; }
-  toast('✅ Trabalho reenviado! Aguardando nova análise do Vigilante.');
-  fecharModal();
-  await renderTrabalhos(ROLES[currentRole].access['trabalhos']||'full');
-  ativarAbaTrabalhos('meus');
-}
-
-async function aprovarTrabalho(id, grauAutor) {
-  const poder  = _poderAprovacao();
-  const grauVis = poder.podeEscolherVisibilidade
-    ? parseInt(document.getElementById(`vis-${id}`)?.value || grauAutor)
-    : grauAutor;
-  const perfil = _getMeuPerfil();
-  const { error } = await sb.from('trabalhos').update({
-    status:'aprovado', grau_visibilidade:grauVis, observacoes:null,
-    feedback_autor: perfil.nome_maconico||ROLES[currentRole]?.name,
-    feedback_data:  new Date().toISOString()
-  }).eq('id', id);
-  if (error) { toast('❌ Erro: '+error.message); return; }
-  toast(`✅ Trabalho aprovado! Visível para ${_GL(grauVis)} e acima.`);
-  await renderTrabalhos(ROLES[currentRole].access['trabalhos']||'full');
-  ativarAbaTrabalhos('gestao');
-}
-
-async function pedirRevisao(id) {
-  const obs = document.getElementById(`fb-${id}`)?.value.trim();
-  if (!obs) { toast('Escreva o comentário de revisão antes de enviar'); return; }
-  const perfil = _getMeuPerfil();
-  const { error } = await sb.from('trabalhos').update({
-    status:'ajuste', observacoes:obs,
-    feedback_autor: perfil.nome_maconico||ROLES[currentRole]?.name,
-    feedback_data:  new Date().toISOString()
-  }).eq('id', id);
-  if (error) { toast('❌ Erro: '+error.message); return; }
-  toast('🔄 Pedido de revisão enviado. O autor será notificado.');
-  await renderTrabalhos(ROLES[currentRole].access['trabalhos']||'full');
-  ativarAbaTrabalhos('gestao');
-}
-
-async function excluirTrabalho(id, titulo) {
-  if (!confirm(`Excluir o trabalho "${titulo}"?`)) return;
-  const doc = DATA.trabalhos.find(x=>x.id===id);
-  if (doc?.url_arquivo) {
-    const nome = doc.url_arquivo.split('/').pop();
-    await sb.storage.from('documentos').remove([`trabalhos/${nome}`]).catch(()=>{});
-  }
-  const { error } = await sb.from('trabalhos').delete().eq('id', id);
-  if (error) { toast('Erro: '+error.message); return; }
-  toast('🗑️ Trabalho excluído');
-  await renderTrabalhos(ROLES[currentRole].access['trabalhos']||'full');
-}
-
-async function _uploadArquivoTrabalho(file) {
-  const ext  = file.name.split('.').pop().toLowerCase();
-  const path = `trabalhos/${Date.now()}.${ext}`;
-  for (const bucket of ['documentos','atas-arquivos']) {
-    const { error } = await sb.storage.from(bucket).upload(path, file, {
-      upsert:true, contentType:file.type||'application/octet-stream'
-    });
-    if (!error) {
-      const { data:u } = sb.storage.from(bucket).getPublicUrl(path);
-      return u?.publicUrl || null;
-    }
-  }
-  toast('❌ Erro no upload. Verifique as permissões do bucket no Supabase.');
-  return null;
 }
 
 // ─── LEGISLAÇÃO & DECRETOS ───────────────────────────────────
