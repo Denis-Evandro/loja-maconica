@@ -1601,8 +1601,51 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
           </div>
         </div>
 
-        <div class="card">
-          <div class="card-header"><div class="card-title">Usuários Cadastrados</div><button class="btn btn-solid">+ Novo Usuário</button></div>
+        <!-- Bloco informativo: Permissões de Relatórios (regras fixas) -->
+        <div class="card" style="margin-bottom:20px">
+          <div class="card-header">
+            <div class="card-title">📋 Permissões de Relatórios</div>
+            <span style="font-family:'Cinzel',serif;font-size:8px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);background:rgba(212,168,67,0.1);border:1px solid rgba(212,168,67,0.3);border-radius:20px;padding:3px 12px">REGRAS MAÇÔNICAS FIXAS</span>
+          </div>
+          <div style="padding:6px 0 10px">
+            <div style="font-size:12px;color:var(--text-muted);font-style:italic;padding:0 22px 14px">
+              Estas permissões seguem a hierarquia maçônica e não podem ser alteradas individualmente.
+            </div>
+            <table style="width:100%">
+              <thead>
+                <tr>
+                  <th style="text-align:left;padding:8px 22px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;color:var(--text-muted);background:var(--cream)">Relatório</th>
+                  <th style="text-align:center;padding:8px 10px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;color:var(--text-muted);background:var(--cream)">👑 Ven.</th>
+                  <th style="text-align:center;padding:8px 10px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;color:var(--text-muted);background:var(--cream)">📜 Secr.</th>
+                  <th style="text-align:center;padding:8px 10px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;color:var(--text-muted);background:var(--cream)">⚖️ Tes.</th>
+                  <th style="text-align:center;padding:8px 10px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;color:var(--text-muted);background:var(--cream)">🗂️ Chan.</th>
+                  <th style="text-align:center;padding:8px 10px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;color:var(--text-muted);background:var(--cream)">🔵 Irmão</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${[
+                  {nome:'👥 Membros',             ven:1, sec:1, tes:0, cha:1, irm:0},
+                  {nome:'📊 Frequência',           ven:1, sec:0, tes:0, cha:1, irm:0},
+                  {nome:'💰 Extrato Financeiro',   ven:1, sec:0, tes:1, cha:0, irm:0},
+                  {nome:'⚠️ Débitos Pendentes',    ven:1, sec:0, tes:1, cha:0, irm:0},
+                  {nome:'🏺 Tronco de Beneficência',ven:1, sec:0, tes:1, cha:0, irm:0},
+                  {nome:'🏛️ Comissões da Loja',    ven:1, sec:0, tes:0, cha:1, irm:0},
+                ].map(r => {
+                  const cel = (v) => `<td style="text-align:center;padding:10px">
+                    <span style="font-size:14px">${v ? '✅' : '—'}</span>
+                  </td>`;
+                  return `<tr style="border-bottom:1px solid var(--border)">
+                    <td style="padding:10px 22px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:var(--text)">${r.nome}</td>
+                    ${cel(r.ven)}${cel(r.sec)}${cel(r.tes)}${cel(r.cha)}${cel(r.irm)}
+                  </tr>`;
+                }).join('')}
+              </tbody>
+            </table>
+            <div style="padding:12px 22px 6px;font-size:11px;color:var(--text-muted);font-style:italic;border-top:1px solid var(--border);margin-top:6px">
+              ✅ = Ver, editar e imprimir &nbsp;·&nbsp; — = Sem acesso &nbsp;·&nbsp; Venerável sempre tem acesso total a todos os relatórios.
+            </div>
+          </div>
+        </div><button class="btn btn-solid">+ Novo Usuário</button></div>
           <table>
             <thead><tr><th>Nome</th><th>Cargo Maçônico</th><th>Perfil de Acesso</th><th>Último Acesso</th><th>Status</th><th></th></tr></thead>
             <tbody>
@@ -6740,42 +6783,27 @@ async function salvarVisitaExterna(membroId) {
 
 // ===================== MEU FINANCEIRO =====================
 async function renderMeuFinanceiro() {
-  const isTes = currentRole === 'tesoureiro' || currentRole === 'veneravel' || currentRole === 'admin';
   const el = document.getElementById('meu-financeiro-content');
+  if (!el) return;
 
-  if (isTes) {
-    // Tesoureiro vê situação de todos os membros
-    const membros = DATA.membros.filter(m => m.status==='ativo'||m.status==='iniciado');
-    const lancs = DATA.financas;
-    const rows = membros.map(m => {
-      const pagamentos = lancs.filter(l => l.membro_id === m.id && l.tipo==='receita');
-      const totalPago = pagamentos.reduce((s,l) => s+parseFloat(l.valor||0), 0);
-      const mensalidade = m.mensalidade || 100;
-      const mesesPagos = Math.floor(totalPago / mensalidade);
-      const mesAtual = new Date().getMonth() + 1;
-      const emDia = mesesPagos >= mesAtual;
-      return `<tr>
-        <td>${m.nome_maconico}</td>
-        <td>${fmtVal(mensalidade)}/mês</td>
-        <td>${fmtVal(totalPago)}</td>
-        <td>${emDia?`<span class="badge b-paid">Em dia</span>`:`<span class="badge b-late">Pendente</span>`}</td>
-        <td><button class="btn" style="padding:3px 9px;font-size:8px" onclick="abrirModalLancamentoMembro('${m.id}','${m.nome_maconico}')">+ Pagamento</button></td>
-      </tr>`;
-    }).join('') || `<tr><td colspan="5" style="text-align:center;padding:20px;font-style:italic;color:var(--text-muted)">Nenhum membro ativo.</td></tr>`;
-    el.innerHTML = `
-      <div class="card">
-        <div class="card-header"><div class="card-title">Situação Financeira — Todos os Irmãos</div>
-          <button class="btn btn-solid" onclick="abrirModalLancamento()">+ Lançamento</button></div>
-        <table><thead><tr><th>Irmão</th><th>Mensalidade</th><th>Total Pago</th><th>Situação</th><th></th></tr></thead>
-        <tbody>${rows}</tbody></table>
-      </div>`;
-    return;
+  // ── Sempre mostrar o financeiro PESSOAL do irmão logado ──────
+  // (Venerável e Tesoureiro veem o financeiro da loja em Finanças, não aqui)
+  const eu = _eu();
+  let membro = null;
+  if (_membroLogado?.id) {
+    membro = DATA.membros.find(m => m.id === _membroLogado.id);
+  }
+  if (!membro) {
+    const nome = eu.nome.toLowerCase();
+    membro = DATA.membros.find(m => (m.nome_maconico||'').toLowerCase() === nome)
+          || DATA.membros.find(m => m.nome_maconico === ROLES[currentRole]?.name)
+          || DATA.membros[0];
   }
 
-  // ── IRMÃO: vê APENAS seu próprio extrato ────────────────────
-  const name = ROLES[currentRole].name;
-  const membro = DATA.membros.find(m => m.nome_maconico === name) || DATA.membros[0];
-  if (!membro) { el.innerHTML = `<div style="padding:20px;font-style:italic;color:var(--text-muted)">Membro não encontrado.</div>`; return; }
+  if (!membro) {
+    el.innerHTML = `<div style="padding:20px;font-style:italic;color:var(--text-muted)">Membro não encontrado no cadastro.</div>`;
+    return;
+  }
 
   // Filtros ativos
   const filtroStatus = el.querySelector('#mf-filtro-status')?.value || '';
@@ -8354,40 +8382,106 @@ function _fazerDownloadExcel(dados, nomeArquivo, nomeAba) {
   }
 }
 
+// ── Permissões de relatórios por cargo ────────────────────────
+// Regra fixa de negócio — não configurável no painel
+const REL_PERMISSOES = {
+  // id do relatório → cargos que podem ver
+  membros:    ['veneravel','secretario','chanceler','admin'],
+  frequencia: ['veneravel','chanceler','admin'],
+  financas:   ['veneravel','tesoureiro','admin'],
+  debitos:    ['veneravel','tesoureiro','admin'],
+  tronco:     ['veneravel','tesoureiro','admin'],
+  comissoes:  ['veneravel','chanceler','admin'],
+};
+
+function _possoVerRelatorio(id) {
+  const permitidos = REL_PERMISSOES[id] || ['veneravel','admin'];
+  return permitidos.includes(currentRole);
+}
+
 function renderRelatorios() {
+  const RELATORIOS = [
+    {
+      id: 'membros',
+      icon: '👥',
+      titulo: 'Relatório de Membros',
+      desc: 'Lista completa por status — ativos, inativos, licenciados. Filtro por grau e cargo.',
+      fn: 'mostrarRelMembros()',
+      cargos: 'Venerável · Secretário · Chanceler'
+    },
+    {
+      id: 'frequencia',
+      icon: '📊',
+      titulo: 'Relatório de Frequência',
+      desc: 'Frequência por período com filtro por irmão. Aptidão para votação e exportação Excel.',
+      fn: 'mostrarRelFrequenciaPeriodo()',
+      cargos: 'Venerável · Chanceler'
+    },
+    {
+      id: 'financas',
+      icon: '💰',
+      titulo: 'Extrato Financeiro',
+      desc: 'Receitas, despesas e saldo por período com filtro por irmão e categoria.',
+      fn: 'mostrarRelFinancas()',
+      cargos: 'Venerável · Tesoureiro'
+    },
+    {
+      id: 'debitos',
+      icon: '⚠️',
+      titulo: 'Débitos Pendentes',
+      desc: 'Lista de inadimplentes — mensalidades, débitos agendados e em aberto.',
+      fn: 'mostrarRelDebitos()',
+      cargos: 'Venerável · Tesoureiro'
+    },
+    {
+      id: 'tronco',
+      icon: '🏺',
+      titulo: 'Tronco de Beneficência',
+      desc: 'Arrecadação vinculada por sessão e saldo total disponível do tronco.',
+      fn: 'mostrarRelTronco()',
+      cargos: 'Venerável · Tesoureiro'
+    },
+    {
+      id: 'comissoes',
+      icon: '🏛️',
+      titulo: 'Comissões da Loja',
+      desc: 'Lista completa de comissões permanentes e temporárias com membros e status.',
+      fn: 'mostrarRelComissoes()',
+      cargos: 'Venerável · Chanceler'
+    },
+  ];
+
+  const visiveis  = RELATORIOS.filter(r => _possoVerRelatorio(r.id));
+  const restritos = RELATORIOS.filter(r => !_possoVerRelatorio(r.id));
+
+  const cardRel = (r, bloqueado) => `
+    <div class="rel-card" style="${bloqueado ? 'opacity:0.45;cursor:not-allowed;filter:grayscale(0.4)' : ''}"
+      ${bloqueado ? '' : `onclick="${r.fn}"`}>
+      <div class="rel-card-icon">${r.icon}</div>
+      <div class="rel-card-title">${r.titulo}</div>
+      <div class="rel-card-desc">${r.desc}</div>
+      <div style="margin-top:10px;font-family:'Cinzel',serif;font-size:8px;font-weight:700;letter-spacing:0.1em;color:${bloqueado?'var(--text-muted)':'var(--gold-dark)'}">
+        ${bloqueado ? '🔒 RESTRITO — '+r.cargos : r.cargos}
+      </div>
+    </div>`;
+
   document.getElementById('relatorios-content').innerHTML = `
-    <div class="rel-grid">
-      <div class="rel-card" onclick="mostrarRelMembros()">
-        <div class="rel-card-icon">👥</div>
-        <div class="rel-card-title">Relatório de Membros</div>
-        <div class="rel-card-desc">Lista completa por status — ativos, inativos, licenciados. Filtro por grau e cargo.</div>
+    ${visiveis.length ? `
+      <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;margin-bottom:12px">
+        Relatórios disponíveis para seu cargo (${visiveis.length})
       </div>
-      <div class="rel-card" onclick="mostrarRelFrequenciaPeriodo()">
-        <div class="rel-card-icon">📊</div>
-        <div class="rel-card-title">Relatório de Frequência</div>
-        <div class="rel-card-desc">Frequência por período com filtro por irmão. Aptidão para votação e exportação Excel.</div>
+      <div class="rel-grid" style="margin-bottom:24px">
+        ${visiveis.map(r => cardRel(r, false)).join('')}
+      </div>` : ''}
+
+    ${restritos.length ? `
+      <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;margin-bottom:12px;padding-top:${visiveis.length?'8px':'0'};border-top:${visiveis.length?'1px solid var(--border)':'none'}">
+        🔒 Sem acesso (${restritos.length})
       </div>
-      <div class="rel-card" onclick="mostrarRelFinancas()">
-        <div class="rel-card-icon">💰</div>
-        <div class="rel-card-title">Extrato Financeiro</div>
-        <div class="rel-card-desc">Receitas, despesas e saldo por período com filtro por irmão e categoria.</div>
-      </div>
-      <div class="rel-card" onclick="mostrarRelDebitos()">
-        <div class="rel-card-icon">⚠️</div>
-        <div class="rel-card-title">Débitos Pendentes</div>
-        <div class="rel-card-desc">Lista de inadimplentes — mensalidades, débitos agendados e em aberto.</div>
-      </div>
-      <div class="rel-card" onclick="mostrarRelTronco()">
-        <div class="rel-card-icon">🏺</div>
-        <div class="rel-card-title">Tronco de Beneficência</div>
-        <div class="rel-card-desc">Arrecadação vinculada por sessão e saldo total disponível do tronco.</div>
-      </div>
-      <div class="rel-card" onclick="mostrarRelComissoes()">
-        <div class="rel-card-icon">👥</div>
-        <div class="rel-card-title">Comissões da Loja</div>
-        <div class="rel-card-desc">Lista completa de comissões permanentes e temporárias com membros e status.</div>
-      </div>
-    </div>
+      <div class="rel-grid">
+        ${restritos.map(r => cardRel(r, true)).join('')}
+      </div>` : ''}
+
     <div id="rel-resultado"></div>`;
 }
 
@@ -9045,6 +9139,9 @@ function getRelMembrosCols() {
 }
 
 function mostrarRelMembros() {
+  if (!_possoVerRelatorio('membros')) {
+    toast('⛔ Sem permissão para este relatório.'); return;
+  }
   const membros = DATA.membros;
   const grupos = {
     ativo:     membros.filter(m=>m.status==='ativo'),
@@ -9352,6 +9449,9 @@ function imprimirFreqSessao(sessaoId) {
 
 // ─── FREQUÊNCIA POR PERÍODO / APTIDÃO ───
 function mostrarRelFrequenciaPeriodo() {
+  if (!_possoVerRelatorio('frequencia')) {
+    toast('⛔ Sem permissão para este relatório.'); return;
+  }
   const anoAtual = new Date().getFullYear();
   const opsMembros = `<option value="">Todos os irmãos</option>`
     + DATA.membros.filter(m=>m.status==='ativo'||m.status==='iniciado')
@@ -9532,6 +9632,9 @@ function imprimirFreqPeriodo(ini, fim, pctMin, filtroIrmaoId) {
 
 // ─── FINANÇAS ───
 function mostrarRelFinancas() {
+  if (!_possoVerRelatorio('financas')) {
+    toast('⛔ Sem permissão para este relatório.'); return;
+  }
   const anoAtual = new Date().getFullYear();
   document.getElementById('rel-resultado').innerHTML = `
     <div class="card">
@@ -9632,6 +9735,9 @@ function imprimirRelFinancas(ini, fim, tipo, cat) {
 
 // ─── DÉBITOS ───
 function mostrarRelDebitos() {
+  if (!_possoVerRelatorio('debitos')) {
+    toast('⛔ Sem permissão para este relatório.'); return;
+  }
   const membros = DATA.membros.filter(m=>m.status==='ativo'||m.status==='iniciado');
   const mesAtual = new Date().getMonth()+1;
   const devedores = membros.map(m=>{
@@ -9725,6 +9831,9 @@ function imprimirRelDebitos() {
 
 // ─── TRONCO DE BENEFICÊNCIA ───
 function mostrarRelTronco() {
+  if (!_possoVerRelatorio('tronco')) {
+    toast('⛔ Sem permissão para este relatório.'); return;
+  }
   const troncoLancs = DATA.financas.filter(l=>l.categoria==='tronco');
   const totalTronco = troncoLancs.filter(l=>l.tipo==='receita').reduce((s,l)=>s+parseFloat(l.valor||0),0);
   const totalSaidas = troncoLancs.filter(l=>l.tipo==='despesa').reduce((s,l)=>s+parseFloat(l.valor||0),0);
@@ -9791,6 +9900,9 @@ function exportarTroncoExcel() {
 }
 
 function mostrarRelComissoes() {
+  if (!_possoVerRelatorio('comissoes')) {
+    toast('⛔ Sem permissão para este relatório.'); return;
+  }
   const hoje = new Date().toISOString().split('T')[0];
   const comissoes = DATA.comissoes;
   const permanentes = comissoes.filter(c=>c.tipo==='permanente');
