@@ -2199,22 +2199,8 @@ async function renderDashboardIrmao(el) {
   const devia = Math.max(0, totalMeses*mensalidade - totalPago);
   const emDia = devia<=0 && totalAberto<=0;
 
-  // ── Trabalhos com pedido de revisão — busca fresca no banco ───
-  let trabRevisao = [];
-  try {
-    // Buscar por autor_id (login real) ou por nome do membro (demo)
-    let query = sb.from('trabalhos').select('*').eq('status','ajuste');
-    if (_membroLogado?.id) {
-      query = query.eq('autor_id', _membroLogado.id);
-    } else if (membro?.id) {
-      query = query.eq('autor_id', membro.id);
-    }
-    const {data: trabData} = await query.order('data_postagem',{ascending:false});
-    trabRevisao = trabData || [];
-    // Atualizar DATA.trabalhos com join completo se encontrou algo
-    if (trabRevisao.length) await _recarregarTrabalhos();
-  } catch(e) { console.warn('trabalhos revisão:', e); }
-
+  // ── Notificações da Biblioteca — recarregar dados frescos ─────
+  await _recarregarTrabalhos();
   const widgetBiblioteca = _widgetNotificacaoBiblioteca();
 
   // ── Quadro de irmãos ───────────────────────────────────────
@@ -6887,163 +6873,151 @@ async function salvarPagamentoMembro(membroId) {
 // ===================== COMISSÕES =====================
 // Armazenamento local (localStorage) até criar tabela no Supabase
 // ═══════════════════════════════════════════════════════════════
-//  BIBLIOTECA DE INSTRUÇÃO — Regras de negócio
-//
-//  GRAUS DE TRABALHO:
-//   0 = "Todos"  → visível para Graus 1, 2 e 3
-//   1 = Aprendiz → visível para Graus 1, 2 e 3
-//   2 = Comp.    → visível para Graus 2 e 3
-//   3 = Mestre   → visível apenas para Grau 3
-//
-//  APROVADORES:
-//   2º Vigilante → aprova trabalhos de Grau 1
-//   1º Vigilante → aprova trabalhos de Grau 2
-//   Venerável    → aprova tudo + pode mudar grau
-//
-//  PRIVACIDADE:
-//   Pendente / Em Revisão → só autor e aprovador enxergam
-//   Aprovado              → visível conforme grau do leitor
+//  BIBLIOTECA DE INSTRUÇÃO
+//  Abordagem: autor_nome (texto) salvo junto com autor_id
+//  → filtro sempre funciona, independente de demo ou login real
 // ═══════════════════════════════════════════════════════════════
 
-// ── Perfil logado ──────────────────────────────────────────────
-let _membroLogado = null; // { id, grau, cargo, nome_maconico }
+// ── Quem está logado agora ─────────────────────────────────────
+let _membroLogado = null; // preenchido no login real
 
-function _perfil() {
-  if (_membroLogado) return _membroLogado;
+function _eu() {
+  // Retorna { id, grau, cargo, nome } sempre consistente
+  const p = _membroLogado;
+  if (p) return { id: p.id||null, grau: p.grau||1, cargo: p.cargo||'Membro', nome: p.nome_maconico.replace(/\s*\(DEMO\)\s*/i,'').trim() };
   const gMap = {veneravel:3,secretario:3,tesoureiro:3,chanceler:3,irmao:1,admin:3};
-  const cMap = {veneravel:'Venerável Mestre',secretario:'Secretário',tesoureiro:'Tesoureiro',
-                chanceler:'Chanceler',irmao:'Membro',admin:'Administrador'};
-  return {id:null, grau:gMap[currentRole]||1,
-          cargo:cMap[currentRole]||'Membro',
-          nome_maconico:(ROLES[currentRole]?.name||'Irmão').replace(/\s*\(DEMO\)\s*/i,'').trim()};
+  const cMap = {veneravel:'Venerável Mestre',secretario:'Secretário',tesoureiro:'Tesoureiro',chanceler:'Chanceler',irmao:'Membro',admin:'Administrador'};
+  const nome = (ROLES[currentRole]?.name||'Irmão').replace(/\s*\(DEMO\)\s*/i,'').trim();
+  return { id: null, grau: gMap[currentRole]||1, cargo: cMap[currentRole]||'Membro', nome };
 }
 
-// ── Poderes de aprovação ────────────────────────────────────────
-function _poder() {
-  const p    = _perfil();
-  const c    = (p.cargo||'').toLowerCase();
-  const isVen = currentRole==='veneravel' || c.includes('venerável') || c.includes('veneravel');
-  const isAdm = currentRole==='admin';
-  const is1V  = c.includes('1º vigilante') || c.includes('1o vigilante');
-  const is2V  = c.includes('2º vigilante') || c.includes('2o vigilante');
+// ── Poderes de aprovação ───────────────────────────────────────
+function _euPossoAprovar() {
+  const eu = _eu();
+  const c  = eu.cargo.toLowerCase();
+  const isVen = currentRole==='veneravel'||currentRole==='admin'||c.includes('venerável')||c.includes('veneravel');
+  const is1V  = c.includes('1º vigilante')||c.includes('1o vigilante');
+  const is2V  = c.includes('2º vigilante')||c.includes('2o vigilante');
   return {
-    isVeneravel : isVen || isAdm,
-    is1Vigilante: is1V,
-    is2Vigilante: is2V,
-    podeAprovar : isVen || isAdm || is1V || is2V,
-    // Graus que este aprovador é responsável (pelo workflow)
-    grausResponsavel: (isVen||isAdm) ? [0,1,2,3] : is1V ? [2] : is2V ? [1] : [],
-    podeEscolherVis : isVen || isAdm
+    pode:       isVen||is1V||is2V,
+    isVeneravel:isVen,
+    is1Vig:     is1V,
+    is2Vig:     is2V,
+    graus:      isVen?[0,1,2,3]:is1V?[2]:is2V?[1]:[],
+    escolheVis: isVen
   };
 }
 
 // ── Helpers visuais ────────────────────────────────────────────
 const _GL = g => g===0?'Todos os Graus':g===1?'1º Grau — Aprendiz':g===2?'2º Grau — Companheiro':'3º Grau — Mestre';
-const _GC = g => g===0?'#1B3A8A':g===1?'#1B6B3A':g===2?'#7A3A8A':'#6B1B3A';
-const _GB = g => g===0?'rgba(27,58,138,0.07)':g===1?'rgba(27,107,58,0.07)':g===2?'rgba(122,58,138,0.07)':'rgba(107,27,58,0.07)';
+const _GC = g => ({0:'#1B3A8A',1:'#1B6B3A',2:'#7A3A8A',3:'#6B1B3A'})[g]||'#444';
+const _GB = g => ({0:'rgba(27,58,138,0.08)',1:'rgba(27,107,58,0.08)',2:'rgba(122,58,138,0.08)',3:'rgba(107,27,58,0.08)'})[g]||'rgba(0,0,0,0.04)';
+const _grauTrab = t => t.grau_trabalho ?? t.grau_autor ?? 1;
 
 const _ST = {
-  pendente:{label:'⏳ Aguardando aprovação', cor:'#7A6010', bg:'rgba(122,96,16,0.1)',  borda:'rgba(122,96,16,0.3)' },
-  aprovado:{label:'✅ Aprovado e publicado', cor:'#1B6B3A', bg:'rgba(27,107,58,0.1)',  borda:'rgba(27,107,58,0.3)' },
-  ajuste:  {label:'🔄 Revisão solicitada',  cor:'#8A1B1B', bg:'rgba(138,27,27,0.1)',  borda:'rgba(138,27,27,0.3)' }
+  pendente:{ txt:'⏳ Aguardando aprovação', cor:'#7A6010', bg:'rgba(122,96,16,0.10)', bd:'rgba(122,96,16,0.30)' },
+  aprovado:{ txt:'✅ Aprovado e publicado', cor:'#1B6B3A', bg:'rgba(27,107,58,0.10)',  bd:'rgba(27,107,58,0.30)'  },
+  ajuste:  { txt:'🔄 Revisão solicitada',  cor:'#8A1B1B', bg:'rgba(138,27,27,0.10)',  bd:'rgba(138,27,27,0.30)'  }
 };
 
-// ── Trabalhos do usuário logado em revisão ─────────────────────
-function _getTrabalhosEmRevisao() {
-  const todos = DATA.trabalhos||[];
-  if(!todos.length) return [];
+// ── Meus trabalhos: filtra pelo nome salvo no campo autor_nome ─
+function _meusTrab() {
+  const eu   = _eu();
+  const nome = eu.nome.toLowerCase();
+  const id   = eu.id;
+  // Buscar também o id do membro por nome em DATA.membros (fallback demo)
+  const memId = id || DATA.membros.find(m =>
+    (m.nome_maconico||'').toLowerCase() === nome)?.id || null;
 
-  const p    = _perfil();
-  const id   = _membroLogado?.id || null;
-  const nome = p.nome_maconico.toLowerCase();
-
-  // Buscar o id do membro no DATA caso _membroLogado.id seja null (demo)
-  const membroData = id
-    ? DATA.membros.find(m => m.id === id)
-    : DATA.membros.find(m =>
-        (m.nome_maconico||'').toLowerCase() === nome ||
-        (m.email||'').toLowerCase() === (document.getElementById('loginUser')?.value||'').trim().toLowerCase()
-      );
-  const memId = id || membroData?.id || null;
-
-  return todos.filter(t => {
-    if(t.status !== 'ajuste') return false;
-    // Por id do membro
-    if(memId && t.autor_id) return t.autor_id === memId;
-    // Por nome no join
-    const nomeJoin = (t.membros?.nome_maconico||'').replace(/\s*\(DEMO\)\s*/i,'').trim().toLowerCase();
-    return nomeJoin && nome && nomeJoin === nome;
+  return (DATA.trabalhos||[]).filter(t => {
+    // Prioridade 1: campo autor_nome (novo campo texto — sempre confiável)
+    if (t.autor_nome) return t.autor_nome.toLowerCase() === nome;
+    // Prioridade 2: autor_id
+    if (memId && t.autor_id) return t.autor_id === memId;
+    // Prioridade 3: nome no join
+    const nj = (t.membros?.nome_maconico||'').replace(/\s*\(DEMO\)\s*/i,'').trim().toLowerCase();
+    return nj && nj === nome;
   });
 }
 
-// ── Trabalhos pendentes para este aprovador ────────────────────
-function _getTrabalhosParaAprovar() {
-  const poder = _poder();
-  return (DATA.trabalhos||[]).filter(t =>
-    (t.status==='pendente'||t.status==='ajuste') &&
-    poder.grausResponsavel.includes(t.grau_trabalho??t.grau_autor??1)
-  );
+// ── Trabalhos em revisão do usuário logado ─────────────────────
+function _getTrabalhosEmRevisao() {
+  return _meusTrab().filter(t => t.status === 'ajuste');
 }
 
-// ── Widget de notificações (usado no dashboard) ────────────────
+// ── Widget de notificações para o dashboard ────────────────────
 function _widgetNotificacaoBiblioteca() {
-  const poder      = _poder();
-  const emRevisao  = _getTrabalhosEmRevisao();
-  const paraAprovar= poder.podeAprovar ? _getTrabalhosParaAprovar() : [];
-  const novos      = paraAprovar.filter(t => t.status==='pendente');
-  const blocos     = [];
+  const ap = _euPossoAprovar();
+  const revisao = _getTrabalhosEmRevisao();
+  // Novos trabalhos pendentes para este aprovador avaliar
+  const pendentes = ap.pode
+    ? (DATA.trabalhos||[]).filter(t => t.status==='pendente' && ap.graus.includes(_grauTrab(t)))
+    : [];
+  let html = '';
 
-  // Aviso para autores: trabalhos em revisão
-  if (emRevisao.length) {
-    blocos.push(`
-      <div onclick="showPanel('trabalhos');setTimeout(()=>ativarAbaTrabalhos('meus'),300)"
-        style="display:flex;gap:12px;align-items:flex-start;background:rgba(138,27,27,0.07);border:1.5px solid rgba(138,27,27,0.3);border-left:4px solid #8A1B1B;border-radius:6px;padding:14px 16px;margin-bottom:12px;cursor:pointer"
-        onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+  // Banner vermelho: meus trabalhos em revisão
+  if (revisao.length) {
+    html += `
+      <div onclick="showPanel('trabalhos');setTimeout(()=>ativarAbaTrabalhos('meus'),400)"
+        style="display:flex;gap:12px;align-items:flex-start;background:rgba(138,27,27,0.07);border:1.5px solid rgba(138,27,27,0.3);border-left:5px solid #8A1B1B;border-radius:6px;padding:14px 16px;margin-bottom:12px;cursor:pointer;transition:opacity 0.15s"
+        onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
         <span style="font-size:24px;flex-shrink:0">🔄</span>
         <div style="flex:1">
-          <div style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:#8A1B1B;letter-spacing:0.1em;margin-bottom:6px">
-            ${emRevisao.length} TRABALHO${emRevisao.length>1?'S':''} COM PEDIDO DE REVISÃO
+          <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:#8A1B1B;letter-spacing:0.1em;margin-bottom:8px">
+            VOCÊ TEM ${revisao.length} TRABALHO${revisao.length>1?'S':''} COM PEDIDO DE REVISÃO
           </div>
-          ${emRevisao.map(t=>{
-            const obs=(t.observacoes||t.feedback_texto||'').slice(0,90);
-            return `<div style="background:rgba(255,255,255,0.7);border:1px solid rgba(138,27,27,0.15);border-radius:4px;padding:7px 10px;margin-bottom:4px">
-              <div style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:var(--text)">${t.titulo||'—'}</div>
-              ${obs?`<div style="font-size:11px;color:#8A1B1B;font-style:italic;margin-top:2px">💬 "${obs}${obs.length===90?'…':''}"</div>
+          ${revisao.map(t => {
+            const obs = (t.observacoes||t.feedback_texto||'').trim().slice(0,120);
+            return `<div style="background:rgba(255,255,255,0.8);border:1px solid rgba(138,27,27,0.15);border-radius:4px;padding:8px 12px;margin-bottom:5px">
+              <div style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:var(--text);margin-bottom:${obs?'4px':'0'}">${t.titulo||'—'}</div>
+              ${obs?`<div style="font-size:12px;color:#8A1B1B;font-style:italic">💬 "${obs}${obs.length===120?'…':''}"</div>
               <div style="font-size:10px;color:var(--text-muted);margin-top:2px">— ${t.feedback_autor||'Vigilante'} · ${t.feedback_data?new Date(t.feedback_data).toLocaleDateString('pt-BR'):''}</div>`:''}
             </div>`;
           }).join('')}
-          <div style="font-size:10px;font-family:'Cinzel',serif;font-weight:700;color:#8A1B1B;margin-top:6px">Clique para corrigir e reenviar →</div>
+          <div style="font-size:10px;font-family:'Cinzel',serif;font-weight:700;color:#8A1B1B;margin-top:6px">Toque para abrir e corrigir →</div>
         </div>
-      </div>`);
+      </div>`;
   }
 
-  // Aviso para aprovadores: trabalhos aguardando avaliação
-  if (novos.length) {
-    const labelCargo = poder.isVeneravel?'Venerável':poder.is1Vigilante?'1º Vigilante':'2º Vigilante';
-    blocos.push(`
-      <div onclick="showPanel('trabalhos');setTimeout(()=>ativarAbaTrabalhos('gestao'),300)"
-        style="display:flex;gap:12px;align-items:flex-start;background:rgba(27,96,58,0.07);border:1.5px solid rgba(27,107,58,0.3);border-left:4px solid #1B6B3A;border-radius:6px;padding:14px 16px;margin-bottom:12px;cursor:pointer"
-        onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+  // Banner verde: trabalhos aguardando minha avaliação
+  if (pendentes.length) {
+    html += `
+      <div onclick="showPanel('trabalhos');setTimeout(()=>ativarAbaTrabalhos('gestao'),400)"
+        style="display:flex;gap:12px;align-items:flex-start;background:rgba(27,107,58,0.07);border:1.5px solid rgba(27,107,58,0.3);border-left:5px solid #1B6B3A;border-radius:6px;padding:14px 16px;margin-bottom:12px;cursor:pointer;transition:opacity 0.15s"
+        onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
         <span style="font-size:24px;flex-shrink:0">📥</span>
         <div style="flex:1">
-          <div style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:#1B6B3A;letter-spacing:0.1em;margin-bottom:6px">
-            ${novos.length} TRABALHO${novos.length>1?'S':''} AGUARDANDO SUA APROVAÇÃO
+          <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:#1B6B3A;letter-spacing:0.1em;margin-bottom:8px">
+            ${pendentes.length} TRABALHO${pendentes.length>1?'S':''} AGUARDANDO SUA APROVAÇÃO
           </div>
-          ${novos.slice(0,3).map(t=>`
-            <div style="background:rgba(255,255,255,0.7);border:1px solid rgba(27,107,58,0.15);border-radius:4px;padding:7px 10px;margin-bottom:4px;display:flex;align-items:center;justify-content:space-between;gap:8px">
+          ${pendentes.slice(0,3).map(t => `
+            <div style="background:rgba(255,255,255,0.8);border:1px solid rgba(27,107,58,0.15);border-radius:4px;padding:7px 12px;margin-bottom:5px;display:flex;justify-content:space-between;align-items:center">
               <div>
                 <div style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:var(--text)">${t.titulo||'—'}</div>
-                <div style="font-size:10px;color:var(--text-muted);margin-top:1px">${_GL(t.grau_trabalho||0)} · Ir. ${t.membros?.nome_maconico||'—'}</div>
+                <div style="font-size:10px;color:var(--text-muted);margin-top:1px">${_GL(_grauTrab(t))} · ${t.autor_nome||t.membros?.nome_maconico||'—'}</div>
               </div>
               <span style="font-size:10px;font-family:'Cinzel',serif;font-weight:700;color:#1B6B3A;white-space:nowrap">Avaliar →</span>
             </div>`).join('')}
-          ${novos.length>3?`<div style="font-size:10px;color:#1B6B3A;font-style:italic">+${novos.length-3} outro(s)…</div>`:''}
-          <div style="font-size:10px;font-family:'Cinzel',serif;font-weight:700;color:#1B6B3A;margin-top:6px">Clique para abrir a Gestão →</div>
+          ${pendentes.length>3?`<div style="font-size:11px;color:#1B6B3A;font-style:italic;margin-top:4px">+ ${pendentes.length-3} outro(s)…</div>`:''}
+          <div style="font-size:10px;font-family:'Cinzel',serif;font-weight:700;color:#1B6B3A;margin-top:6px">Toque para avaliar →</div>
         </div>
-      </div>`);
+      </div>`;
   }
 
-  return blocos.join('');
+  return html;
+}
+
+// ── Recarregar DATA.trabalhos com join e normalizar grau ───────
+async function _recarregarTrabalhos() {
+  const {data, error} = await sb.from('trabalhos')
+    .select('*,membros(id,nome_maconico,grau,cargo)')
+    .order('data_postagem',{ascending:false});
+  if (error) { console.error('_recarregarTrabalhos:', error); return; }
+  DATA.trabalhos = (data||[]).map(t => ({
+    ...t,
+    grau_trabalho: t.grau_trabalho ?? t.grau_autor ?? 1
+  }));
+  renderDashboard(); // atualizar banners
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -7053,318 +7027,251 @@ async function renderTrabalhos(access) {
   const el = document.getElementById('trabalhos-content');
   if (!el) return;
 
-  // Recarregar com join sempre
-  const {data} = await sb.from('trabalhos')
+  // Buscar trabalhos frescos do banco
+  const {data, error} = await sb.from('trabalhos')
     .select('*,membros(id,nome_maconico,grau,cargo)')
     .order('data_postagem',{ascending:false});
+  if (error) { console.error('renderTrabalhos:', error); }
   DATA.trabalhos = (data||[]).map(t => ({
     ...t,
     grau_trabalho: t.grau_trabalho ?? t.grau_autor ?? 1
   }));
 
-  const p      = _perfil();
-  const poder  = _poder();
-  const meuGrau = p.grau||1;
-  const meuId   = _membroLogado?.id||null;
-  const meuNome = p.nome_maconico.toLowerCase();
+  const eu   = _eu();
+  const ap   = _euPossoAprovar();
+  const meus = _meusTrab();
+  const emRevisao = meus.filter(t => t.status === 'ajuste');
 
-  // ── Biblioteca: trabalhos APROVADOS visíveis para meu grau
-  // Regra: grau_trabalho 0 ou 1 → todos vêem; 2 → grau≥2; 3 → grau≥3
+  // Biblioteca: só aprovados, filtrados por grau
   const biblioteca = DATA.trabalhos.filter(t => {
     if (t.status !== 'aprovado') return false;
-    const gT = t.grau_trabalho??t.grau_autor??1;
-    if (gT === 0 || gT === 1) return true;
-    return meuGrau >= gT;
+    const g = _grauTrab(t);
+    return g === 0 || g === 1 || eu.grau >= g;
   });
 
-  // ── Meus trabalhos: busca por todas as formas possíveis de identificação
-  const meuMembroId = _membroLogado?.id || DATA.membros.find(m =>
-    m.nome_maconico?.toLowerCase() === meuNome ||
-    m.email === (document.getElementById('loginUser')?.value?.trim())
-  )?.id || null;
-
-  const meus = DATA.trabalhos.filter(t => {
-    // 1. Por autor_id (mais confiável — login real ou demo com UUID resolvido)
-    if (meuMembroId && t.autor_id) return t.autor_id === meuMembroId;
-    // 2. Por nome do membro no join
-    const nomeJoin = (t.membros?.nome_maconico||'').replace(/\s*\(DEMO\)\s*/i,'').trim().toLowerCase();
-    if (meuNome && nomeJoin && nomeJoin === meuNome) return true;
-    // 3. Se autor_id é null mas meuNome bate — trabalho enviado sem id
-    if (!t.autor_id && meuNome) return false; // não associar trabalhos órfãos
-    return false;
-  });
-
-  // ── Fila de gestão: pendentes e em ajuste para este aprovador
-  const fila = poder.podeAprovar
+  // Fila do aprovador: pendentes + ajuste do grau responsável
+  const fila = ap.pode
     ? DATA.trabalhos.filter(t =>
         (t.status==='pendente'||t.status==='ajuste') &&
-        poder.grausResponsavel.includes(t.grau_trabalho??t.grau_autor??1))
+        ap.graus.includes(_grauTrab(t)))
     : [];
-
-  const emRevisao = meus.filter(t=>t.status==='ajuste');
 
   // Abas
   const abas = [
-    {id:'biblioteca', label:'📚 Biblioteca',    badge:biblioteca.length, destaque:false},
-    {id:'meus',       label:'📝 Meus Trabalhos', badge:meus.length||null,  destaque:emRevisao.length>0},
-    ...(poder.podeAprovar ? [{id:'gestao', label:'🔍 Gestão', badge:fila.length,
-      destaque:fila.filter(t=>t.status==='pendente').length>0}] : [])
+    {id:'biblioteca', label:'📚 Biblioteca',    n:biblioteca.length, d:false},
+    {id:'meus',       label:'📝 Meus Trabalhos', n:meus.length||null, d:emRevisao.length>0},
+    ...(ap.pode ? [{id:'gestao', label:'🔍 Gestão', n:fila.filter(t=>t.status==='pendente').length, d:fila.some(t=>t.status==='pendente')}] : [])
   ];
 
   el.innerHTML = `
     ${emRevisao.length ? `
     <div onclick="ativarAbaTrabalhos('meus')"
-      style="display:flex;gap:12px;align-items:center;background:rgba(138,27,27,0.07);border:1.5px solid rgba(138,27,27,0.3);border-left:4px solid #8A1B1B;border-radius:6px;padding:12px 16px;margin-bottom:16px;cursor:pointer">
-      <span style="font-size:22px">🔄</span>
+      style="display:flex;gap:10px;align-items:center;background:rgba(138,27,27,0.07);border:1.5px solid rgba(138,27,27,0.3);border-left:5px solid #8A1B1B;border-radius:6px;padding:12px 16px;margin-bottom:16px;cursor:pointer">
+      <span style="font-size:20px">🔄</span>
       <div>
         <div style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:#8A1B1B">
-          VOCÊ TEM ${emRevisao.length} TRABALHO${emRevisao.length>1?'S':''} COM PEDIDO DE REVISÃO
+          ${emRevisao.length} TRABALHO${emRevisao.length>1?'S':''} PRECISAM DE CORREÇÃO
         </div>
-        <div style="font-size:12px;color:var(--text-muted);margin-top:2px">Clique em "Meus Trabalhos" para ver o comentário e reenviar.</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Ver aba "Meus Trabalhos" para detalhes</div>
       </div>
     </div>` : ''}
 
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
       <div style="font-size:13px;color:var(--text-muted);font-style:italic">
-        Seu acesso: <strong style="color:var(--navy)">${_GL(meuGrau)}</strong>
+        Seu acesso: <strong style="color:var(--navy)">${_GL(eu.grau)}</strong>
       </div>
       <button class="btn btn-solid" onclick="abrirModalEnviarTrabalho()" style="padding:8px 20px">📤 Enviar Meu Trabalho</button>
     </div>
 
     <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:20px">
-      ${abas.map((a,i)=>`
+      ${abas.map((a,i) => `
         <button id="trab-aba-${a.id}" onclick="ativarAbaTrabalhos('${a.id}')"
           style="padding:10px 20px;border:none;background:none;cursor:pointer;font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.08em;
             color:${i===0?'var(--navy)':'var(--text-muted)'};border-bottom:${i===0?'2px solid var(--navy)':'2px solid transparent'};margin-bottom:-2px;transition:all 0.15s">
-          ${a.label}
-          ${a.badge!=null?`<span style="background:${a.destaque?'var(--gold-dark)':'rgba(27,58,107,0.15)'};color:${a.destaque?'#fff':'var(--navy)'};border-radius:20px;padding:1px 8px;font-size:9px;margin-left:4px">${a.badge}</span>`:''}</button>
+          ${a.label}${a.n!=null?` <span style="background:${a.d?'var(--gold-dark)':'rgba(27,58,107,0.15)'};color:${a.d?'#fff':'var(--navy)'};border-radius:20px;padding:1px 8px;font-size:9px;margin-left:4px">${a.n}</span>`:''}</button>
       `).join('')}
     </div>
 
-    <div id="trab-cont-biblioteca">${_renderBiblioteca(biblioteca, poder.isVeneravel)}</div>
-    <div id="trab-cont-meus"       style="display:none">${_renderMeus(meus)}</div>
-    ${poder.podeAprovar?`<div id="trab-cont-gestao" style="display:none">${_renderGestao(fila,poder)}</div>`:''}`;
+    <div id="trab-cont-biblioteca">${_biblio(biblioteca, ap.isVeneravel)}</div>
+    <div id="trab-cont-meus" style="display:none">${_meusHtml(meus)}</div>
+    ${ap.pode?`<div id="trab-cont-gestao" style="display:none">${_gestaoHtml(fila,ap)}</div>`:''}`;
 }
 
 function ativarAbaTrabalhos(id) {
   ['biblioteca','meus','gestao'].forEach(a => {
     const btn  = document.getElementById(`trab-aba-${a}`);
     const cont = document.getElementById(`trab-cont-${a}`);
-    const ativo = a===id;
-    if(btn)  {btn.style.color=ativo?'var(--navy)':'var(--text-muted)';btn.style.borderBottom=ativo?'2px solid var(--navy)':'2px solid transparent';}
-    if(cont) cont.style.display=ativo?'block':'none';
+    const ok   = a === id;
+    if(btn)  { btn.style.color = ok?'var(--navy)':'var(--text-muted)'; btn.style.borderBottom = ok?'2px solid var(--navy)':'2px solid transparent'; }
+    if(cont) cont.style.display = ok ? 'block' : 'none';
   });
 }
 
-// ══════════════════════════════════════════════════════════════
-//  ABA 1 — BIBLIOTECA (aprovados, filtrada por grau)
-// ══════════════════════════════════════════════════════════════
-function _renderBiblioteca(lista, isAdm) {
+// ── Biblioteca ─────────────────────────────────────────────────
+function _biblio(lista, isAdm) {
   if(!lista.length) return `
     <div style="text-align:center;padding:48px;color:var(--text-muted)">
       <div style="font-size:40px;opacity:0.2;margin-bottom:12px">📚</div>
       <div style="font-family:'Cinzel',serif;font-size:11px;letter-spacing:0.1em">NENHUM TRABALHO DISPONÍVEL PARA SEU GRAU</div>
     </div>`;
 
-  const grupos = [0,1,2,3]
-    .map(g=>({g, items:lista.filter(t=>(t.grau_trabalho??t.grau_autor??1)===g)}))
-    .filter(g=>g.items.length);
+  const grupos = [0,1,2,3].map(g => ({g, itens:lista.filter(t=>_grauTrab(t)===g)})).filter(x=>x.itens.length);
 
-  return grupos.map(({g,items})=>`
+  return grupos.map(({g, itens}) => `
     <div style="margin-bottom:28px">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
         <span style="background:${_GB(g)};border:1px solid ${_GC(g)}40;border-radius:20px;padding:4px 14px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:${_GC(g)}">${_GL(g)}</span>
-        <span style="font-size:12px;color:var(--text-muted)">${items.length} trabalho(s)</span>
+        <span style="font-size:12px;color:var(--text-muted)">${itens.length} trabalho(s)</span>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px">
-        ${items.map(t=>_cardBiblioteca(t,isAdm)).join('')}
+        ${itens.map(t => {
+          const g2 = _grauTrab(t);
+          const autor = t.autor_nome || t.membros?.nome_maconico || 'Irmão';
+          return `
+          <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:8px;overflow:hidden;transition:box-shadow 0.15s"
+            onmouseover="this.style.boxShadow='0 4px 16px rgba(27,58,107,0.12)'" onmouseout="this.style.boxShadow='none'">
+            <div style="background:${_GB(g2)};border-bottom:1px solid ${_GC(g2)}20;padding:14px 16px">
+              <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:var(--text);line-height:1.5;margin-bottom:6px">${t.titulo||'Sem título'}</div>
+              <div style="font-size:11px;color:var(--text-muted)">Ir. ${autor} · ${t.data_postagem?new Date(t.data_postagem).toLocaleDateString('pt-BR'):'—'}</div>
+            </div>
+            <div style="padding:10px 14px;display:flex;gap:8px">
+              ${t.url_arquivo?`<a href="${t.url_arquivo}" target="_blank" rel="noopener"
+                style="flex:1;text-align:center;padding:7px;background:var(--navy);color:var(--gold-pale);border-radius:4px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;text-decoration:none">📖 LER</a>`:''}
+              ${isAdm?`<button onclick="excluirTrabalho('${t.id}','${(t.titulo||'').replace(/'/g,"\\'")}') "
+                style="padding:7px 10px;border:1px solid rgba(139,32,32,0.25);border-radius:4px;background:none;cursor:pointer;font-size:12px;color:var(--red)">🗑️</button>`:''}
+            </div>
+          </div>`;
+        }).join('')}
       </div>
     </div>`).join('');
 }
 
-function _cardBiblioteca(t, isAdm) {
-  const autor = t.membros?.nome_maconico||'Irmão';
-  const g     = t.grau_trabalho||0;
-  return `
-    <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:8px;overflow:hidden;transition:box-shadow 0.15s"
-      onmouseover="this.style.boxShadow='0 4px 16px rgba(27,58,107,0.12)'" onmouseout="this.style.boxShadow='none'">
-      <div style="background:${_GB(g)};border-bottom:1px solid ${_GC(g)}25;padding:14px 16px">
-        <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:var(--text);line-height:1.5;margin-bottom:6px">${t.titulo||'Sem título'}</div>
-        <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Ir. ${autor} · ${t.data_postagem?new Date(t.data_postagem).toLocaleDateString('pt-BR'):'—'}</div>
-        <span style="background:${_GB(g)};border:1px solid ${_GC(g)}40;border-radius:20px;padding:2px 10px;font-family:'Cinzel',serif;font-size:8px;font-weight:700;color:${_GC(g)}">${_GL(g)}</span>
-      </div>
-      <div style="padding:10px 16px;display:flex;gap:8px">
-        ${t.url_arquivo?`<a href="${t.url_arquivo}" target="_blank" rel="noopener"
-          style="flex:1;text-align:center;padding:7px;background:var(--navy);color:var(--gold-pale);border-radius:4px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;text-decoration:none">📖 LER TRABALHO</a>`:''}
-        ${isAdm?`<button onclick="excluirTrabalho('${t.id}','${(t.titulo||'').replace(/'/g,"\\'")}') "
-          style="padding:7px 10px;border:1px solid rgba(139,32,32,0.25);border-radius:4px;background:none;cursor:pointer;font-size:12px;color:var(--red)">🗑️</button>`:''}
-      </div>
-    </div>`;
-}
-
-// ══════════════════════════════════════════════════════════════
-//  ABA 2 — MEUS TRABALHOS
-// ══════════════════════════════════════════════════════════════
-function _renderMeus(lista) {
+// ── Meus Trabalhos ─────────────────────────────────────────────
+function _meusHtml(lista) {
   if(!lista.length) return `
-    <div style="text-align:center;padding:40px 20px;color:var(--text-muted)">
-      <div style="font-size:36px;opacity:0.2;margin-bottom:12px">📝</div>
-      <div style="font-family:'Cinzel',serif;font-size:11px;letter-spacing:0.1em;margin-bottom:8px">NENHUM TRABALHO ENCONTRADO</div>
-      <div style="font-size:13px;font-style:italic;max-width:320px;margin:0 auto;line-height:1.6">
-        Você ainda não enviou nenhum trabalho, ou seus trabalhos estão associados a outro cadastro.<br>
-        Use o botão <strong>"📤 Enviar Meu Trabalho"</strong> para começar.
-      </div>
+    <div style="text-align:center;padding:40px;color:var(--text-muted)">
+      <div style="font-size:36px;opacity:0.2;margin-bottom:10px">📝</div>
+      <div style="font-family:'Cinzel',serif;font-size:11px">VOCÊ NÃO ENVIOU NENHUM TRABALHO AINDA</div>
+      <div style="font-size:13px;margin-top:6px;font-style:italic">Use o botão "📤 Enviar Meu Trabalho" acima.</div>
     </div>`;
 
-  // Separar por status para exibir em grupos
-  const grupos = [
-    { status:'ajuste',   cor:'#8A1B1B', bgGrupo:'rgba(138,27,27,0.04)', tituloGrupo:'🔄 Aguardando sua correção' },
-    { status:'pendente', cor:'#7A6010', bgGrupo:'rgba(122,96,16,0.04)', tituloGrupo:'⏳ Aguardando aprovação' },
-    { status:'aprovado', cor:'#1B6B3A', bgGrupo:'rgba(27,107,58,0.04)', tituloGrupo:'✅ Aprovados e publicados' },
-  ];
-
+  // Agrupar: em revisão primeiro, depois pendentes, depois aprovados
+  const ordem = ['ajuste','pendente','aprovado'];
+  const grupos = ordem.map(st => ({st, itens: lista.filter(t=>t.status===st)})).filter(x=>x.itens.length);
   let html = '';
-  grupos.forEach(({status, cor, bgGrupo, tituloGrupo}) => {
-    const itens = lista.filter(t => t.status === status);
-    if(!itens.length) return;
-    const st = _ST[status];
+
+  grupos.forEach(({st, itens}) => {
+    const cfg = _ST[st];
     html += `
       <div style="margin-bottom:20px">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-          <div style="width:8px;height:8px;border-radius:50%;background:${cor};flex-shrink:0"></div>
-          <span style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.12em;color:${cor};text-transform:uppercase">${tituloGrupo} (${itens.length})</span>
+          <div style="width:10px;height:10px;border-radius:50%;background:${cfg.cor};flex-shrink:0"></div>
+          <span style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.1em;color:${cfg.cor}">${cfg.txt} (${itens.length})</span>
         </div>
         ${itens.map(t => {
-          const g    = t.grau_trabalho ?? t.grau_autor ?? 1;
-          const obs  = (t.observacoes || t.feedback_texto || '').trim();
-          const isAj = t.status === 'ajuste';
-          const isAp = t.status === 'aprovado';
+          const g   = _grauTrab(t);
+          const obs = (t.observacoes||t.feedback_texto||'').trim();
           return `
-          <div style="background:var(--white);border:2px solid ${st.borda};border-radius:8px;overflow:hidden;margin-bottom:10px">
+          <div style="background:var(--white);border:2px solid ${cfg.bd};border-radius:8px;overflow:hidden;margin-bottom:10px">
 
-            <!-- Cabeçalho: status + grau -->
-            <div style="background:${st.bg};padding:10px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-              <span style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:${st.cor};letter-spacing:0.08em;flex:1">${st.label}</span>
+            <!-- Cabeçalho -->
+            <div style="background:${cfg.bg};padding:10px 16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <span style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:${cfg.cor};flex:1">${cfg.txt}</span>
               <span style="background:${_GB(g)};border:1px solid ${_GC(g)}40;border-radius:20px;padding:2px 10px;font-family:'Cinzel',serif;font-size:8px;font-weight:700;color:${_GC(g)}">${_GL(g)}</span>
-              ${isAp ? `<span style="background:rgba(27,107,58,0.1);border:1px solid rgba(27,107,58,0.3);border-radius:20px;padding:2px 10px;font-family:'Cinzel',serif;font-size:8px;font-weight:700;color:#1B6B3A">Visível: ${_GL(t.grau_visibilidade||g)}+</span>` : ''}
+              ${t.status==='aprovado'?`<span style="background:rgba(27,107,58,0.1);border:1px solid rgba(27,107,58,0.3);border-radius:20px;padding:2px 10px;font-family:'Cinzel',serif;font-size:8px;font-weight:700;color:#1B6B3A">Visível: ${_GL(t.grau_visibilidade??g)}+</span>`:''}
             </div>
 
             <!-- Dados -->
-            <div style="padding:12px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <div style="padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
               <div style="flex:1;min-width:160px">
-                <div style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;color:var(--text);margin-bottom:3px">${t.titulo || 'Sem título'}</div>
-                <div style="font-size:11px;color:var(--text-muted)">
-                  Enviado em ${t.data_postagem ? new Date(t.data_postagem).toLocaleDateString('pt-BR') : '—'}
-                </div>
+                <div style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;color:var(--text);margin-bottom:3px">${t.titulo||'—'}</div>
+                <div style="font-size:11px;color:var(--text-muted)">Enviado em ${t.data_postagem?new Date(t.data_postagem).toLocaleDateString('pt-BR'):'—'}</div>
               </div>
-              ${t.url_arquivo ? `
-                <a href="${t.url_arquivo}" target="_blank" rel="noopener"
-                  style="padding:6px 14px;border:1px solid var(--border-mid);border-radius:4px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:var(--navy);text-decoration:none;white-space:nowrap">
-                  📄 Ver arquivo
-                </a>` : ''}
+              ${t.url_arquivo?`<a href="${t.url_arquivo}" target="_blank" rel="noopener"
+                style="padding:6px 12px;border:1px solid var(--border-mid);border-radius:4px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:var(--navy);text-decoration:none">
+                📄 Ver arquivo</a>`:''}
             </div>
 
-            <!-- Comentário do vigilante (só quando ajuste) -->
-            ${isAj ? `
+            ${t.status==='ajuste'?`
+            <!-- Comentário do vigilante -->
             <div style="border-top:2px dashed rgba(138,27,27,0.25);padding:12px 16px;background:rgba(138,27,27,0.04)">
-              <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:#8A1B1B;letter-spacing:0.12em;margin-bottom:8px">
-                💬 ${obs ? 'COMENTÁRIO DO APROVADOR' : 'REVISÃO SOLICITADA — sem comentário adicional'}
-              </div>
-              ${obs ? `
-                <div style="font-size:13px;color:var(--text);line-height:1.7;background:var(--white);border:1px solid rgba(138,27,27,0.2);border-radius:4px;padding:10px 14px;font-style:italic">"${obs}"</div>
-                <div style="font-size:11px;color:var(--text-muted);margin-top:5px">
-                  — ${t.feedback_autor || 'Vigilante'} · ${t.feedback_data ? new Date(t.feedback_data).toLocaleDateString('pt-BR') : ''}
-                </div>` : ''}
-              <!-- Botão reenviar -->
-              <div style="margin-top:14px">
-                <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;font-style:italic">Faça as correções e reenvie para nova avaliação:</div>
-                <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-                  <input type="file" id="reenvio-file-${t.id}" accept=".pdf,.doc,.docx"
-                    style="flex:1;min-width:180px;border:1px solid var(--border-mid);border-radius:3px;padding:7px;font-size:12px;background:var(--white);cursor:pointer"
-                    placeholder="Deixe vazio para manter o arquivo atual">
+              <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:#8A1B1B;letter-spacing:0.12em;margin-bottom:8px">💬 COMENTÁRIO DO APROVADOR</div>
+              ${obs?`
+                <div style="background:var(--white);border:1px solid rgba(138,27,27,0.2);border-radius:4px;padding:10px 14px;font-size:13px;color:var(--text);font-style:italic;line-height:1.7;margin-bottom:6px">"${obs}"</div>
+                <div style="font-size:11px;color:var(--text-muted)">— ${t.feedback_autor||'Vigilante'} · ${t.feedback_data?new Date(t.feedback_data).toLocaleDateString('pt-BR'):''}</div>
+              `:`<div style="font-size:12px;color:var(--text-muted);font-style:italic">Sem comentário adicional.</div>`}
+              <!-- Reenviar -->
+              <div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(138,27,27,0.15)">
+                <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;font-style:italic">Corrija e reenvie para nova avaliação:</div>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+                  <input type="file" id="reenvio-${t.id}" accept=".pdf,.doc,.docx"
+                    style="flex:1;min-width:180px;border:1px solid var(--border-mid);border-radius:3px;padding:7px;font-size:12px;background:var(--white);cursor:pointer">
                   <button onclick="reenviarTrabalho('${t.id}')"
-                    style="padding:8px 20px;background:var(--navy);color:var(--gold-pale);border:none;border-radius:4px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap">
+                    style="padding:8px 18px;background:var(--navy);color:var(--gold-pale);border:none;border-radius:4px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap">
                     🔁 Reenviar para Aprovação
                   </button>
                 </div>
-                <div style="font-size:11px;color:var(--text-muted);margin-top:5px;font-style:italic">
-                  Deixe o campo vazio para manter o arquivo atual.
-                </div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:5px;font-style:italic">Deixe o campo vazio para manter o arquivo atual.</div>
               </div>
-            </div>` : ''}
+            </div>`:''}
 
           </div>`;
         }).join('')}
       </div>`;
   });
-
-  return `<div>${html}</div>`;
+  return html;
 }
 
-// ══════════════════════════════════════════════════════════════
-//  ABA 3 — GESTÃO (vigilantes / venerável)
-// ══════════════════════════════════════════════════════════════
-function _renderGestao(fila, poder) {
-  const cargo = poder.isVeneravel?'Venerável Mestre':poder.is1Vigilante?'1º Vigilante':'2º Vigilante';
-  const grausResp = poder.grausResponsavel.map(g=>_GL(g)).join(', ');
+// ── Gestão (vigilantes / venerável) ───────────────────────────
+function _gestaoHtml(fila, ap) {
+  const cargo = ap.isVeneravel?'Venerável Mestre':ap.is1Vig?'1º Vigilante':'2º Vigilante';
 
   if(!fila.length) return `
     <div style="background:rgba(27,58,107,0.04);border:1px solid rgba(27,58,107,0.12);border-radius:6px;padding:12px 16px;margin-bottom:16px;font-size:12px;color:var(--text-muted)">
-      <strong>${cargo}</strong> · Responsável por: ${grausResp}
-    </div>
-    <div style="text-align:center;padding:40px;color:var(--text-muted)">
-      <div style="font-size:36px;opacity:0.2;margin-bottom:10px">✅</div>
-      <div style="font-family:'Cinzel',serif;font-size:11px">NENHUM TRABALHO AGUARDANDO AVALIAÇÃO</div>
+      <strong>${cargo}</strong> — nenhum trabalho aguardando avaliação.
     </div>`;
 
   const pendentes = fila.filter(t=>t.status==='pendente');
   const emAdj     = fila.filter(t=>t.status==='ajuste');
 
-  const renderGrupo = (lista, titulo, cor) => {
+  const grupo = (lista, titulo, cor) => {
     if(!lista.length) return '';
     return `
-      <div style="margin-bottom:24px">
+      <div style="margin-bottom:22px">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
-          <div style="width:8px;height:8px;border-radius:50%;background:${cor};flex-shrink:0"></div>
-          <span style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.12em;color:var(--text-muted);text-transform:uppercase">${titulo} (${lista.length})</span>
+          <div style="width:10px;height:10px;border-radius:50%;background:${cor};flex-shrink:0"></div>
+          <span style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.1em;color:var(--text-muted);text-transform:uppercase">${titulo} (${lista.length})</span>
         </div>
-        ${lista.map(t=>{
-          const autor = t.membros?.nome_maconico||'Irmão';
-          const g     = t.grau_trabalho??t.grau_autor??1;
-          const obs   = (t.observacoes||t.feedback_texto||'').trim();
-          const st    = _ST[t.status]||_ST.pendente;
-          // Opções de visibilidade para o Venerável
-          const optsVis = poder.podeEscolherVis
-            ? [0,1,2,3].map(v=>`<option value="${v}" ${v===g?'selected':''}>${_GL(v)}</option>`).join('')
+        ${lista.map(t => {
+          const g    = _grauTrab(t);
+          const st   = _ST[t.status]||_ST.pendente;
+          const obs  = (t.observacoes||t.feedback_texto||'').trim();
+          const autor = t.autor_nome || t.membros?.nome_maconico || 'Irmão';
+          const optsVis = ap.escolheVis
+            ? [0,1,2,3].map(v=>`<option value="${v}"${v===g?' selected':''}>${_GL(v)}</option>`).join('')
             : '';
           return `
-          <div style="background:var(--white);border:1px solid ${st.borda};border-radius:8px;overflow:hidden;margin-bottom:14px">
-            <!-- Strip de status -->
-            <div style="background:${st.bg};padding:7px 18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
-              <span style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:${st.cor}">${st.label}</span>
+          <div style="background:var(--white);border:1px solid ${st.bd};border-radius:8px;overflow:hidden;margin-bottom:12px">
+            <!-- Status strip -->
+            <div style="background:${st.bg};padding:7px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
+              <span style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:${st.cor}">${st.txt}</span>
               <span style="background:${_GB(g)};border:1px solid ${_GC(g)}40;border-radius:20px;padding:2px 10px;font-family:'Cinzel',serif;font-size:8px;font-weight:700;color:${_GC(g)}">${_GL(g)}</span>
             </div>
-            <!-- Dados do trabalho -->
-            <div style="padding:14px 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-              <div style="flex:1;min-width:180px">
-                <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:var(--text);margin-bottom:4px">${t.titulo||'—'}</div>
+            <!-- Dados -->
+            <div style="padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+              <div style="flex:1;min-width:160px">
+                <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:var(--text);margin-bottom:3px">${t.titulo||'—'}</div>
                 <div style="font-size:11px;color:var(--text-muted)">Ir. ${autor} · ${t.data_postagem?new Date(t.data_postagem).toLocaleDateString('pt-BR'):'—'}</div>
               </div>
-              ${t.url_arquivo?`
-                <a href="${t.url_arquivo}" target="_blank" rel="noopener"
-                  style="padding:6px 14px;border:1px solid var(--border-mid);border-radius:4px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:var(--navy);text-decoration:none;white-space:nowrap">
-                  📖 Visualizar
-                </a>`:''}
+              ${t.url_arquivo?`<a href="${t.url_arquivo}" target="_blank" rel="noopener"
+                style="padding:6px 12px;border:1px solid var(--border-mid);border-radius:4px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:var(--navy);text-decoration:none">
+                📖 Ler</a>`:''}
             </div>
-            ${obs?`
-            <div style="padding:8px 18px;background:rgba(122,96,16,0.05);border-top:1px solid rgba(122,96,16,0.15);font-size:12px;color:#7A6010;font-style:italic">
-              💬 Obs. anterior: "${obs}"
-            </div>`:''}
-            <!-- Painel de ação -->
-            <div style="padding:12px 18px;border-top:1px solid var(--border);background:var(--cream);display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
-              <!-- Aprovar -->
-              <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
-                ${poder.podeEscolherVis?`
+            ${obs?`<div style="padding:7px 16px;background:rgba(122,96,16,0.06);border-top:1px solid rgba(122,96,16,0.15);font-size:12px;color:#7A6010;font-style:italic">💬 Obs anterior: "${obs.slice(0,100)}"</div>`:''}
+            <!-- Ações -->
+            <div style="padding:12px 16px;border-top:1px solid var(--border);background:var(--cream);display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+              <div style="display:flex;gap:8px;align-items:flex-end">
+                ${ap.escolheVis?`
                 <div>
                   <label style="font-family:'Cinzel',serif;font-size:8px;font-weight:700;letter-spacing:0.1em;color:var(--text-muted);display:block;margin-bottom:4px;text-transform:uppercase">Visível para</label>
                   <select id="vis-${t.id}" style="border:1px solid var(--border-mid);border-radius:3px;padding:7px 10px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--white)">${optsVis}</select>
@@ -7374,11 +7281,10 @@ function _renderGestao(fila, poder) {
                   ✅ Aprovar
                 </button>
               </div>
-              <!-- Pedir revisão -->
               <div style="flex:1;min-width:200px;display:flex;gap:8px;align-items:flex-end">
                 <div style="flex:1">
-                  <label style="font-family:'Cinzel',serif;font-size:8px;font-weight:700;letter-spacing:0.1em;color:var(--text-muted);display:block;margin-bottom:4px;text-transform:uppercase">Observação para o autor</label>
-                  <input type="text" id="obs-${t.id}" value="${obs.replace(/"/g,'&quot;')}" placeholder="Descreva o que precisa ser corrigido..."
+                  <label style="font-family:'Cinzel',serif;font-size:8px;font-weight:700;letter-spacing:0.1em;color:var(--text-muted);display:block;margin-bottom:4px;text-transform:uppercase">Motivo da revisão</label>
+                  <input type="text" id="obs-${t.id}" value="${obs.replace(/"/g,'&quot;')}" placeholder="Descreva o que deve ser corrigido..."
                     style="width:100%;border:1px solid var(--border-mid);border-radius:4px;padding:7px 10px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--white)">
                 </div>
                 <button onclick="pedirRevisao('${t.id}')"
@@ -7394,25 +7300,18 @@ function _renderGestao(fila, poder) {
 
   return `
     <div style="background:rgba(27,58,107,0.04);border:1px solid rgba(27,58,107,0.12);border-radius:6px;padding:10px 16px;margin-bottom:18px;font-size:12px;color:var(--text-muted)">
-      <strong>${cargo}</strong> · Você avalia: <em>${grausResp}</em>
+      <strong>${cargo}</strong> — avaliando: ${ap.graus.map(g=>_GL(g)).join(', ')}
     </div>
-    ${renderGrupo(pendentes,'Novos — aguardando avaliação','#7A6010')}
-    ${renderGrupo(emAdj,'Em revisão — aguardando correção do autor','#1B5EA0')}`;
+    ${grupo(pendentes,'Novos — aguardando avaliação','#7A6010')}
+    ${grupo(emAdj,'Em revisão — aguardando correção do autor','#1B5EA0')}`;
 }
 
-// ══════════════════════════════════════════════════════════════
-//  MODAL ENVIAR TRABALHO
-// ══════════════════════════════════════════════════════════════
+// ── Modal enviar trabalho ──────────────────────────────────────
 function abrirModalEnviarTrabalho() {
-  const p       = _perfil();
-  const grauMax = p.grau||3;
-  const opts    = [
-    {v:0, l:'Todos os Graus (público para todos)'},
-    {v:1, l:'1º Grau — Aprendiz'},
-    {v:2, l:'2º Grau — Companheiro'},
-    {v:3, l:'3º Grau — Mestre'},
-  ].filter(o => o.v <= grauMax || o.v === 0)
-   .map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
+  const eu   = _eu();
+  const opts = [{v:0,l:'Todos os Graus (visível para todos)'},{v:1,l:'1º Grau — Aprendiz'},{v:2,l:'2º Grau — Companheiro'},{v:3,l:'3º Grau — Mestre'}]
+    .filter(o => o.v === 0 || o.v <= eu.grau)
+    .map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
   const lb  = (t,r='') => `<label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">${t}${r?` <span style="color:var(--red)">${r}</span>`:''}</label>`;
   const inp = `style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:9px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"`;
 
@@ -7421,12 +7320,13 @@ function abrirModalEnviarTrabalho() {
       <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:8px;width:500px;max-height:90vh;overflow-y:auto">
         <div style="height:3px;background:linear-gradient(90deg,var(--gold-dark),var(--gold-rich),var(--gold-light),var(--gold-dark));border-radius:8px 8px 0 0"></div>
         <div style="padding:24px 28px">
-          <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);margin-bottom:6px">📤 Enviar Trabalho Maçônico</div>
-          <div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-bottom:18px;background:rgba(27,58,107,0.04);border:1px solid rgba(27,58,107,0.12);border-radius:4px;padding:10px 14px">
-            Após o envio, seu trabalho será avaliado pelo Vigilante responsável antes de aparecer na biblioteca. Enquanto estiver pendente, só você e o aprovador podem vê-lo.
+          <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;color:var(--gold-dark);margin-bottom:6px">📤 Enviar Trabalho Maçônico</div>
+          <div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-bottom:18px;background:rgba(27,58,107,0.04);border:1px solid rgba(27,58,107,0.12);border-radius:4px;padding:10px 14px;line-height:1.6">
+            Seu trabalho ficará visível em <strong>Meus Trabalhos</strong> assim que enviado.<br>
+            Ele aparecerá na Biblioteca após aprovação do Vigilante responsável.
           </div>
           <div style="display:grid;gap:14px">
-            <div>${lb('Título do Trabalho','*')}<input id="trab-titulo" ${inp} placeholder="Ex: A Simbologia do Esquadro"></div>
+            <div>${lb('Título','*')}<input id="trab-titulo" ${inp} placeholder="Ex: A Simbologia do Esquadro e do Compasso"></div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
               <div>${lb('Classificação','*')}<select id="trab-grau" ${inp}>${opts}</select></div>
               <div>${lb('Arquivo PDF','*')}
@@ -7444,39 +7344,23 @@ function abrirModalEnviarTrabalho() {
     </div>`);
 }
 
-async function _uploadArquivoTrabalho(file) {
+async function _uploadTrab(file) {
   const ext  = file.name.split('.').pop().toLowerCase();
-  const path = `trabalhos/${Date.now()}.${ext}`;
-  for (const bucket of ['documentos','atas-arquivos']) {
-    const {error} = await sb.storage.from(bucket).upload(path, file,
+  const path = `trabalhos/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+  for (const bkt of ['documentos','atas-arquivos']) {
+    const {error} = await sb.storage.from(bkt).upload(path, file,
       {upsert:true, contentType:file.type||'application/octet-stream'});
     if(!error) {
-      const {data:u} = sb.storage.from(bucket).getPublicUrl(path);
+      const {data:u} = sb.storage.from(bkt).getPublicUrl(path);
       return u?.publicUrl||null;
     }
   }
   return null;
 }
 
-async function _recarregarTrabalhos() {
-  const {data} = await sb.from('trabalhos')
-    .select('*,membros(id,nome_maconico,grau,cargo)')
-    .order('data_postagem',{ascending:false});
-  if(data) {
-    // Normalizar: garantir que grau_trabalho esteja sempre preenchido
-    // (compatibilidade com bancos que só têm grau_autor)
-    DATA.trabalhos = data.map(t => ({
-      ...t,
-      grau_trabalho: t.grau_trabalho ?? t.grau_autor ?? 1
-    }));
-  }
-  // Atualizar dashboard para refletir novos avisos
-  renderDashboard();
-}
-
 async function submeterTrabalho() {
   const titulo = document.getElementById('trab-titulo')?.value.trim();
-  const grau   = parseInt(document.getElementById('trab-grau')?.value) || 0;
+  const grau   = parseInt(document.getElementById('trab-grau')?.value)||1;
   const file   = document.getElementById('trab-file')?.files?.[0];
   if(!titulo) { toast('Informe o título'); return; }
   if(!file)   { toast('Selecione o arquivo'); return; }
@@ -7484,46 +7368,46 @@ async function submeterTrabalho() {
   const btn = document.getElementById('btn-enviar-trab');
   if(btn) {btn.textContent='⏳ Enviando...'; btn.disabled=true;}
 
-  const url = await _uploadArquivoTrabalho(file);
+  const url = await _uploadTrab(file);
   if(!url) {
-    toast('❌ Erro no upload. Verifique as permissões do bucket no Supabase (Storage → Policies).');
-    if(btn) {btn.textContent='📤 Enviar para Aprovação'; btn.disabled=false;}
+    toast('❌ Erro no upload. Verifique as permissões do bucket no Supabase.');
+    if(btn){btn.textContent='📤 Enviar para Aprovação'; btn.disabled=false;}
     return;
   }
 
-  // Resolver autor_id
-  const p = _perfil();
+  const eu = _eu();
+  // Resolver autor_id pelo nome no banco
   let autorId = _membroLogado?.id || null;
-  if(!autorId && p.nome_maconico) {
-    const {data:m} = await sb.from('membros').select('id').eq('nome_maconico', p.nome_maconico).maybeSingle();
-    autorId = m?.id || null;
+  if(!autorId) {
+    const {data:m} = await sb.from('membros').select('id').eq('nome_maconico', eu.nome).maybeSingle();
+    autorId = m?.id||null;
   }
 
-  // Tentar inserir — suporta tanto 'grau_trabalho' quanto 'grau_autor' (compatibilidade)
-  const payload = {
+  const reg = {
     titulo,
+    autor_nome:   eu.nome,    // CHAVE: sempre salvar o nome em texto
+    autor_id:     autorId,    // pode ser null no demo sem problema
     grau_trabalho: grau,
-    grau_autor:    grau,        // fallback para tabelas com coluna antiga
+    grau_autor:    grau,
     grau_visibilidade: grau,
-    url_arquivo: url,
-    autor_id: autorId,
-    status: 'pendente',
-    observacoes: null,
+    url_arquivo:  url,
+    status:       'pendente',
+    observacoes:  null,
     feedback_texto: null,
     feedback_autor: null,
-    feedback_data: null,
-    data_postagem: new Date().toISOString().split('T')[0]
+    feedback_data:  null,
+    data_postagem:  new Date().toISOString().split('T')[0]
   };
 
-  const {error} = await sb.from('trabalhos').insert(payload);
-
+  const {error} = await sb.from('trabalhos').insert(reg);
   if(error) {
-    console.error('Erro submeterTrabalho:', error);
+    console.error('submeterTrabalho:', error);
     toast('❌ Erro ao salvar: ' + error.message);
-    if(btn) {btn.textContent='📤 Enviar para Aprovação'; btn.disabled=false;}
+    if(btn){btn.textContent='📤 Enviar para Aprovação'; btn.disabled=false;}
     return;
   }
-  toast('✅ Trabalho enviado! Aguardando avaliação.');
+
+  toast('✅ Trabalho enviado! Aparece em "Meus Trabalhos" enquanto aguarda aprovação.');
   fecharModal();
   await _recarregarTrabalhos();
   await renderTrabalhos(ROLES[currentRole].access['trabalhos']||'full');
@@ -7531,55 +7415,47 @@ async function submeterTrabalho() {
 }
 
 async function reenviarTrabalho(id) {
-  const file = document.getElementById(`reenvio-file-${id}`)?.files?.[0];
+  const file = document.getElementById(`reenvio-${id}`)?.files?.[0];
   const upd  = {status:'pendente', observacoes:null, feedback_texto:null, feedback_autor:null, feedback_data:null};
   if(file) {
-    toast('⏳ Fazendo upload...');
-    const url = await _uploadArquivoTrabalho(file);
+    toast('⏳ Enviando arquivo corrigido...');
+    const url = await _uploadTrab(file);
     if(!url) {toast('❌ Erro no upload'); return;}
     upd.url_arquivo = url;
   }
   const {error} = await sb.from('trabalhos').update(upd).eq('id',id);
-  if(error) {console.error('reenviarTrabalho:', error); toast('❌ '+error.message); return;}
+  if(error) {console.error('reenviarTrabalho:',error); toast('❌ '+error.message); return;}
   toast('✅ Reenviado! O Vigilante receberá para nova avaliação.');
   await _recarregarTrabalhos();
   await renderTrabalhos(ROLES[currentRole].access['trabalhos']||'full');
   ativarAbaTrabalhos('meus');
 }
 
-async function aprovarTrabalho(id, grauTrabalho) {
-  const poder   = _poder();
-  const grauVis = poder.podeEscolherVis
-    ? parseInt(document.getElementById(`vis-${id}`)?.value ?? grauTrabalho)
-    : grauTrabalho;
-  const p = _perfil();
+async function aprovarTrabalho(id, grauTrab) {
+  const ap  = _euPossoAprovar();
+  const vis = ap.escolheVis ? parseInt(document.getElementById(`vis-${id}`)?.value??grauTrab) : grauTrab;
+  const eu  = _eu();
   const {error} = await sb.from('trabalhos').update({
-    status: 'aprovado',
-    grau_visibilidade: grauVis,
-    observacoes: null,
-    feedback_texto: null,
-    feedback_autor: p.nome_maconico,
-    feedback_data: new Date().toISOString()
-  }).eq('id', id);
-  if(error) {console.error('aprovarTrabalho:', error); toast('❌ '+error.message); return;}
+    status:'aprovado', grau_visibilidade:vis,
+    observacoes:null, feedback_texto:null,
+    feedback_autor: eu.nome, feedback_data: new Date().toISOString()
+  }).eq('id',id);
+  if(error) {console.error('aprovarTrabalho:',error); toast('❌ '+error.message); return;}
   await _recarregarTrabalhos();
-  toast(`✅ Aprovado! Visível para ${_GL(grauVis)} e acima.`);
+  toast(`✅ Aprovado! Visível para ${_GL(vis)} e acima.`);
   await renderTrabalhos(ROLES[currentRole].access['trabalhos']||'full');
   ativarAbaTrabalhos('gestao');
 }
 
 async function pedirRevisao(id) {
   const obs = document.getElementById(`obs-${id}`)?.value.trim();
-  if(!obs) {toast('Escreva a observação antes de enviar'); return;}
-  const p = _perfil();
+  if(!obs) {toast('Escreva o motivo da revisão'); return;}
+  const eu = _eu();
   const {error} = await sb.from('trabalhos').update({
-    status: 'ajuste',
-    observacoes: obs,
-    feedback_texto: obs,
-    feedback_autor: p.nome_maconico,
-    feedback_data: new Date().toISOString()
-  }).eq('id', id);
-  if(error) {console.error('pedirRevisao:', error); toast('❌ '+error.message); return;}
+    status:'ajuste', observacoes:obs, feedback_texto:obs,
+    feedback_autor: eu.nome, feedback_data: new Date().toISOString()
+  }).eq('id',id);
+  if(error) {console.error('pedirRevisao:',error); toast('❌ '+error.message); return;}
   await _recarregarTrabalhos();
   toast('🔄 Pedido de revisão enviado ao autor.');
   await renderTrabalhos(ROLES[currentRole].access['trabalhos']||'full');
