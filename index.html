@@ -7364,11 +7364,13 @@ async function _recarregarTrabalhos() {
     .select('*,membros(id,nome_maconico,grau,cargo)')
     .order('data_postagem',{ascending:false});
   if(data) DATA.trabalhos = data;
+  // Atualizar dashboard para refletir novos avisos
+  renderDashboard();
 }
 
 async function submeterTrabalho() {
   const titulo = document.getElementById('trab-titulo')?.value.trim();
-  const grau   = parseInt(document.getElementById('trab-grau')?.value);
+  const grau   = parseInt(document.getElementById('trab-grau')?.value) || 0;
   const file   = document.getElementById('trab-file')?.files?.[0];
   if(!titulo) { toast('Informe o título'); return; }
   if(!file)   { toast('Selecione o arquivo'); return; }
@@ -7378,27 +7380,43 @@ async function submeterTrabalho() {
 
   const url = await _uploadArquivoTrabalho(file);
   if(!url) {
-    toast('❌ Erro no upload. Verifique as permissões do bucket.');
+    toast('❌ Erro no upload. Verifique as permissões do bucket no Supabase (Storage → Policies).');
     if(btn) {btn.textContent='📤 Enviar para Aprovação'; btn.disabled=false;}
     return;
   }
 
   // Resolver autor_id
-  const p   = _perfil();
-  let autorId = _membroLogado?.id||null;
+  const p = _perfil();
+  let autorId = _membroLogado?.id || null;
   if(!autorId && p.nome_maconico) {
-    const {data:m} = await sb.from('membros').select('id').eq('nome_maconico',p.nome_maconico).maybeSingle();
-    autorId = m?.id||null;
+    const {data:m} = await sb.from('membros').select('id').eq('nome_maconico', p.nome_maconico).maybeSingle();
+    autorId = m?.id || null;
   }
 
-  const {error} = await sb.from('trabalhos').insert({
-    titulo, grau_trabalho:grau, grau_visibilidade:grau,
-    url_arquivo:url, autor_id:autorId, status:'pendente',
-    observacoes:null, feedback_texto:null, feedback_autor:null, feedback_data:null,
+  // Tentar inserir — suporta tanto 'grau_trabalho' quanto 'grau_autor' (compatibilidade)
+  const payload = {
+    titulo,
+    grau_trabalho: grau,
+    grau_autor:    grau,        // fallback para tabelas com coluna antiga
+    grau_visibilidade: grau,
+    url_arquivo: url,
+    autor_id: autorId,
+    status: 'pendente',
+    observacoes: null,
+    feedback_texto: null,
+    feedback_autor: null,
+    feedback_data: null,
     data_postagem: new Date().toISOString().split('T')[0]
-  });
+  };
 
-  if(error) {toast('❌ '+error.message); if(btn){btn.textContent='📤 Enviar para Aprovação'; btn.disabled=false;} return;}
+  const {error} = await sb.from('trabalhos').insert(payload);
+
+  if(error) {
+    console.error('Erro submeterTrabalho:', error);
+    toast('❌ Erro ao salvar: ' + error.message);
+    if(btn) {btn.textContent='📤 Enviar para Aprovação'; btn.disabled=false;}
+    return;
+  }
   toast('✅ Trabalho enviado! Aguardando avaliação.');
   fecharModal();
   await _recarregarTrabalhos();
@@ -7416,7 +7434,7 @@ async function reenviarTrabalho(id) {
     upd.url_arquivo = url;
   }
   const {error} = await sb.from('trabalhos').update(upd).eq('id',id);
-  if(error) {toast('❌ '+error.message); return;}
+  if(error) {console.error('reenviarTrabalho:', error); toast('❌ '+error.message); return;}
   toast('✅ Reenviado! O Vigilante receberá para nova avaliação.');
   await _recarregarTrabalhos();
   await renderTrabalhos(ROLES[currentRole].access['trabalhos']||'full');
@@ -7430,11 +7448,14 @@ async function aprovarTrabalho(id, grauTrabalho) {
     : grauTrabalho;
   const p = _perfil();
   const {error} = await sb.from('trabalhos').update({
-    status:'aprovado', grau_visibilidade:grauVis,
-    observacoes:null, feedback_texto:null,
-    feedback_autor: p.nome_maconico, feedback_data: new Date().toISOString()
-  }).eq('id',id);
-  if(error) {toast('❌ '+error.message); return;}
+    status: 'aprovado',
+    grau_visibilidade: grauVis,
+    observacoes: null,
+    feedback_texto: null,
+    feedback_autor: p.nome_maconico,
+    feedback_data: new Date().toISOString()
+  }).eq('id', id);
+  if(error) {console.error('aprovarTrabalho:', error); toast('❌ '+error.message); return;}
   await _recarregarTrabalhos();
   toast(`✅ Aprovado! Visível para ${_GL(grauVis)} e acima.`);
   await renderTrabalhos(ROLES[currentRole].access['trabalhos']||'full');
@@ -7446,10 +7467,13 @@ async function pedirRevisao(id) {
   if(!obs) {toast('Escreva a observação antes de enviar'); return;}
   const p = _perfil();
   const {error} = await sb.from('trabalhos').update({
-    status:'ajuste', observacoes:obs, feedback_texto:obs,
-    feedback_autor: p.nome_maconico, feedback_data: new Date().toISOString()
-  }).eq('id',id);
-  if(error) {toast('❌ '+error.message); return;}
+    status: 'ajuste',
+    observacoes: obs,
+    feedback_texto: obs,
+    feedback_autor: p.nome_maconico,
+    feedback_data: new Date().toISOString()
+  }).eq('id', id);
+  if(error) {console.error('pedirRevisao:', error); toast('❌ '+error.message); return;}
   await _recarregarTrabalhos();
   toast('🔄 Pedido de revisão enviado ao autor.');
   await renderTrabalhos(ROLES[currentRole].access['trabalhos']||'full');
