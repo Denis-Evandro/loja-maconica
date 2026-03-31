@@ -6920,22 +6920,34 @@ const _ST = {
   ajuste:  { txt:'🔄 Revisão solicitada',  cor:'#8A1B1B', bg:'rgba(138,27,27,0.10)',  bd:'rgba(138,27,27,0.30)'  }
 };
 
-// ── Meus trabalhos: filtra pelo autor ─────────────────────────
+// ── Chave localStorage para rastrear trabalhos desta sessão ───
+function _chaveTrabalhos() {
+  const eu = _eu();
+  return 'meus_trab_' + eu.nome.toLowerCase().replace(/\s+/g,'_');
+}
+function _salvarMeuId(id) {
+  try {
+    const ch  = _chaveTrabalhos();
+    const ids = JSON.parse(localStorage.getItem(ch)||'[]');
+    if (!ids.includes(id)) { ids.push(id); localStorage.setItem(ch, JSON.stringify(ids)); }
+  } catch(e) {}
+}
 function _meusTrab() {
   const eu   = _eu();
   const nome = eu.nome.toLowerCase();
-  // Resolver id via DATA.membros se necessário
   const memId = _membroLogado?.id ||
     DATA.membros.find(m => (m.nome_maconico||'').toLowerCase() === nome)?.id || null;
 
+  // IDs salvos localmente nesta sessão (funciona no demo)
+  let localIds = [];
+  try { localIds = JSON.parse(localStorage.getItem(_chaveTrabalhos())||'[]'); } catch(e) {}
+
   return (DATA.trabalhos||[]).filter(t => {
-    // 1. Campo autor_nome (quando existir no banco)
-    if (t.autor_nome) return t.autor_nome.toLowerCase() === nome;
-    // 2. autor_id
-    if (memId && t.autor_id) return t.autor_id === memId;
-    // 3. Nome no join membros
+    if (localIds.includes(t.id))  return true;                               // rastreio local
+    if (t.autor_nome && t.autor_nome.toLowerCase() === nome) return true;    // campo autor_nome
+    if (memId && t.autor_id)      return t.autor_id === memId;               // por uuid
     const nj = (t.membros?.nome_maconico||'').replace(/\s*\(DEMO\)\s*/i,'').trim().toLowerCase();
-    return nj && nome && nj === nome;
+    return nj && nome && nj === nome;                                          // join
   });
 }
 
@@ -7016,6 +7028,25 @@ async function _recarregarTrabalhos() {
     ...t,
     grau_trabalho: t.grau_trabalho ?? t.grau_autor ?? 1
   }));
+
+  // Sincronizar localStorage: registrar IDs de trabalhos que pertencem ao usuário
+  // via autor_id ou via nome no join — para que _meusTrab() sempre funcione
+  const eu    = _eu();
+  const nome  = eu.nome.toLowerCase();
+  const memId = _membroLogado?.id ||
+    DATA.membros.find(m => (m.nome_maconico||'').toLowerCase() === nome)?.id || null;
+
+  DATA.trabalhos.forEach(t => {
+    let ehMeu = false;
+    if (memId && t.autor_id && t.autor_id === memId) ehMeu = true;
+    if (!ehMeu && t.autor_nome && t.autor_nome.toLowerCase() === nome) ehMeu = true;
+    if (!ehMeu) {
+      const nj = (t.membros?.nome_maconico||'').replace(/\s*\(DEMO\)\s*/i,'').trim().toLowerCase();
+      if (nj && nj === nome) ehMeu = true;
+    }
+    if (ehMeu) _salvarMeuId(t.id);
+  });
+
   renderDashboard(); // atualizar banners
 }
 
@@ -7035,6 +7066,16 @@ async function renderTrabalhos(access) {
     ...t,
     grau_trabalho: t.grau_trabalho ?? t.grau_autor ?? 1
   }));
+
+  // Sincronizar IDs do usuário no localStorage
+  { const euS = _eu(), nS = euS.nome.toLowerCase(),
+      mS = _membroLogado?.id || DATA.membros.find(m=>(m.nome_maconico||'').toLowerCase()===nS)?.id||null;
+    DATA.trabalhos.forEach(t => {
+      if ((mS && t.autor_id===mS)||(t.autor_nome?.toLowerCase()===nS)||
+          ((t.membros?.nome_maconico||'').replace(/\s*\(DEMO\)\s*/i,'').trim().toLowerCase()===nS&&nS))
+        _salvarMeuId(t.id);
+    });
+  }
 
   const eu   = _eu();
   const ap   = _euPossoAprovar();
@@ -7407,22 +7448,27 @@ async function submeterTrabalho() {
     data_postagem:    new Date().toISOString().split('T')[0]
   };
 
-  // Tentar inserir. Se der erro por coluna inexistente, tenta versão mínima.
-  let {error} = await sb.from('trabalhos').insert(reg);
+  const {data: novoTrab, error} = await sb.from('trabalhos').insert(reg).select('id').single();
 
-  if(error && (error.message?.includes('column') || error.code === '42703')) {
+  if (error && (error.message?.includes('column') || error.code === '42703')) {
     // Fallback: inserir apenas colunas básicas garantidas
     const regMin = { titulo, autor_id:autorId, url_arquivo:url, status:'pendente',
       data_postagem: new Date().toISOString().split('T')[0] };
-    const r2 = await sb.from('trabalhos').insert(regMin);
-    error = r2.error;
-  }
-
-  if(error) {
+    const r2 = await sb.from('trabalhos').insert(regMin).select('id').single();
+    if (r2.error) {
+      console.error('submeterTrabalho fallback:', r2.error);
+      toast('❌ Erro ao salvar: ' + r2.error.message);
+      if(btn){btn.textContent='📤 Enviar para Aprovação'; btn.disabled=false;}
+      return;
+    }
+    if (r2.data?.id) _salvarMeuId(r2.data.id);
+  } else if (error) {
     console.error('submeterTrabalho:', error);
     toast('❌ Erro ao salvar: ' + error.message);
     if(btn){btn.textContent='📤 Enviar para Aprovação'; btn.disabled=false;}
     return;
+  } else if (novoTrab?.id) {
+    _salvarMeuId(novoTrab.id); // salvar no localStorage para filtro funcionar no demo
   }
 
   toast('✅ Trabalho enviado! Aparece em "Meus Trabalhos" enquanto aguarda aprovação.');
@@ -7433,6 +7479,7 @@ async function submeterTrabalho() {
 }
 
 async function reenviarTrabalho(id) {
+  _salvarMeuId(id); // garantir rastreio local
   const file = document.getElementById(`reenvio-${id}`)?.files?.[0];
   const upd  = {status:'pendente', observacoes:null, feedback_texto:null, feedback_autor:null, feedback_data:null};
   if(file) {
