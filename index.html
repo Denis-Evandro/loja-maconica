@@ -549,8 +549,9 @@ body {
 }
 
 /* STATS */
-.stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:24px; padding:4px; backface-visibility:hidden; }
-.stats-grid-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:24px; padding:4px; backface-visibility:hidden; }
+.stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px; margin-bottom:24px; padding:4px; backface-visibility:hidden; }
+.stats-grid-3 { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; margin-bottom:24px; padding:4px; backface-visibility:hidden; }
+.stat-card.financeiro-loja { border-left:5px solid var(--gold-rich); background:linear-gradient(135deg,#FFFFFF 0%,var(--cream) 100%); }
 
 .stat-card {
   background: linear-gradient(135deg, #FFFFFF 0%, #EEF4FB 100%);
@@ -2257,8 +2258,8 @@ async function renderDashboardIrmao(el) {
     <!-- NOTIFICAÇÕES DA BIBLIOTECA -->
     ${widgetBiblioteca}
 
-    <!-- LINHA 1: 4 cards de acesso rápido -->
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-bottom:16px">
+    <!-- LINHA 1: Cards pessoais — grid responsivo -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:16px">
 
       <!-- Membros -->
       <div style="padding:18px 18px;${cardClick('membros')}">
@@ -2475,9 +2476,13 @@ async function renderDashboard() {
   }
   const maxGraf = Math.max(...grafMeses.map(g=>Math.max(g.rec,g.desp)), 1);
 
-  const cardStyle = `background:var(--white);border:1px solid var(--border-mid);border-radius:6px;padding:18px 20px;cursor:pointer;transition:box-shadow 0.15s,transform 0.15s`;
-  const hoverIn = `this.style.boxShadow='0 4px 18px rgba(27,58,107,0.13)';this.style.transform='translateY(-2px)'`;
-  const hoverOut = `this.style.boxShadow='';this.style.transform=''`;
+  // — Regras de privacidade financeira
+  const podeVerFinanceiroLoja = ['veneravel','tesoureiro','admin'].includes(currentRole) ||
+    ['venerável mestre','tesoureiro','administrador'].includes((_eu().cargo||'').toLowerCase());
+
+  const cardStyle = `background:var(--white);border:1px solid var(--border-mid);border-radius:6px;padding:18px 20px;cursor:pointer;transition:transform 0.3s cubic-bezier(0.25,0.8,0.25,1),box-shadow 0.3s ease;will-change:transform`;
+  const hoverIn = `this.style.transform='translateY(-4px)';this.style.boxShadow='0 8px 20px rgba(27,58,107,0.14)'`;
+  const hoverOut = `this.style.transform='';this.style.boxShadow=''`;
 
   el.innerHTML = `
     ${avisoRevisao}
@@ -2538,18 +2543,22 @@ async function renderDashboard() {
       </div>
     </div>
 
-    <!-- LINHA 2: Card financeiro grande com mini-gráfico -->
-    <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;padding:18px 22px;cursor:pointer;transition:box-shadow 0.15s,transform 0.15s;margin-bottom:14px" onclick="showPanel('financas')" onmouseover="${hoverIn}" onmouseout="${hoverOut}">
-      <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;margin-bottom:14px">💰 Financeiro — ${meses[hoje.getMonth()]} ${anoAtual}</div>
+    <!-- LINHA 2: Card financeiro da loja — apenas Venerável, Tesoureiro e Admin -->
+    ${podeVerFinanceiroLoja ? `
+    <div style="background:var(--white);border:1px solid var(--border-mid);border-left:5px solid var(--gold-rich);border-radius:6px;padding:18px 22px;cursor:pointer;transition:transform 0.3s cubic-bezier(0.25,0.8,0.25,1),box-shadow 0.3s ease;margin-bottom:14px;will-change:transform" onclick="showPanel('financas')" onmouseover="${hoverIn}" onmouseout="${hoverOut}">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+        <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase">💰 Tesouraria da Loja — ${meses[hoje.getMonth()]} ${anoAtual}</div>
+        <span style="background:rgba(212,168,67,0.12);border:1px solid rgba(212,168,67,0.4);border-radius:20px;padding:2px 10px;font-family:'Cinzel',serif;font-size:8px;font-weight:700;color:var(--gold-dark)">🔒 Restrito</span>
+      </div>
       <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:20px;align-items:stretch">
 
-        <!-- Coluna esquerda: métricas em lista -->
+        <!-- Métricas -->
         <div style="display:flex;flex-direction:column;gap:8px">
           ${[
             {label:'Mensalidades mês', val: fmtVal(mensalidadesMes), cor:'var(--green)'},
             {label:'Despesas mês',     val: fmtVal(despMes),         cor:'var(--red)'},
-            {label:'Saldo mês',        val: fmtVal(recMes-despMes),  cor: (recMes-despMes)>=0?'var(--green)':'var(--red)'},
-            {label:'Saldo em caixa',   val: fmtVal(saldoTotal),      cor: saldoTotal>=0?'var(--green)':'var(--red)'},
+            {label:'Saldo mês',        val: fmtVal(recMes-despMes),  cor:(recMes-despMes)>=0?'var(--green)':'var(--red)'},
+            {label:'Saldo em caixa',   val: fmtVal(saldoTotal),      cor:saldoTotal>=0?'var(--green)':'var(--red)'},
             {label:'Saldo tronco',     val: fmtVal(saldoTronco),     cor:'#7A4A00'},
           ].map(r=>`
             <div style="display:flex;align-items:center;justify-content:space-between;border:1px solid var(--border);border-radius:4px;padding:7px 12px;background:var(--cream)">
@@ -2558,7 +2567,7 @@ async function renderDashboard() {
             </div>`).join('')}
         </div>
 
-        <!-- Coluna direita: gráfico -->
+        <!-- Gráfico -->
         <div style="border:1px solid var(--border);border-radius:5px;padding:12px 14px;background:var(--cream);display:flex;flex-direction:column">
           <div style="font-size:8px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;text-align:center">Receitas vs Despesas — últimos 6 meses</div>
           <div style="flex:1;display:flex;align-items:flex-end;gap:4px;min-height:70px">
@@ -2580,7 +2589,7 @@ async function renderDashboard() {
         </div>
 
       </div>
-    </div>
+    </div>` : ''}
 
 
     <!-- PRÓXIMOS EVENTOS -->
