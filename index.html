@@ -2155,9 +2155,20 @@ function readOnlyBanner() {
 }
 
 // ===================== DASHBOARD =====================
-function renderDashboardIrmao(el) {
-  const name = ROLES[currentRole].name;
-  const membro = DATA.membros.find(m => m.nome_maconico === name) || DATA.membros[0];
+async function renderDashboardIrmao(el) {
+  const name = _membroLogado?.nome_maconico || ROLES[currentRole].name;
+  const nomeLimpo = name.replace(/\s*\(DEMO\)\s*/i,'').trim();
+  // Buscar membro logado de forma confiável
+  let membro = null;
+  if (_membroLogado?.id) {
+    membro = DATA.membros.find(m => m.id === _membroLogado.id);
+  }
+  if (!membro) {
+    membro = DATA.membros.find(m => m.nome_maconico === nomeLimpo)
+          || DATA.membros.find(m => m.nome_maconico === name)
+          || DATA.membros[0];
+  }
+
   const hoje = new Date();
   const mesAtual = String(hoje.getMonth()+1).padStart(2,'0');
   const anoAtual = hoje.getFullYear();
@@ -2186,8 +2197,22 @@ function renderDashboardIrmao(el) {
   const devia = Math.max(0, totalMeses*mensalidade - totalPago);
   const emDia = devia<=0 && totalAberto<=0;
 
-  // ── Trabalhos com pedido de revisão ───────────────────────
-  const trabRevisao = _getTrabalhosEmRevisao();
+  // ── Trabalhos com pedido de revisão — busca fresca no banco ───
+  let trabRevisao = [];
+  try {
+    // Buscar por autor_id (login real) ou por nome do membro (demo)
+    let query = sb.from('trabalhos').select('*').eq('status','ajuste');
+    if (_membroLogado?.id) {
+      query = query.eq('autor_id', _membroLogado.id);
+    } else if (membro?.id) {
+      query = query.eq('autor_id', membro.id);
+    }
+    const {data: trabData} = await query.order('data_postagem',{ascending:false});
+    trabRevisao = trabData || [];
+    // Atualizar DATA.trabalhos com join completo se encontrou algo
+    if (trabRevisao.length) await _recarregarTrabalhos();
+  } catch(e) { console.warn('trabalhos revisão:', e); }
+
   const widgetBiblioteca = _widgetNotificacaoBiblioteca();
 
   // ── Quadro de irmãos ───────────────────────────────────────
@@ -2379,12 +2404,15 @@ function renderDashboardIrmao(el) {
         </div>`}
     </div>`;
 }
-function renderDashboard() {
+async function renderDashboard() {
   const el = document.getElementById('dashboard-content');
   if (!el) return;
 
   // Irmão vê painel personalizado
   if (currentRole === 'irmao') { renderDashboardIrmao(el); return; }
+
+  // Garantir dados frescos de trabalhos para os aprovadores
+  await _recarregarTrabalhos();
 
   // Aviso de revisão para vigilantes e demais cargos que enviaram trabalhos
   const avisoRevisao = _widgetNotificacaoBiblioteca();
