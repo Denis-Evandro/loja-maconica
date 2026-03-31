@@ -6898,13 +6898,15 @@ function _euPossoAprovar() {
   const isVen = currentRole==='veneravel'||currentRole==='admin'||c.includes('venerável')||c.includes('veneravel');
   const is1V  = c.includes('1º vigilante')||c.includes('1o vigilante');
   const is2V  = c.includes('2º vigilante')||c.includes('2o vigilante');
+  // pode: array de graus que este aprovador é responsável
+  const pode  = isVen ? [0,1,2,3] : is1V ? [2] : is2V ? [1] : [];
   return {
-    pode:       isVen||is1V||is2V,
-    isVeneravel:isVen,
+    pode,                          // array de graus
+    podeAlgum: pode.length > 0,    // booleano para checar se tem poder
+    isVeneravel: isVen,
     is1Vig:     is1V,
     is2Vig:     is2V,
-    graus:      isVen?[0,1,2,3]:is1V?[2]:is2V?[1]:[],
-    escolheVis: isVen
+    escolheVis: isVen              // só venerável define visibilidade ao aprovar
   };
 }
 
@@ -6958,65 +6960,72 @@ function _getTrabalhosEmRevisao() {
 
 // ── Widget de notificações para o dashboard ────────────────────
 function _widgetNotificacaoBiblioteca() {
-  const ap = _euPossoAprovar();
-  const revisao = _getTrabalhosEmRevisao();
-  // Novos trabalhos pendentes para este aprovador avaliar
-  const pendentes = ap.pode
-    ? (DATA.trabalhos||[]).filter(t => t.status==='pendente' && ap.graus.includes(_grauTrab(t)))
+  const ap   = _euPossoAprovar();
+  const meus = _meusTrab();
+  const todos = DATA.trabalhos || [];
+
+  // 1. Para aprovadores: trabalhos pendentes aguardando avaliação
+  const pendentesParaMim = ap.podeAlgum
+    ? todos.filter(t => t.status === 'pendente' && ap.pode.includes(_grauTrab(t)))
     : [];
+
+  // 2. Para autores: meus trabalhos que voltaram para ajuste
+  const meusEmAjuste = meus.filter(t => t.status === 'ajuste');
+
   let html = '';
 
-  // Banner vermelho: meus trabalhos em revisão
-  if (revisao.length) {
-    html += `
-      <div onclick="showPanel('trabalhos');setTimeout(()=>ativarAbaTrabalhos('meus'),400)"
-        style="display:flex;gap:12px;align-items:flex-start;background:rgba(138,27,27,0.07);border:1.5px solid rgba(138,27,27,0.3);border-left:5px solid #8A1B1B;border-radius:6px;padding:14px 16px;margin-bottom:12px;cursor:pointer;transition:opacity 0.15s"
-        onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
-        <span style="font-size:24px;flex-shrink:0">🔄</span>
-        <div style="flex:1">
-          <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:#8A1B1B;letter-spacing:0.1em;margin-bottom:8px">
-            VOCÊ TEM ${revisao.length} TRABALHO${revisao.length>1?'S':''} COM PEDIDO DE REVISÃO
-          </div>
-          ${revisao.map(t => {
-            const obs = (t.observacoes||t.feedback_texto||'').trim().slice(0,120);
-            return `<div style="background:rgba(255,255,255,0.8);border:1px solid rgba(138,27,27,0.15);border-radius:4px;padding:8px 12px;margin-bottom:5px">
-              <div style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:var(--text);margin-bottom:${obs?'4px':'0'}">${t.titulo||'—'}</div>
-              ${obs?`<div style="font-size:12px;color:#8A1B1B;font-style:italic">💬 "${obs}${obs.length===120?'…':''}"</div>
-              <div style="font-size:10px;color:var(--text-muted);margin-top:2px">— ${t.feedback_autor||'Vigilante'} · ${t.feedback_data?new Date(t.feedback_data).toLocaleDateString('pt-BR'):''}</div>`:''}
-            </div>`;
-          }).join('')}
-          <div style="font-size:10px;font-family:'Cinzel',serif;font-weight:700;color:#8A1B1B;margin-top:6px">Toque para abrir e corrigir →</div>
-        </div>
-      </div>`;
-  }
-
-  // Banner verde: trabalhos aguardando minha avaliação
-  if (pendentes.length) {
+  // Banner verde — para aprovadores
+  if (pendentesParaMim.length > 0) {
     html += `
       <div onclick="showPanel('trabalhos');setTimeout(()=>ativarAbaTrabalhos('gestao'),400)"
         style="display:flex;gap:12px;align-items:flex-start;background:rgba(27,107,58,0.07);border:1.5px solid rgba(27,107,58,0.3);border-left:5px solid #1B6B3A;border-radius:6px;padding:14px 16px;margin-bottom:12px;cursor:pointer;transition:opacity 0.15s"
         onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
-        <span style="font-size:24px;flex-shrink:0">📥</span>
+        <span style="font-size:24px;flex-shrink:0">⚖️</span>
         <div style="flex:1">
-          <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:#1B6B3A;letter-spacing:0.1em;margin-bottom:8px">
-            ${pendentes.length} TRABALHO${pendentes.length>1?'S':''} AGUARDANDO SUA APROVAÇÃO
+          <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:#1B6B3A;letter-spacing:0.1em;margin-bottom:6px">
+            GESTÃO DE INSTRUÇÃO — ${pendentesParaMim.length} TRABALHO${pendentesParaMim.length>1?'S':''} AGUARDANDO SUA AVALIAÇÃO
           </div>
-          ${pendentes.slice(0,3).map(t => `
-            <div style="background:rgba(255,255,255,0.8);border:1px solid rgba(27,107,58,0.15);border-radius:4px;padding:7px 12px;margin-bottom:5px;display:flex;justify-content:space-between;align-items:center">
+          ${pendentesParaMim.slice(0,3).map(t => `
+            <div style="background:rgba(255,255,255,0.8);border:1px solid rgba(27,107,58,0.15);border-radius:4px;padding:7px 12px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;gap:8px">
               <div>
                 <div style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:var(--text)">${t.titulo||'—'}</div>
                 <div style="font-size:10px;color:var(--text-muted);margin-top:1px">${_GL(_grauTrab(t))} · ${t.autor_nome||t.membros?.nome_maconico||'—'}</div>
               </div>
               <span style="font-size:10px;font-family:'Cinzel',serif;font-weight:700;color:#1B6B3A;white-space:nowrap">Avaliar →</span>
             </div>`).join('')}
-          ${pendentes.length>3?`<div style="font-size:11px;color:#1B6B3A;font-style:italic;margin-top:4px">+ ${pendentes.length-3} outro(s)…</div>`:''}
-          <div style="font-size:10px;font-family:'Cinzel',serif;font-weight:700;color:#1B6B3A;margin-top:6px">Toque para avaliar →</div>
+          ${pendentesParaMim.length > 3 ? `<div style="font-size:11px;color:#1B6B3A;font-style:italic;margin-top:4px">+ ${pendentesParaMim.length-3} outro(s)…</div>` : ''}
+          <div style="font-size:10px;font-family:'Cinzel',serif;font-weight:700;color:#1B6B3A;margin-top:6px">Toque para abrir a Gestão →</div>
+        </div>
+      </div>`;
+  }
+
+  // Banner vermelho — para autores
+  if (meusEmAjuste.length > 0) {
+    html += `
+      <div onclick="showPanel('trabalhos');setTimeout(()=>ativarAbaTrabalhos('meus'),400)"
+        style="display:flex;gap:12px;align-items:flex-start;background:rgba(138,27,27,0.07);border:1.5px solid rgba(138,27,27,0.3);border-left:5px solid #8A1B1B;border-radius:6px;padding:14px 16px;margin-bottom:12px;cursor:pointer;transition:opacity 0.15s"
+        onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+        <span style="font-size:24px;flex-shrink:0">✍️</span>
+        <div style="flex:1">
+          <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:#8A1B1B;letter-spacing:0.1em;margin-bottom:6px">
+            REVISÃO SOLICITADA — VOCÊ TEM ${meusEmAjuste.length} TRABALHO${meusEmAjuste.length>1?'S':''} PARA CORRIGIR
+          </div>
+          ${meusEmAjuste.map(t => {
+            const obs = (t.observacoes||t.feedback_texto||'').trim().slice(0,100);
+            return `<div style="background:rgba(255,255,255,0.8);border:1px solid rgba(138,27,27,0.15);border-radius:4px;padding:7px 12px;margin-bottom:4px">
+              <div style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:var(--text);margin-bottom:${obs?'3px':'0'}">${t.titulo||'—'}</div>
+              ${obs?`<div style="font-size:11px;color:#8A1B1B;font-style:italic">💬 "${obs}${obs.length===100?'…':''}"</div>
+              <div style="font-size:10px;color:var(--text-muted);margin-top:2px">— ${t.feedback_autor||'Vigilante'} · ${t.feedback_data?new Date(t.feedback_data).toLocaleDateString('pt-BR'):''}</div>`:''}
+            </div>`;
+          }).join('')}
+          <div style="font-size:10px;font-family:'Cinzel',serif;font-weight:700;color:#8A1B1B;margin-top:6px">Toque para corrigir e reenviar →</div>
         </div>
       </div>`;
   }
 
   return html;
 }
+
 
 // ── Recarregar DATA.trabalhos com join e normalizar grau ───────
 async function _recarregarTrabalhos() {
@@ -7082,25 +7091,37 @@ async function renderTrabalhos(access) {
   const meus = _meusTrab();
   const emRevisao = meus.filter(t => t.status === 'ajuste');
 
-  // Biblioteca: só aprovados, filtrados por grau
+  // Biblioteca: aprovados visíveis por grau + não-aprovados só para autor/aprovador
+  const memIdVis = _membroLogado?.id ||
+    DATA.membros.find(m => (m.nome_maconico||'').toLowerCase() === eu.nome.toLowerCase())?.id || null;
+
   const biblioteca = DATA.trabalhos.filter(t => {
-    if (t.status !== 'aprovado') return false;
-    const g = _grauTrab(t);
-    return g === 0 || g === 1 || eu.grau >= g;
+    const g      = _grauTrab(t);
+    const ehAutor = (t.autor_id && memIdVis && t.autor_id === memIdVis) ||
+                    (t.autor_nome && t.autor_nome.toLowerCase() === eu.nome.toLowerCase());
+    const souApr  = ap.pode.includes(g);
+
+    if (t.status !== 'aprovado') {
+      // Pendente/ajuste: só autor e aprovador responsável enxergam
+      return ehAutor || souApr;
+    }
+    // Aprovado: regra de grau
+    if (g === 0 || g === 1) return true;          // "Todos" e 1º grau → todos
+    return eu.grau >= g;                           // 2º e 3º → filtrado por grau
   });
 
   // Fila do aprovador: pendentes + ajuste do grau responsável
-  const fila = ap.pode
+  const fila = ap.podeAlgum
     ? DATA.trabalhos.filter(t =>
         (t.status==='pendente'||t.status==='ajuste') &&
-        ap.graus.includes(_grauTrab(t)))
+        ap.pode.includes(_grauTrab(t)))
     : [];
 
   // Abas
   const abas = [
     {id:'biblioteca', label:'📚 Biblioteca',    n:biblioteca.length, d:false},
     {id:'meus',       label:'📝 Meus Trabalhos', n:meus.length||null, d:emRevisao.length>0},
-    ...(ap.pode ? [{id:'gestao', label:'🔍 Gestão', n:fila.filter(t=>t.status==='pendente').length, d:fila.some(t=>t.status==='pendente')}] : [])
+    ...(ap.podeAlgum ? [{id:'gestao', label:'🔍 Gestão', n:fila.filter(t=>t.status==='pendente').length, d:fila.some(t=>t.status==='pendente')}] : [])
   ];
 
   el.innerHTML = `
@@ -7134,7 +7155,7 @@ async function renderTrabalhos(access) {
 
     <div id="trab-cont-biblioteca">${_biblio(biblioteca, ap.isVeneravel)}</div>
     <div id="trab-cont-meus" style="display:none">${_meusHtml(meus)}</div>
-    ${ap.pode?`<div id="trab-cont-gestao" style="display:none">${_gestaoHtml(fila,ap)}</div>`:''}`;
+    ${ap.podeAlgum?`<div id="trab-cont-gestao" style="display:none">${_gestaoHtml(fila,ap)}</div>`:''}`;
 }
 
 function ativarAbaTrabalhos(id) {
@@ -7340,7 +7361,7 @@ function _gestaoHtml(fila, ap) {
 
   return `
     <div style="background:rgba(27,58,107,0.04);border:1px solid rgba(27,58,107,0.12);border-radius:6px;padding:10px 16px;margin-bottom:18px;font-size:12px;color:var(--text-muted)">
-      <strong>${cargo}</strong> — avaliando: ${ap.graus.map(g=>_GL(g)).join(', ')}
+      <strong>${cargo}</strong> — avaliando: ${ap.pode.map(g=>_GL(g)).join(', ')}
     </div>
     ${grupo(pendentes,'Novos — aguardando avaliação','#7A6010')}
     ${grupo(emAdj,'Em revisão — aguardando correção do autor','#1B5EA0')}`;
