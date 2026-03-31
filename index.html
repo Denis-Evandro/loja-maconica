@@ -1751,7 +1751,9 @@ async function loadAllData() {
     if (e.status==='fulfilled' && e.value?.data) DATA.eventos    = e.value.data;
     if (c.status==='fulfilled' && c.value?.data) DATA.comissoes  = _parseComissoes(c.value.data);
     if (leg.status==='fulfilled' && leg.value?.data) DATA.legislacao = leg.value.data;
-    if (trab.status==='fulfilled' && trab.value?.data) DATA.trabalhos = trab.value.data;
+    if (trab.status==='fulfilled' && trab.value?.data) DATA.trabalhos = trab.value.data.map(t=>({
+      ...t, grau_trabalho: t.grau_trabalho ?? t.grau_autor ?? 1
+    }));
 
     reRenderActive();
     renderDashboard();
@@ -6949,13 +6951,28 @@ const _ST = {
 // ── Trabalhos do usuário logado em revisão ─────────────────────
 function _getTrabalhosEmRevisao() {
   const todos = DATA.trabalhos||[];
-  const p     = _perfil();
-  const id    = _membroLogado?.id || null;
-  const nome  = p.nome_maconico.toLowerCase();
+  if(!todos.length) return [];
+
+  const p    = _perfil();
+  const id   = _membroLogado?.id || null;
+  const nome = p.nome_maconico.toLowerCase();
+
+  // Buscar o id do membro no DATA caso _membroLogado.id seja null (demo)
+  const membroData = id
+    ? DATA.membros.find(m => m.id === id)
+    : DATA.membros.find(m =>
+        (m.nome_maconico||'').toLowerCase() === nome ||
+        (m.email||'').toLowerCase() === (document.getElementById('loginUser')?.value||'').trim().toLowerCase()
+      );
+  const memId = id || membroData?.id || null;
+
   return todos.filter(t => {
-    if (t.status !== 'ajuste') return false;
-    if (id && t.autor_id) return t.autor_id === id;
-    return nome && (t.membros?.nome_maconico||'').replace(/\s*\(DEMO\)\s*/i,'').trim().toLowerCase() === nome;
+    if(t.status !== 'ajuste') return false;
+    // Por id do membro
+    if(memId && t.autor_id) return t.autor_id === memId;
+    // Por nome no join
+    const nomeJoin = (t.membros?.nome_maconico||'').replace(/\s*\(DEMO\)\s*/i,'').trim().toLowerCase();
+    return nomeJoin && nome && nomeJoin === nome;
   });
 }
 
@@ -6964,7 +6981,7 @@ function _getTrabalhosParaAprovar() {
   const poder = _poder();
   return (DATA.trabalhos||[]).filter(t =>
     (t.status==='pendente'||t.status==='ajuste') &&
-    poder.grausResponsavel.includes(t.grau_trabalho||0)
+    poder.grausResponsavel.includes(t.grau_trabalho??t.grau_autor??1)
   );
 }
 
@@ -7040,7 +7057,10 @@ async function renderTrabalhos(access) {
   const {data} = await sb.from('trabalhos')
     .select('*,membros(id,nome_maconico,grau,cargo)')
     .order('data_postagem',{ascending:false});
-  DATA.trabalhos = data||[];
+  DATA.trabalhos = (data||[]).map(t => ({
+    ...t,
+    grau_trabalho: t.grau_trabalho ?? t.grau_autor ?? 1
+  }));
 
   const p      = _perfil();
   const poder  = _poder();
@@ -7052,7 +7072,7 @@ async function renderTrabalhos(access) {
   // Regra: grau_trabalho 0 ou 1 → todos vêem; 2 → grau≥2; 3 → grau≥3
   const biblioteca = DATA.trabalhos.filter(t => {
     if (t.status !== 'aprovado') return false;
-    const gT = t.grau_trabalho||0;
+    const gT = t.grau_trabalho??t.grau_autor??1;
     if (gT === 0 || gT === 1) return true;
     return meuGrau >= gT;
   });
@@ -7078,7 +7098,7 @@ async function renderTrabalhos(access) {
   const fila = poder.podeAprovar
     ? DATA.trabalhos.filter(t =>
         (t.status==='pendente'||t.status==='ajuste') &&
-        poder.grausResponsavel.includes(t.grau_trabalho||0))
+        poder.grausResponsavel.includes(t.grau_trabalho??t.grau_autor??1))
     : [];
 
   const emRevisao = meus.filter(t=>t.status==='ajuste');
@@ -7147,7 +7167,7 @@ function _renderBiblioteca(lista, isAdm) {
     </div>`;
 
   const grupos = [0,1,2,3]
-    .map(g=>({g, items:lista.filter(t=>(t.grau_trabalho||0)===g)}))
+    .map(g=>({g, items:lista.filter(t=>(t.grau_trabalho??t.grau_autor??1)===g)}))
     .filter(g=>g.items.length);
 
   return grupos.map(({g,items})=>`
@@ -7215,7 +7235,7 @@ function _renderMeus(lista) {
           <span style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.12em;color:${cor};text-transform:uppercase">${tituloGrupo} (${itens.length})</span>
         </div>
         ${itens.map(t => {
-          const g    = t.grau_trabalho || t.grau_autor || 0;
+          const g    = t.grau_trabalho ?? t.grau_autor ?? 1;
           const obs  = (t.observacoes || t.feedback_texto || '').trim();
           const isAj = t.status === 'ajuste';
           const isAp = t.status === 'aprovado';
@@ -7310,7 +7330,7 @@ function _renderGestao(fila, poder) {
         </div>
         ${lista.map(t=>{
           const autor = t.membros?.nome_maconico||'Irmão';
-          const g     = t.grau_trabalho||0;
+          const g     = t.grau_trabalho??t.grau_autor??1;
           const obs   = (t.observacoes||t.feedback_texto||'').trim();
           const st    = _ST[t.status]||_ST.pendente;
           // Opções de visibilidade para o Venerável
@@ -7442,7 +7462,14 @@ async function _recarregarTrabalhos() {
   const {data} = await sb.from('trabalhos')
     .select('*,membros(id,nome_maconico,grau,cargo)')
     .order('data_postagem',{ascending:false});
-  if(data) DATA.trabalhos = data;
+  if(data) {
+    // Normalizar: garantir que grau_trabalho esteja sempre preenchido
+    // (compatibilidade com bancos que só têm grau_autor)
+    DATA.trabalhos = data.map(t => ({
+      ...t,
+      grau_trabalho: t.grau_trabalho ?? t.grau_autor ?? 1
+    }));
+  }
   // Atualizar dashboard para refletir novos avisos
   renderDashboard();
 }
