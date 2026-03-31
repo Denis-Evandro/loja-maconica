@@ -549,8 +549,8 @@ body {
 }
 
 /* STATS */
-.stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:24px; }
-.stats-grid-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:24px; }
+.stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:24px; padding:4px; backface-visibility:hidden; }
+.stats-grid-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:24px; padding:4px; backface-visibility:hidden; }
 
 .stat-card {
   background: linear-gradient(135deg, #FFFFFF 0%, #EEF4FB 100%);
@@ -559,13 +559,16 @@ body {
   padding:20px 18px;
   position:relative; overflow:hidden;
   box-shadow: 0 2px 12px rgba(27,58,107,0.08);
-  transition:all 0.25s;
+  transition: transform 0.3s cubic-bezier(0.25,0.8,0.25,1), box-shadow 0.3s ease, border-color 0.3s ease;
+  will-change: transform;
+  backface-visibility: hidden;
 }
 
 .stat-card:hover {
-  border-color:rgba(27,58,107,0.3);
-  box-shadow: 0 6px 24px rgba(27,58,107,0.14);
-  transform:translateY(-2px);
+  border-color: var(--gold-rich);
+  box-shadow: 0 12px 24px rgba(27,58,107,0.15);
+  transform: translateY(-4px);
+  z-index: 2;
 }
 
 .stat-card::after {
@@ -1025,8 +1028,8 @@ tr:hover td { background:rgba(184,134,11,0.03); }
 
 /* ── RELATÓRIOS ── */
 .rel-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; margin-bottom:24px; }
-.rel-card { background:var(--white); border:1px solid var(--border-mid); border-radius:6px; padding:24px 22px; cursor:pointer; transition:all 0.18s; position:relative; overflow:hidden; }
-.rel-card:hover { border-color:var(--gold-mid); box-shadow:var(--shadow-md); transform:translateY(-2px); }
+.rel-card { background:var(--white); border:1px solid var(--border-mid); border-radius:6px; padding:24px 22px; cursor:pointer; transition: transform 0.3s cubic-bezier(0.25,0.8,0.25,1), box-shadow 0.3s ease, border-color 0.3s ease; position:relative; overflow:hidden; will-change:transform; backface-visibility:hidden; }
+.rel-card:hover { border-color:var(--gold-mid); box-shadow:var(--shadow-md); transform:translateY(-4px); z-index:2; }
 .rel-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,var(--gold-dark),var(--gold-rich)); }
 .rel-card-icon { font-size:32px; margin-bottom:14px; }
 .rel-card-title { font-family:'Cinzel',serif; font-size:13px; font-weight:700; letter-spacing:0.12em; color:var(--gold-dark); text-transform:uppercase; margin-bottom:8px; }
@@ -7170,13 +7173,16 @@ function ativarAbaTrabalhos(id) {
 
 // ── Biblioteca ─────────────────────────────────────────────────
 function _biblio(lista, isAdm) {
-  if(!lista.length) return `
+  // Correção 2: biblioteca exibe SOMENTE trabalhos aprovados
+  const aprovados = lista.filter(t => t.status === 'aprovado');
+
+  if(!aprovados.length) return `
     <div style="text-align:center;padding:48px;color:var(--text-muted)">
       <div style="font-size:40px;opacity:0.2;margin-bottom:12px">📚</div>
-      <div style="font-family:'Cinzel',serif;font-size:11px;letter-spacing:0.1em">NENHUM TRABALHO DISPONÍVEL PARA SEU GRAU</div>
+      <div style="font-family:'Cinzel',serif;font-size:11px;letter-spacing:0.1em">NENHUM TRABALHO APROVADO DISPONÍVEL PARA SEU GRAU</div>
     </div>`;
 
-  const grupos = [0,1,2,3].map(g => ({g, itens:lista.filter(t=>_grauTrab(t)===g)})).filter(x=>x.itens.length);
+  const grupos = [0,1,2,3].map(g => ({g, itens:aprovados.filter(t=>_grauTrab(t)===g)})).filter(x=>x.itens.length);
 
   return grupos.map(({g, itens}) => `
     <div style="margin-bottom:28px">
@@ -7186,26 +7192,29 @@ function _biblio(lista, isAdm) {
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px">
         ${itens.map(t => {
-          const g2 = _grauTrab(t);
+          const g2  = _grauTrab(t);
           const autor = t.autor_nome || t.membros?.nome_maconico || 'Irmão';
           return `
-          <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:8px;overflow:hidden;transition:box-shadow 0.15s"
-            onmouseover="this.style.boxShadow='0 4px 16px rgba(27,58,107,0.12)'" onmouseout="this.style.boxShadow='none'">
+          <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:8px;overflow:hidden;transition:transform 0.3s cubic-bezier(0.25,0.8,0.25,1),box-shadow 0.3s ease;will-change:transform"
+            onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 8px 20px rgba(27,58,107,0.14)'"
+            onmouseout="this.style.transform='';this.style.boxShadow='none'">
             <div style="background:${_GB(g2)};border-bottom:1px solid ${_GC(g2)}20;padding:14px 16px">
               <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:var(--text);line-height:1.5;margin-bottom:6px">${t.titulo||'Sem título'}</div>
-              <div style="font-size:11px;color:var(--text-muted)">Ir. ${autor} · ${t.data_postagem?new Date(t.data_postagem).toLocaleDateString('pt-BR'):'—'}</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Ir. ${autor} · ${t.data_postagem?new Date(t.data_postagem).toLocaleDateString('pt-BR'):'—'}</div>
+              <span style="background:rgba(27,107,58,0.1);border:1px solid rgba(27,107,58,0.3);border-radius:20px;padding:2px 10px;font-family:'Cinzel',serif;font-size:8px;font-weight:700;color:#1B6B3A">✓ Aprovado e Registado</span>
             </div>
             <div style="padding:10px 14px;display:flex;gap:8px">
               ${t.url_arquivo?`<a href="${t.url_arquivo}" target="_blank" rel="noopener"
-                style="flex:1;text-align:center;padding:7px;background:var(--navy);color:var(--gold-pale);border-radius:4px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;text-decoration:none">📖 LER</a>`:''}
-              ${isAdm?`<button onclick="excluirTrabalho('${t.id}','${(t.titulo||'').replace(/'/g,"\\'")}') "
-                style="padding:7px 10px;border:1px solid rgba(139,32,32,0.25);border-radius:4px;background:none;cursor:pointer;font-size:12px;color:var(--red)">🗑️</button>`:''}
+                style="flex:1;text-align:center;padding:7px;background:var(--navy);color:var(--gold-pale);border-radius:4px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;text-decoration:none">📖 LER TRABALHO</a>`:''}
+              ${isAdm?`<button onclick="excluirTrabalho('${t.id}','')"
+                style="padding:7px 10px;border:1px solid rgba(139,32,32,0.25);border-radius:4px;background:none;cursor:pointer;font-size:12px;color:var(--red)" title="${t.titulo||''}">🗑️</button>`:''}
             </div>
           </div>`;
         }).join('')}
       </div>
     </div>`).join('');
 }
+
 
 // ── Meus Trabalhos ─────────────────────────────────────────────
 function _meusHtml(lista) {
@@ -7230,8 +7239,10 @@ function _meusHtml(lista) {
           <span style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.1em;color:${cfg.cor}">${cfg.txt} (${itens.length})</span>
         </div>
         ${itens.map(t => {
-          const g   = _grauTrab(t);
-          const obs = (t.observacoes||t.feedback_texto||'').trim();
+          const g        = _grauTrab(t);
+          const obs      = (t.observacoes||t.feedback_texto||'').trim();
+          const aprovado = t.status === 'aprovado';
+          const ajuste   = t.status === 'ajuste';
           return `
           <div style="background:var(--white);border:2px solid ${cfg.bd};border-radius:8px;overflow:hidden;margin-bottom:10px">
 
@@ -7239,7 +7250,7 @@ function _meusHtml(lista) {
             <div style="background:${cfg.bg};padding:10px 16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
               <span style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:${cfg.cor};flex:1">${cfg.txt}</span>
               <span style="background:${_GB(g)};border:1px solid ${_GC(g)}40;border-radius:20px;padding:2px 10px;font-family:'Cinzel',serif;font-size:8px;font-weight:700;color:${_GC(g)}">${_GL(g)}</span>
-              ${t.status==='aprovado'?`<span style="background:rgba(27,107,58,0.1);border:1px solid rgba(27,107,58,0.3);border-radius:20px;padding:2px 10px;font-family:'Cinzel',serif;font-size:8px;font-weight:700;color:#1B6B3A">Visível: ${_GL(t.grau_visibilidade??g)}+</span>`:''}
+              ${aprovado?`<span style="background:rgba(27,107,58,0.1);border:1px solid rgba(27,107,58,0.3);border-radius:20px;padding:2px 10px;font-family:'Cinzel',serif;font-size:8px;font-weight:700;color:#1B6B3A">Visível: ${_GL(t.grau_visibilidade??g)}+</span>`:''}
             </div>
 
             <!-- Dados -->
@@ -7253,7 +7264,14 @@ function _meusHtml(lista) {
                 📄 Ver arquivo</a>`:''}
             </div>
 
-            ${t.status==='ajuste'?`
+            ${aprovado ? `
+            <!-- Trabalho aprovado: imutável -->
+            <div style="padding:10px 16px;background:rgba(27,107,58,0.04);border-top:1px solid rgba(27,107,58,0.15);display:flex;align-items:center;gap:8px">
+              <span style="font-size:16px">✅</span>
+              <span style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:#1B6B3A;letter-spacing:0.08em">TRABALHO APROVADO E REGISTADO — IMUTÁVEL</span>
+            </div>` : ''}
+
+            ${ajuste?`
             <!-- Comentário do vigilante -->
             <div style="border-top:2px dashed rgba(138,27,27,0.25);padding:12px 16px;background:rgba(138,27,27,0.04)">
               <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:#8A1B1B;letter-spacing:0.12em;margin-bottom:8px">💬 COMENTÁRIO DO APROVADOR</div>
@@ -7261,18 +7279,16 @@ function _meusHtml(lista) {
                 <div style="background:var(--white);border:1px solid rgba(138,27,27,0.2);border-radius:4px;padding:10px 14px;font-size:13px;color:var(--text);font-style:italic;line-height:1.7;margin-bottom:6px">"${obs}"</div>
                 <div style="font-size:11px;color:var(--text-muted)">— ${t.feedback_autor||'Vigilante'} · ${t.feedback_data?new Date(t.feedback_data).toLocaleDateString('pt-BR'):''}</div>
               `:`<div style="font-size:12px;color:var(--text-muted);font-style:italic">Sem comentário adicional.</div>`}
-              <!-- Reenviar -->
-              <div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(138,27,27,0.15)">
-                <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;font-style:italic">Corrija e reenvie para nova avaliação:</div>
-                <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-                  <input type="file" id="reenvio-${t.id}" accept=".pdf,.doc,.docx"
-                    style="flex:1;min-width:180px;border:1px solid var(--border-mid);border-radius:3px;padding:7px;font-size:12px;background:var(--white);cursor:pointer">
-                  <button onclick="reenviarTrabalho('${t.id}')"
-                    style="padding:8px 18px;background:var(--navy);color:var(--gold-pale);border:none;border-radius:4px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap">
-                    🔁 Reenviar para Aprovação
-                  </button>
-                </div>
-                <div style="font-size:11px;color:var(--text-muted);margin-top:5px;font-style:italic">Deixe o campo vazio para manter o arquivo atual.</div>
+              <!-- Botão REENVIAR em destaque -->
+              <div style="margin-top:14px">
+                <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;font-style:italic">Faça as correções indicadas e reenvie para nova avaliação:</div>
+                <input type="file" id="reenvio-${t.id}" accept=".pdf,.doc,.docx"
+                  style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px;font-size:12px;background:var(--white);cursor:pointer;margin-bottom:10px">
+                <button onclick="reenviarTrabalho('${t.id}')"
+                  style="width:100%;padding:12px 20px;background:var(--gold-dark);color:var(--white);border:none;border-radius:5px;font-family:'Cinzel',serif;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:0.06em">
+                  ⚠️ REVISAR E REENVIAR PARA APROVAÇÃO
+                </button>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:6px;font-style:italic;text-align:center">Deixe o campo vazio para manter o arquivo atual.</div>
               </div>
             </div>`:''}
 
@@ -7519,16 +7535,31 @@ async function reenviarTrabalho(id) {
 
 async function aprovarTrabalho(id, grauTrab) {
   const ap  = _euPossoAprovar();
-  const vis = ap.escolheVis ? parseInt(document.getElementById(`vis-${id}`)?.value??grauTrab) : grauTrab;
   const eu  = _eu();
+
+  // Correção 5: pegar grau do select (pode ser 0="Todos") ou usar grau do trabalho
+  let vis = grauTrab;
+  if (ap.escolheVis) {
+    const selVal = document.getElementById(`vis-${id}`)?.value;
+    vis = selVal !== undefined && selVal !== null ? parseInt(selVal) : grauTrab;
+  }
+
   const {error} = await sb.from('trabalhos').update({
-    status:'aprovado', grau_visibilidade:vis,
-    observacoes:null, feedback_texto:null,
-    feedback_autor: eu.nome, feedback_data: new Date().toISOString()
-  }).eq('id',id);
-  if(error) {console.error('aprovarTrabalho:',error); toast('❌ '+error.message); return;}
+    status:          'aprovado',
+    grau_trabalho:   vis,       // Correção 5: forçar grau_trabalho=0 se "Todos"
+    grau_visibilidade: vis,
+    observacoes:     null,
+    feedback_texto:  null,
+    feedback_autor:  eu.nome,
+    feedback_data:   new Date().toISOString()
+  }).eq('id', id);
+
+  if(error) {console.error('aprovarTrabalho:', error); toast('❌ '+error.message); return;}
+
   await _recarregarTrabalhos();
-  toast(`✅ Aprovado! Visível para ${_GL(vis)} e acima.`);
+  toast(`✅ Aprovado! Visível para ${_GL(vis)}${vis>0?' e acima':''}.`);
+
+  // Correção 4: permanecer na aba Gestão, não redirecionar para Biblioteca
   await renderTrabalhos(ROLES[currentRole].access['trabalhos']||'full');
   ativarAbaTrabalhos('gestao');
 }
@@ -7538,12 +7569,19 @@ async function pedirRevisao(id) {
   if(!obs) {toast('Escreva o motivo da revisão'); return;}
   const eu = _eu();
   const {error} = await sb.from('trabalhos').update({
-    status:'ajuste', observacoes:obs, feedback_texto:obs,
-    feedback_autor: eu.nome, feedback_data: new Date().toISOString()
-  }).eq('id',id);
-  if(error) {console.error('pedirRevisao:',error); toast('❌ '+error.message); return;}
+    status:         'ajuste',
+    observacoes:    obs,
+    feedback_texto: obs,
+    feedback_autor: eu.nome,
+    feedback_data:  new Date().toISOString()
+  }).eq('id', id);
+
+  if(error) {console.error('pedirRevisao:', error); toast('❌ '+error.message); return;}
+
   await _recarregarTrabalhos();
-  toast('🔄 Pedido de revisão enviado ao autor.');
+  toast('🔄 Pedido de revisão enviado. O autor será notificado ao abrir o sistema.');
+
+  // Correção 4: permanecer na aba Gestão
   await renderTrabalhos(ROLES[currentRole].access['trabalhos']||'full');
   ativarAbaTrabalhos('gestao');
 }
