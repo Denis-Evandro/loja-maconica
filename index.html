@@ -6920,23 +6920,22 @@ const _ST = {
   ajuste:  { txt:'🔄 Revisão solicitada',  cor:'#8A1B1B', bg:'rgba(138,27,27,0.10)',  bd:'rgba(138,27,27,0.30)'  }
 };
 
-// ── Meus trabalhos: filtra pelo nome salvo no campo autor_nome ─
+// ── Meus trabalhos: filtra pelo autor ─────────────────────────
 function _meusTrab() {
   const eu   = _eu();
   const nome = eu.nome.toLowerCase();
-  const id   = eu.id;
-  // Buscar também o id do membro por nome em DATA.membros (fallback demo)
-  const memId = id || DATA.membros.find(m =>
-    (m.nome_maconico||'').toLowerCase() === nome)?.id || null;
+  // Resolver id via DATA.membros se necessário
+  const memId = _membroLogado?.id ||
+    DATA.membros.find(m => (m.nome_maconico||'').toLowerCase() === nome)?.id || null;
 
   return (DATA.trabalhos||[]).filter(t => {
-    // Prioridade 1: campo autor_nome (novo campo texto — sempre confiável)
+    // 1. Campo autor_nome (quando existir no banco)
     if (t.autor_nome) return t.autor_nome.toLowerCase() === nome;
-    // Prioridade 2: autor_id
+    // 2. autor_id
     if (memId && t.autor_id) return t.autor_id === memId;
-    // Prioridade 3: nome no join
+    // 3. Nome no join membros
     const nj = (t.membros?.nome_maconico||'').replace(/\s*\(DEMO\)\s*/i,'').trim().toLowerCase();
-    return nj && nj === nome;
+    return nj && nome && nj === nome;
   });
 }
 
@@ -7308,10 +7307,15 @@ function _gestaoHtml(fila, ap) {
 
 // ── Modal enviar trabalho ──────────────────────────────────────
 function abrirModalEnviarTrabalho() {
-  const eu   = _eu();
-  const opts = [{v:0,l:'Todos os Graus (visível para todos)'},{v:1,l:'1º Grau — Aprendiz'},{v:2,l:'2º Grau — Companheiro'},{v:3,l:'3º Grau — Mestre'}]
-    .filter(o => o.v === 0 || o.v <= eu.grau)
-    .map(o=>`<option value="${o.v}">${o.l}</option>`).join('');
+  const eu  = _eu();
+  const ap  = _euPossoAprovar();
+  // Irmão vê só seu grau. Venerável/Admin vê também "Todos os Graus".
+  const opcoes = [];
+  if (ap.isVeneravel) opcoes.push({v:0, l:'Todos os Graus (visível para todos)'});
+  opcoes.push({v:1,l:'1º Grau — Aprendiz'},{v:2,l:'2º Grau — Companheiro'},{v:3,l:'3º Grau — Mestre'});
+  // Selecionar automaticamente o grau do usuário
+  const opts = opcoes
+    .map(o=>`<option value="${o.v}"${o.v===eu.grau?' selected':''}>${o.l}</option>`).join('');
   const lb  = (t,r='') => `<label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">${t}${r?` <span style="color:var(--red)">${r}</span>`:''}</label>`;
   const inp = `style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:9px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"`;
 
@@ -7323,12 +7327,15 @@ function abrirModalEnviarTrabalho() {
           <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;color:var(--gold-dark);margin-bottom:6px">📤 Enviar Trabalho Maçônico</div>
           <div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-bottom:18px;background:rgba(27,58,107,0.04);border:1px solid rgba(27,58,107,0.12);border-radius:4px;padding:10px 14px;line-height:1.6">
             Seu trabalho ficará visível em <strong>Meus Trabalhos</strong> assim que enviado.<br>
-            Ele aparecerá na Biblioteca após aprovação do Vigilante responsável.
+            Aparecerá na Biblioteca após aprovação do Vigilante responsável.
           </div>
           <div style="display:grid;gap:14px">
             <div>${lb('Título','*')}<input id="trab-titulo" ${inp} placeholder="Ex: A Simbologia do Esquadro e do Compasso"></div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-              <div>${lb('Classificação','*')}<select id="trab-grau" ${inp}>${opts}</select></div>
+              <div>${lb('Classificação','*')}
+                <select id="trab-grau" ${inp} ${!ap.isVeneravel?'disabled style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:9px 12px;font-family:\'Cormorant Garamond\',serif;font-size:14px;background:var(--cream);color:var(--text);opacity:0.7"':''}>${opts}</select>
+                ${!ap.isVeneravel?`<div style="font-size:10px;color:var(--text-muted);margin-top:4px;font-style:italic">Classificação definida pelo seu grau (${_GL(eu.grau)})</div>`:''}
+              </div>
               <div>${lb('Arquivo PDF','*')}
                 <input type="file" id="trab-file" accept=".pdf,.doc,.docx"
                   style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:9px;font-size:13px;background:var(--cream);cursor:pointer">
@@ -7360,10 +7367,16 @@ async function _uploadTrab(file) {
 
 async function submeterTrabalho() {
   const titulo = document.getElementById('trab-titulo')?.value.trim();
-  const grau   = parseInt(document.getElementById('trab-grau')?.value)||1;
   const file   = document.getElementById('trab-file')?.files?.[0];
   if(!titulo) { toast('Informe o título'); return; }
   if(!file)   { toast('Selecione o arquivo'); return; }
+
+  const eu = _eu();
+  const ap = _euPossoAprovar();
+
+  // Grau: irmão usa sempre o próprio grau; Venerável pode escolher
+  const grauSelect = parseInt(document.getElementById('trab-grau')?.value);
+  const grau = ap.isVeneravel ? (grauSelect||eu.grau) : eu.grau;
 
   const btn = document.getElementById('btn-enviar-trab');
   if(btn) {btn.textContent='⏳ Enviando...'; btn.disabled=true;}
@@ -7375,31 +7388,36 @@ async function submeterTrabalho() {
     return;
   }
 
-  const eu = _eu();
   // Resolver autor_id pelo nome no banco
   let autorId = _membroLogado?.id || null;
   if(!autorId) {
     const {data:m} = await sb.from('membros').select('id').eq('nome_maconico', eu.nome).maybeSingle();
-    autorId = m?.id||null;
+    autorId = m?.id || null;
   }
 
+  // Montar registro — sem autor_nome (coluna pode não existir ainda)
   const reg = {
     titulo,
-    autor_nome:   eu.nome,    // CHAVE: sempre salvar o nome em texto
-    autor_id:     autorId,    // pode ser null no demo sem problema
-    grau_trabalho: grau,
-    grau_autor:    grau,
-    grau_visibilidade: grau,
-    url_arquivo:  url,
-    status:       'pendente',
-    observacoes:  null,
-    feedback_texto: null,
-    feedback_autor: null,
-    feedback_data:  null,
-    data_postagem:  new Date().toISOString().split('T')[0]
+    autor_id:         autorId,
+    grau_trabalho:    grau,
+    grau_autor:       grau,
+    grau_visibilidade:grau,
+    url_arquivo:      url,
+    status:           'pendente',
+    data_postagem:    new Date().toISOString().split('T')[0]
   };
 
-  const {error} = await sb.from('trabalhos').insert(reg);
+  // Tentar inserir. Se der erro por coluna inexistente, tenta versão mínima.
+  let {error} = await sb.from('trabalhos').insert(reg);
+
+  if(error && (error.message?.includes('column') || error.code === '42703')) {
+    // Fallback: inserir apenas colunas básicas garantidas
+    const regMin = { titulo, autor_id:autorId, url_arquivo:url, status:'pendente',
+      data_postagem: new Date().toISOString().split('T')[0] };
+    const r2 = await sb.from('trabalhos').insert(regMin);
+    error = r2.error;
+  }
+
   if(error) {
     console.error('submeterTrabalho:', error);
     toast('❌ Erro ao salvar: ' + error.message);
