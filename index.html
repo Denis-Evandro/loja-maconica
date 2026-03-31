@@ -7057,11 +7057,21 @@ async function renderTrabalhos(access) {
     return meuGrau >= gT;
   });
 
-  // ── Meus trabalhos (todos os status, só o autor vê)
+  // ── Meus trabalhos: busca por todas as formas possíveis de identificação
+  const meuMembroId = _membroLogado?.id || DATA.membros.find(m =>
+    m.nome_maconico?.toLowerCase() === meuNome ||
+    m.email === (document.getElementById('loginUser')?.value?.trim())
+  )?.id || null;
+
   const meus = DATA.trabalhos.filter(t => {
-    if (meuId && t.autor_id) return t.autor_id === meuId;
-    const nome = (t.membros?.nome_maconico||'').replace(/\s*\(DEMO\)\s*/i,'').trim().toLowerCase();
-    return meuNome && nome === meuNome;
+    // 1. Por autor_id (mais confiável — login real ou demo com UUID resolvido)
+    if (meuMembroId && t.autor_id) return t.autor_id === meuMembroId;
+    // 2. Por nome do membro no join
+    const nomeJoin = (t.membros?.nome_maconico||'').replace(/\s*\(DEMO\)\s*/i,'').trim().toLowerCase();
+    if (meuNome && nomeJoin && nomeJoin === meuNome) return true;
+    // 3. Se autor_id é null mas meuNome bate — trabalho enviado sem id
+    if (!t.autor_id && meuNome) return false; // não associar trabalhos órfãos
+    return false;
   });
 
   // ── Fila de gestão: pendentes e em ajuste para este aprovador
@@ -7177,57 +7187,98 @@ function _cardBiblioteca(t, isAdm) {
 // ══════════════════════════════════════════════════════════════
 function _renderMeus(lista) {
   if(!lista.length) return `
-    <div style="text-align:center;padding:40px;color:var(--text-muted)">
-      <div style="font-size:36px;opacity:0.2;margin-bottom:10px">📝</div>
-      <div style="font-family:'Cinzel',serif;font-size:11px">VOCÊ AINDA NÃO ENVIOU NENHUM TRABALHO</div>
-      <div style="font-size:13px;margin-top:6px;font-style:italic">Use o botão "Enviar Meu Trabalho" acima.</div>
+    <div style="text-align:center;padding:40px 20px;color:var(--text-muted)">
+      <div style="font-size:36px;opacity:0.2;margin-bottom:12px">📝</div>
+      <div style="font-family:'Cinzel',serif;font-size:11px;letter-spacing:0.1em;margin-bottom:8px">NENHUM TRABALHO ENCONTRADO</div>
+      <div style="font-size:13px;font-style:italic;max-width:320px;margin:0 auto;line-height:1.6">
+        Você ainda não enviou nenhum trabalho, ou seus trabalhos estão associados a outro cadastro.<br>
+        Use o botão <strong>"📤 Enviar Meu Trabalho"</strong> para começar.
+      </div>
     </div>`;
 
-  return `<div style="display:flex;flex-direction:column;gap:14px">
-    ${lista.map(t=>{
-      const st   = _ST[t.status]||_ST.pendente;
-      const obs  = (t.observacoes||t.feedback_texto||'').trim();
-      const isAj = t.status==='ajuste';
-      const isAp = t.status==='aprovado';
-      const g    = t.grau_trabalho||0;
-      return `
-      <div style="background:var(--white);border:2px solid ${st.borda};border-radius:8px;overflow:hidden">
-        <div style="background:${st.bg};padding:10px 18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
-          <span style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:${st.cor};letter-spacing:0.08em">${st.label}</span>
-          <div style="display:flex;gap:6px;align-items:center">
-            <span style="background:${_GB(g)};border:1px solid ${_GC(g)}40;border-radius:20px;padding:2px 10px;font-family:'Cinzel',serif;font-size:8px;font-weight:700;color:${_GC(g)}">${_GL(g)}</span>
-            ${isAp?`<span style="background:rgba(27,107,58,0.08);border:1px solid rgba(27,107,58,0.3);border-radius:20px;padding:2px 10px;font-family:'Cinzel',serif;font-size:8px;font-weight:700;color:#1B6B3A">Vis: ${_GL(t.grau_visibilidade||g)}</span>`:''}
-          </div>
+  // Separar por status para exibir em grupos
+  const grupos = [
+    { status:'ajuste',   cor:'#8A1B1B', bgGrupo:'rgba(138,27,27,0.04)', tituloGrupo:'🔄 Aguardando sua correção' },
+    { status:'pendente', cor:'#7A6010', bgGrupo:'rgba(122,96,16,0.04)', tituloGrupo:'⏳ Aguardando aprovação' },
+    { status:'aprovado', cor:'#1B6B3A', bgGrupo:'rgba(27,107,58,0.04)', tituloGrupo:'✅ Aprovados e publicados' },
+  ];
+
+  let html = '';
+  grupos.forEach(({status, cor, bgGrupo, tituloGrupo}) => {
+    const itens = lista.filter(t => t.status === status);
+    if(!itens.length) return;
+    const st = _ST[status];
+    html += `
+      <div style="margin-bottom:20px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <div style="width:8px;height:8px;border-radius:50%;background:${cor};flex-shrink:0"></div>
+          <span style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.12em;color:${cor};text-transform:uppercase">${tituloGrupo} (${itens.length})</span>
         </div>
-        <div style="padding:12px 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-          <div style="flex:1;min-width:160px">
-            <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:var(--text);margin-bottom:3px">${t.titulo}</div>
-            <div style="font-size:11px;color:var(--text-muted)">Enviado em ${t.data_postagem?new Date(t.data_postagem).toLocaleDateString('pt-BR'):'—'}</div>
-          </div>
-          ${t.url_arquivo?`<a href="${t.url_arquivo}" target="_blank" style="font-size:12px;color:var(--navy);white-space:nowrap">📄 Ver arquivo</a>`:''}
-        </div>
-        ${isAj&&obs?`
-        <div style="background:rgba(138,27,27,0.05);border-top:2px dashed rgba(138,27,27,0.2);padding:12px 18px">
-          <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:#8A1B1B;letter-spacing:0.12em;margin-bottom:6px">💬 COMENTÁRIO DO APROVADOR</div>
-          <div style="font-size:13px;color:var(--text);line-height:1.7;background:var(--white);border:1px solid rgba(138,27,27,0.2);border-radius:4px;padding:10px 14px;font-style:italic">"${obs}"</div>
-          <div style="font-size:11px;color:var(--text-muted);margin-top:5px">— ${t.feedback_autor||'Vigilante'} · ${t.feedback_data?new Date(t.feedback_data).toLocaleDateString('pt-BR'):''}</div>
-        </div>`:'' }
-        ${isAj?`
-        <div style="padding:12px 18px;border-top:1px solid var(--border);background:rgba(27,58,107,0.03)">
-          <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;font-style:italic">Corrija e reenvie para nova avaliação:</div>
-          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-            <input type="file" id="reenvio-file-${t.id}" accept=".pdf,.doc,.docx"
-              style="flex:1;min-width:180px;border:1px solid var(--border-mid);border-radius:3px;padding:7px;font-size:12px;background:var(--white);cursor:pointer">
-            <button onclick="reenviarTrabalho('${t.id}')"
-              style="padding:8px 20px;background:var(--navy);color:var(--gold-pale);border:none;border-radius:4px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap">
-              🔁 Reenviar
-            </button>
-          </div>
-          <div style="font-size:11px;color:var(--text-muted);margin-top:5px;font-style:italic">Deixe o campo vazio para manter o arquivo atual.</div>
-        </div>`:''}
+        ${itens.map(t => {
+          const g    = t.grau_trabalho || t.grau_autor || 0;
+          const obs  = (t.observacoes || t.feedback_texto || '').trim();
+          const isAj = t.status === 'ajuste';
+          const isAp = t.status === 'aprovado';
+          return `
+          <div style="background:var(--white);border:2px solid ${st.borda};border-radius:8px;overflow:hidden;margin-bottom:10px">
+
+            <!-- Cabeçalho: status + grau -->
+            <div style="background:${st.bg};padding:10px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+              <span style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:${st.cor};letter-spacing:0.08em;flex:1">${st.label}</span>
+              <span style="background:${_GB(g)};border:1px solid ${_GC(g)}40;border-radius:20px;padding:2px 10px;font-family:'Cinzel',serif;font-size:8px;font-weight:700;color:${_GC(g)}">${_GL(g)}</span>
+              ${isAp ? `<span style="background:rgba(27,107,58,0.1);border:1px solid rgba(27,107,58,0.3);border-radius:20px;padding:2px 10px;font-family:'Cinzel',serif;font-size:8px;font-weight:700;color:#1B6B3A">Visível: ${_GL(t.grau_visibilidade||g)}+</span>` : ''}
+            </div>
+
+            <!-- Dados -->
+            <div style="padding:12px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+              <div style="flex:1;min-width:160px">
+                <div style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;color:var(--text);margin-bottom:3px">${t.titulo || 'Sem título'}</div>
+                <div style="font-size:11px;color:var(--text-muted)">
+                  Enviado em ${t.data_postagem ? new Date(t.data_postagem).toLocaleDateString('pt-BR') : '—'}
+                </div>
+              </div>
+              ${t.url_arquivo ? `
+                <a href="${t.url_arquivo}" target="_blank" rel="noopener"
+                  style="padding:6px 14px;border:1px solid var(--border-mid);border-radius:4px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:var(--navy);text-decoration:none;white-space:nowrap">
+                  📄 Ver arquivo
+                </a>` : ''}
+            </div>
+
+            <!-- Comentário do vigilante (só quando ajuste) -->
+            ${isAj ? `
+            <div style="border-top:2px dashed rgba(138,27,27,0.25);padding:12px 16px;background:rgba(138,27,27,0.04)">
+              <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:#8A1B1B;letter-spacing:0.12em;margin-bottom:8px">
+                💬 ${obs ? 'COMENTÁRIO DO APROVADOR' : 'REVISÃO SOLICITADA — sem comentário adicional'}
+              </div>
+              ${obs ? `
+                <div style="font-size:13px;color:var(--text);line-height:1.7;background:var(--white);border:1px solid rgba(138,27,27,0.2);border-radius:4px;padding:10px 14px;font-style:italic">"${obs}"</div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:5px">
+                  — ${t.feedback_autor || 'Vigilante'} · ${t.feedback_data ? new Date(t.feedback_data).toLocaleDateString('pt-BR') : ''}
+                </div>` : ''}
+              <!-- Botão reenviar -->
+              <div style="margin-top:14px">
+                <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;font-style:italic">Faça as correções e reenvie para nova avaliação:</div>
+                <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                  <input type="file" id="reenvio-file-${t.id}" accept=".pdf,.doc,.docx"
+                    style="flex:1;min-width:180px;border:1px solid var(--border-mid);border-radius:3px;padding:7px;font-size:12px;background:var(--white);cursor:pointer"
+                    placeholder="Deixe vazio para manter o arquivo atual">
+                  <button onclick="reenviarTrabalho('${t.id}')"
+                    style="padding:8px 20px;background:var(--navy);color:var(--gold-pale);border:none;border-radius:4px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap">
+                    🔁 Reenviar para Aprovação
+                  </button>
+                </div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:5px;font-style:italic">
+                  Deixe o campo vazio para manter o arquivo atual.
+                </div>
+              </div>
+            </div>` : ''}
+
+          </div>`;
+        }).join('')}
       </div>`;
-    }).join('')}
-  </div>`;
+  });
+
+  return `<div>${html}</div>`;
 }
 
 // ══════════════════════════════════════════════════════════════
