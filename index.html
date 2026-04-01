@@ -1152,8 +1152,8 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
         <circle cx="64" cy="32" r="1.2" fill="rgba(245,230,163,0.5)"/>
         <circle cx="16" cy="32" r="1.2" fill="rgba(245,230,163,0.5)"/>
       </svg>
-      <div class="login-lodge">A.R.L.S. Fraternidade<br>Acadêmica de Peruíbe</div>
-      <div class="login-sub">Nº 3524 — G.O.B./SP · Rito Moderno</div>
+      <div class="login-lodge" id="login-loja-nome">A.R.L.S. Fraternidade<br>Acadêmica de Peruíbe</div>
+      <div class="login-sub" id="login-loja-sub">Nº 3524 — G.O.B./SP · Rito Moderno</div>
     </div>
 
     <div class="ornament-login">
@@ -1299,8 +1299,9 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
         <circle cx="50" cy="20" r="1.2" fill="rgba(245,230,163,0.5)"/>
         <circle cx="62" cy="30" r="1" fill="rgba(245,230,163,0.4)"/>
       </svg>
-      <div class="s-lodge">Fraternidade Acadêmica</div>
-      <div class="s-sub">Nº 3524 — G.O.B./SP</div>
+      <div id="sidebar-logo" style="margin-bottom:8px;display:none"><img id="sidebar-logo-img" src="" style="max-height:52px;max-width:80px;object-fit:contain;filter:brightness(0) invert(1);opacity:0.9"></div>
+      <div class="s-lodge" id="sidebar-loja-nome">Fraternidade Acadêmica</div>
+      <div class="s-sub" id="sidebar-loja-sub">Nº 3524 — G.O.B./SP</div>
     </div>
 
     <nav class="sidebar-nav" id="sidebarNav">
@@ -1861,7 +1862,40 @@ async function loadAllData() {
 
     reRenderActive();
     renderDashboard();
+    _aplicarDadosLoja(); // atualizar nome/logo com dados salvos
   } catch(err) { console.warn('Supabase:', err); }
+}
+
+// Aplica os dados da loja na interface (sidebar, login, title)
+function _aplicarDadosLoja() {
+  const d = _getDadosLoja();
+  if (!d || !d.nome) return; // sem dados salvos — mantém padrão
+
+  const nomeCurto = d.nome.replace(/^A\.R\.L\.S\.\s*/i,'').replace(/^A\.R\.L\.I\.\s*/i,'');
+  const sub = [d.numero ? `Nº ${d.numero}` : '', d.oriente || ''].filter(Boolean).join(' — ');
+
+  // Sidebar
+  const sNome = document.getElementById('sidebar-loja-nome');
+  const sSub  = document.getElementById('sidebar-loja-sub');
+  if (sNome) sNome.textContent = nomeCurto;
+  if (sSub && sub)  sSub.textContent = sub;
+
+  // Logo na sidebar
+  if (d.logo_url) {
+    const logoDiv = document.getElementById('sidebar-logo');
+    const logoImg = document.getElementById('sidebar-logo-img');
+    if (logoDiv) logoDiv.style.display = 'block';
+    if (logoImg) logoImg.src = d.logo_url;
+  }
+
+  // Tela de login
+  const lNome = document.getElementById('login-loja-nome');
+  const lSub  = document.getElementById('login-loja-sub');
+  if (lNome) lNome.innerHTML = d.nome;
+  if (lSub && sub)  lSub.textContent = sub + (d.potencia ? ` · ${d.potencia}` : '');
+
+  // Título da aba do navegador
+  if (d.nome) document.title = d.nome + (d.numero ? ` Nº ${d.numero}` : '');
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -2190,6 +2224,7 @@ async function verificarSessaoAtiva() {
 }
 
 verificarSessaoAtiva();
+_aplicarDadosLoja();
 
 // ===================== NAV =====================
 function renderNav() {
@@ -2397,6 +2432,7 @@ function salvarDadosLoja() {
   d.sessoes   = document.getElementById('loja-sessoes')?.value.trim()    || '';
   _salvarDadosLoja(d);
   toast('✅ Dados da loja salvos com sucesso!');
+  _aplicarDadosLoja();
 }
 
 function renderConfigAssinaturas() {
