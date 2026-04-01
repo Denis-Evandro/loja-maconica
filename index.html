@@ -1090,25 +1090,19 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
   .dash-card-click,
   .stat-card,
   .rel-card {
-    transition: box-shadow 0.2s ease, border-color 0.2s ease, margin-top 0.2s ease, margin-bottom 0.2s ease;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
   }
   .dash-card-click:hover {
-    box-shadow: 0 8px 20px rgba(27,58,107,0.16);
+    box-shadow: 0 6px 18px rgba(27,58,107,0.18);
     border-color: var(--gold-rich);
-    margin-top: -4px;
-    margin-bottom: 4px;
   }
   .stat-card:hover {
-    box-shadow: 0 8px 20px rgba(27,58,107,0.16);
+    box-shadow: 0 6px 18px rgba(27,58,107,0.18);
     border-color: var(--gold-rich);
-    margin-top: -4px;
-    margin-bottom: 4px;
   }
   .rel-card:hover {
-    box-shadow: 0 8px 20px rgba(27,58,107,0.16);
+    box-shadow: 0 6px 18px rgba(27,58,107,0.18);
     border-color: var(--gold-mid);
-    margin-top: -4px;
-    margin-bottom: 4px;
   }
 }
 </style>
@@ -1130,7 +1124,7 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
 
   <div class="login-box">
     <div class="login-logo">
-      <svg class="login-symbol" viewBox="0 0 80 80" fill="none">
+      <svg id="login-svg-logo" class="login-symbol" viewBox="0 0 80 80" fill="none">
         <circle cx="40" cy="40" r="37" stroke="#D4A843" stroke-width="1.5" opacity="0.6"/>
         <circle cx="40" cy="40" r="33" stroke="#D4A843" stroke-width="0.5" opacity="0.3"/>
         <!-- Triângulo -->
@@ -1152,7 +1146,10 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
         <circle cx="64" cy="32" r="1.2" fill="rgba(245,230,163,0.5)"/>
         <circle cx="16" cy="32" r="1.2" fill="rgba(245,230,163,0.5)"/>
       </svg>
-      <div class="login-lodge" id="login-loja-nome">A.R.L.S. Fraternidade<br>Acadêmica de Peruíbe</div>
+      <div id="login-logo-container" style="display:none;justify-content:center;margin-bottom:12px">
+      <img id="login-logo-img" src="" style="max-height:90px;max-width:160px;object-fit:contain">
+    </div>
+    <div class="login-lodge" id="login-loja-nome">A.R.L.S. Fraternidade<br>Acadêmica de Peruíbe</div>
       <div class="login-sub" id="login-loja-sub">Nº 3524 — G.O.B./SP · Rito Moderno</div>
     </div>
 
@@ -1276,7 +1273,7 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
   <!-- SIDEBAR -->
   <aside class="sidebar">
     <div class="sidebar-logo">
-      <svg class="s-symbol" viewBox="0 0 80 80" fill="none">
+      <svg id="sidebar-svg-logo" class="s-symbol" viewBox="0 0 80 80" fill="none">
         <!-- Círculo externo -->
         <circle cx="40" cy="40" r="37" stroke="rgba(212,168,67,0.4)" stroke-width="1.5"/>
         <circle cx="40" cy="40" r="33" stroke="rgba(212,168,67,0.15)" stroke-width="0.5"/>
@@ -1869,32 +1866,55 @@ async function loadAllData() {
 // Aplica os dados da loja na interface (sidebar, login, title)
 function _aplicarDadosLoja() {
   const d = _getDadosLoja();
-  if (!d || !d.nome) return; // sem dados salvos — mantém padrão
 
-  const nomeCurto = d.nome.replace(/^A\.R\.L\.S\.\s*/i,'').replace(/^A\.R\.L\.I\.\s*/i,'');
-  const sub = [d.numero ? `Nº ${d.numero}` : '', d.oriente || ''].filter(Boolean).join(' — ');
+  // ── Sidebar ──────────────────────────────────────────────
+  const nomeCurto = d.nome
+    ? d.nome.replace(/^A\.R\.L\.S\.\s*/i,'').replace(/^A\.R\.L\.I\.\s*/i,'').replace(/^A\.R\.L\.M\.\s*/i,'')
+    : 'Fraternidade Acadêmica';
+  const sub = d.nome
+    ? [d.numero ? `Nº ${d.numero}` : '', d.oriente || ''].filter(Boolean).join(' — ')
+    : 'Nº 3524 — G.O.B./SP';
 
-  // Sidebar
   const sNome = document.getElementById('sidebar-loja-nome');
   const sSub  = document.getElementById('sidebar-loja-sub');
   if (sNome) sNome.textContent = nomeCurto;
-  if (sSub && sub)  sSub.textContent = sub;
+  if (sSub)  sSub.textContent  = sub;
 
-  // Logo na sidebar
+  // Logo na sidebar (mostra se tiver logo, oculta SVG padrão)
+  const logoDiv = document.getElementById('sidebar-logo');
+  const logoImg = document.getElementById('sidebar-logo-img');
+  const svgLogo = document.getElementById('sidebar-svg-logo');
   if (d.logo_url) {
-    const logoDiv = document.getElementById('sidebar-logo');
-    const logoImg = document.getElementById('sidebar-logo-img');
     if (logoDiv) logoDiv.style.display = 'block';
     if (logoImg) logoImg.src = d.logo_url;
+    if (svgLogo) svgLogo.style.display = 'none';
+  } else {
+    if (logoDiv) logoDiv.style.display = 'none';
+    if (svgLogo) svgLogo.style.display = 'block';
   }
 
-  // Tela de login
+  // ── Tela de login ─────────────────────────────────────────
+  const nomeLogin = d.nome || 'A.R.L.S. Fraternidade<br>Acadêmica de Peruíbe';
+  const subLogin  = sub + (d.potencia ? ` · ${d.potencia}` : '');
   const lNome = document.getElementById('login-loja-nome');
   const lSub  = document.getElementById('login-loja-sub');
-  if (lNome) lNome.innerHTML = d.nome;
-  if (lSub && sub)  lSub.textContent = sub + (d.potencia ? ` · ${d.potencia}` : '');
+  if (lNome) lNome.innerHTML = nomeLogin;
+  if (lSub)  lSub.textContent = subLogin;
 
-  // Título da aba do navegador
+  // Logo na tela de login
+  const loginLogoDiv = document.getElementById('login-logo-container');
+  const loginLogoImg = document.getElementById('login-logo-img');
+  const loginSvg     = document.getElementById('login-svg-logo');
+  if (d.logo_url) {
+    if (loginLogoDiv) loginLogoDiv.style.display = 'flex';
+    if (loginLogoImg) loginLogoImg.src = d.logo_url;
+    if (loginSvg)     loginSvg.style.display = 'none';
+  } else {
+    if (loginLogoDiv) { if(loginLogoDiv) loginLogoDiv.style.display = 'none'; }
+    if (loginSvg)     loginSvg.style.display = 'block';
+  }
+
+  // ── Title ─────────────────────────────────────────────────
   if (d.nome) document.title = d.nome + (d.numero ? ` Nº ${d.numero}` : '');
 }
 
@@ -2060,6 +2080,7 @@ function doLoginDemo() {
 // ─── LOGIN REAL (Supabase Auth) ───────────────────────────────
 
 async function doLogin() {
+  try {
   const email = document.getElementById('loginUser')?.value.trim();
   const senha  = document.getElementById('loginPass')?.value;
   const erro   = document.getElementById('login-erro');
@@ -2103,6 +2124,10 @@ async function doLogin() {
   _modoDemo = false;
   _aplicarPorMembro(membro);
   if (btn) { btn.textContent = 'Entrar na Loja ✦'; btn.disabled = false; }
+  } catch(e) {
+    console.error("[doLogin]", e);
+    toast("❌ Erro inesperado. Tente novamente.");
+  }
 }
 
 function _cargoParaRole(cargo) {
@@ -3135,6 +3160,7 @@ async function renderDashboard() {
 
 // ===================== MEMBROS =====================
 async function salvarMembro(dados, id=null) {
+  try {
   let res;
   if (id) res = await sb.from('membros').update(dados).eq('id', id);
   else res = await sb.from('membros').insert(dados);
@@ -3142,14 +3168,23 @@ async function salvarMembro(dados, id=null) {
   toast('Irmão salvo com sucesso ✦');
   await loadAllData();
   return true;
+  } catch(e) {
+    console.error("[salvarMembro]", e);
+    toast("❌ Erro inesperado. Tente novamente.");
+  }
 }
 
 async function excluirMembro(id, nome) {
+  try {
   if (!confirm(`Excluir ${nome} do quadro de irmãos?`)) return;
   const res = await sb.from('membros').delete().eq('id', id);
   if (res.error) { toast('Erro: ' + res.error.message); return; }
   toast('Membro excluído ✦');
   await loadAllData();
+  } catch(e) {
+    console.error("[excluirMembro]", e);
+    toast("❌ Erro inesperado. Tente novamente.");
+  }
 }
 
 function abrirModalMembro(membro=null) {
@@ -3870,6 +3905,7 @@ function filtrarMembros(termo) {
 
 // ===================== FREQUÊNCIA =====================
 async function salvarSessao() {
+  try {
   const data = document.getElementById('nova-sessao-data')?.value;
   const tipo = document.getElementById('nova-sessao-tipo')?.value;
   const grau = document.getElementById('nova-sessao-grau')?.value;
@@ -3931,6 +3967,10 @@ async function salvarSessao() {
 
   // Recarregar dados do servidor em background para garantir sincronia
   loadAllData();
+  } catch(e) {
+    console.error("[salvarSessao]", e);
+    toast("❌ Erro inesperado. Tente novamente.");
+  }
 }
 
 function abrirModalSessao() {
@@ -4259,6 +4299,7 @@ function togglePresenca(btn, membroId) {
 }
 
 async function confirmarPresencas(sessaoId) {
+  try {
   const membros = DATA.membros.filter(m => m.status==='ativo'||m.status==='iniciado');
   const upserts = membros.map(m => {
     const bPres = document.getElementById(`btn-pres-${m.id}`);
@@ -4280,6 +4321,10 @@ async function confirmarPresencas(sessaoId) {
   toast('Presenças salvas ✦');
   fecharModal();
   await loadAllData();
+  } catch(e) {
+    console.error("[confirmarPresencas]", e);
+    toast("❌ Erro inesperado. Tente novamente.");
+  }
 }
 
 async function abrirModalVisitante(sessaoId) {
@@ -4427,6 +4472,7 @@ function calcularParcelas() {
 }
 
 async function salvarLancamento() {
+  try {
   const descricao = document.getElementById('f-desc')?.value.trim();
   const valor = parseFloat(document.getElementById('f-valor')?.value);
   const tipo = document.getElementById('f-tipo')?.value;
@@ -4467,8 +4513,12 @@ async function salvarLancamento() {
   if (res.error) { toast('Erro: ' + res.error.message); return; }
   toast(parcelado && nParcelas > 1 ? `✦ ${nParcelas} parcelas lançadas!` : 'Lançamento registrado ✦');
   fecharModal();
-  await loadAllData();
+  await _reloadFinancas();
   renderFinancas('full');
+  } catch(e) {
+    console.error("[salvarLancamento]", e);
+    toast("❌ Erro inesperado. Tente novamente.");
+  }
 }
 
 // Apenas recarrega dados; botões inline na tabela cuidam dos agendados
@@ -4522,7 +4572,7 @@ async function confirmarAdiarAgendado(lancId) {
   if (res.error) { toast('Erro: ' + res.error.message); return; }
   toast('📅 Agendamento atualizado para ' + fmtData(novaData));
   fecharModal();
-  await loadAllData();
+  await _reloadFinancas();
   renderFinancas('full');
 }
 
@@ -4592,7 +4642,7 @@ async function salvarEdicaoLancamento(lancId) {
   if (res.error) { toast('Erro: ' + res.error.message); return; }
   toast('✅ Lançamento atualizado');
   fecharModal();
-  await loadAllData();
+  await _reloadFinancas();
   renderFinancas('full');
 }
 
@@ -4603,7 +4653,7 @@ async function excluirLancamento(lancId) {
   if (res.error) { toast('Erro: ' + res.error.message); return; }
   toast('🗑️ Lançamento excluído');
   fecharModal();
-  await loadAllData();
+  await _reloadFinancas();
   renderFinancas('full');
 }
 
@@ -4979,7 +5029,7 @@ function renderFinancas(access) {
         ${parcelados.length>0?`<div class="card">
           <div class="card-header"><div class="card-title">💳 Parcelas em Andamento <span style="font-weight:400;font-size:12px;color:var(--text-muted)">(${parcelados.length})</span></div></div>
           <div style="padding:4px 0">
-          ${parcelados.map(p=>{
+          ${[...parcelados].sort((a,b)=>a.tipo==='receita'?-1:1).map(p=>{
             const isReceita = p.tipo === 'receita';
             const cor = isReceita ? 'var(--green)' : 'var(--red)';
             const badgeBg  = isReceita ? 'rgba(27,107,58,0.1)' : 'rgba(139,32,32,0.1)';
@@ -4990,18 +5040,18 @@ function renderFinancas(access) {
             <div style="padding:14px 22px;border-bottom:1px solid var(--border)">
               <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:10px">
                 <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:180px">
-                  <span style="background:${badgeBg};border:1.5px solid ${badgeBd};border-radius:6px;padding:6px 12px;font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:${cor};white-space:nowrap;flex-shrink:0">
+                  <span style="background:${badgeBg};border:1.5px solid ${badgeBd};border-radius:6px;padding:4px 10px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:${cor};white-space:nowrap;flex-shrink:0">
                     ${icone} ${isReceita ? 'RECEITA' : 'DESPESA'}
                   </span>
                   <span style="font-size:17px;font-family:'Cinzel',serif;font-weight:700;color:var(--text);line-height:1.3">${p.desc}</span>
                 </div>
                 <div style="text-align:right;flex-shrink:0">
-                  <div style="font-family:'Cinzel',serif;font-size:20px;font-weight:700;color:${cor};line-height:1">${fmtVal(p.valorParc*p.pendentes)}</div>
+                  <div style="font-family:'Cinzel',serif;font-size:17px;font-weight:700;color:${cor};line-height:1">${fmtVal(p.valorParc*p.pendentes)}</div>
                   <div style="font-size:12px;color:var(--text-muted);margin-top:3px">${p.pendentes} de ${p.total} parcela(s) restantes</div>
                 </div>
               </div>
               <div style="display:flex;align-items:center;gap:10px">
-                <div style="flex:1;background:var(--cream-mid,#EEF4FB);border-radius:4px;height:8px;overflow:hidden">
+                <div style="flex:1;background:var(--cream-mid,#EEF4FB);border-radius:4px;height:6px;overflow:hidden">
                   <div style="height:100%;width:${pct}%;background:${cor};border-radius:4px;transition:width 0.4s ease"></div>
                 </div>
                 <span style="font-size:12px;color:var(--text-muted);white-space:nowrap;font-weight:600">${p.pagas}/${p.total} pago · ${pct}%</span>
@@ -5679,7 +5729,7 @@ async function salvarTronco() {
   if (res.error) { toast('Erro: ' + res.error.message); return; }
   toast(`🏺 ${tipo==='saida'?'Benefício':tipo==='avulso'?'Doação avulsa':'Arrecadação'} registrado no Tronco ✦`);
   fecharModal();
-  await loadAllData();
+  await _reloadFinancas();
   renderFinancas(ROLES[currentRole].access['financas']||'full');
 }
 
@@ -6009,7 +6059,7 @@ async function lancarAgape() {
   if (_sbErr('comissao', res.error)) return;
   toast(`🍽️ Rateio lançado! ${participantes.length} irmãos — ${fmtVal(valPorCabeca)} cada`);
   fecharModal();
-  await loadAllData();
+  await _reloadFinancas();
   renderFinancas('full');
 }
 
@@ -6235,6 +6285,7 @@ async function excluirEvento(id, titulo) {
 
 // ===================== EVENTOS =====================
 async function salvarEvento() {
+  try {
   const titulo = document.getElementById('ev-titulo')?.value.trim();
   const data   = document.getElementById('ev-data')?.value;
   const tipo   = document.getElementById('ev-tipo')?.value;
@@ -6296,6 +6347,10 @@ async function salvarEvento() {
   }
 
   await loadAllData();
+  } catch(e) {
+    console.error("[salvarEvento]", e);
+    toast("❌ Erro inesperado. Tente novamente.");
+  }
 }
 
 function abrirModalEvento() {
@@ -6608,6 +6663,7 @@ function mostrarTodasSessoes(access) {
 
 // ===================== ATAS =====================
 async function salvarAta() {
+  try {
   const sessao_id = document.getElementById('ata-sessao')?.value || null;
   const titulo = document.getElementById('ata-titulo')?.value.trim();
   const texto = document.getElementById('ata-texto')?.value.trim();
@@ -6644,6 +6700,10 @@ async function salvarAta() {
   toast('Ata salva com sucesso ✦');
   fecharModal();
   await renderAtas();
+  } catch(e) {
+    console.error("[salvarAta]", e);
+    toast("❌ Erro inesperado. Tente novamente.");
+  }
 }
 
 function abrirModalAta() {
@@ -6943,8 +7003,79 @@ function abrirModalInadimplenciaDetalhada() {
 }
 
 function filtrarInadimplenciaModal() {
-  const filtroId = document.getElementById('filtro-inadimp-modal')?.value||'';
-  renderInadimplenciaFiltrada(filtroId, 'inadimp-modal-corpo');
+  const filtroId = document.getElementById('filtro-inadimp-modal')?.value || '';
+  _renderInadimplCorpo(filtroId, 'inadimp-modal-corpo');
+}
+
+// Helper genérico — renderiza corpo de inadimplência em qualquer container
+function _renderInadimplCorpo(filtroId, containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const hoje      = new Date();
+  const anoAtual  = hoje.getFullYear();
+  const diaVenc   = _getDadosLoja().vencimento || 10;
+  const lancs     = DATA.financas;
+  const membrosAtivos = DATA.membros.filter(m =>
+    (m.status==='ativo'||m.status==='iniciado'||m.status==='profano') && m.tipo_membro!=='visitante'
+  );
+
+  let inadimplentes = membrosAtivos.map(m => {
+    const mens = parseFloat(m.mensalidade) || 100;
+    let deb = 0, mesesDev = 0;
+    if (mens > 0) {
+      const ai = m.data_ingresso ? parseInt(m.data_ingresso.split('-')[0]) : anoAtual;
+      const mi = m.data_ingresso ? parseInt(m.data_ingresso.split('-')[1]) : 1;
+      const mesCorrente = hoje.getDate() >= diaVenc ? hoje.getMonth()+1 : hoje.getMonth();
+      const tot  = Math.max(0, (anoAtual-ai)*12 + (mesCorrente-mi));
+      const esp  = tot * mens;
+      const pago = lancs.filter(l => l.membro_id===m.id && l.tipo==='receita' && l.status==='pago' && l.categoria==='mensalidade').reduce((s,l)=>s+parseFloat(l.valor||0),0);
+      deb = Math.max(0, esp - pago);
+      mesesDev = Math.round(deb / mens);
+    }
+    const outros = lancs.filter(l =>
+      l.membro_id===m.id && l.status==='aberto' && l.tipo==='receita' &&
+      l.categoria!=='mensalidade' && l.data <= hoje.toISOString().split('T')[0]
+    );
+    const totOutros = outros.reduce((s,l)=>s+parseFloat(l.valor||0),0);
+    const totalDevia = deb + totOutros;
+    if (totalDevia <= 0) return null;
+    const det = [];
+    if (mesesDev>0) det.push({cat:'Mensalidade', valor:deb, detalhe:`${mesesDev} mês(es) · vence dia ${diaVenc}`});
+    outros.forEach(l => det.push({cat:getCatLabel(l.categoria)||l.descricao, valor:parseFloat(l.valor||0), detalhe:l.descricao, lancId:l.id}));
+    return {m, devia:totalDevia, detalhes:det};
+  }).filter(Boolean);
+
+  // FILTRO: se um irmão específico for selecionado, mostrar só ele
+  if (filtroId) inadimplentes = inadimplentes.filter(i => i.m.id === filtroId);
+
+  const canEdit = ROLES[currentRole].access['financas'] === 'full';
+  const thS = `padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--gold-pale);text-align:left;background:var(--navy)`;
+
+  container.innerHTML = inadimplentes.length === 0
+    ? `<div style="padding:20px;text-align:center;color:var(--green);font-style:italic">✅ Nenhum inadimplente${filtroId?' para este irmão':''}!</div>`
+    : inadimplentes.map(({m, devia, detalhes}) => `
+      <div style="border:1px solid rgba(139,32,32,0.2);border-radius:6px;margin-bottom:14px;overflow:hidden">
+        <div style="background:rgba(139,32,32,0.05);padding:8px 14px;display:flex;justify-content:space-between;align-items:center">
+          <span style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:var(--text)">${m.nome_maconico}</span>
+          <span style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;color:var(--red)">${fmtVal(devia)}</span>
+        </div>
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr>
+            <th style="${thS}">Descrição da Dívida</th>
+            <th style="${thS};text-align:right">Valor</th>
+            ${canEdit?`<th style="${thS};text-align:center;width:60px">Ação</th>`:''}
+          </tr></thead>
+          <tbody>
+            ${detalhes.map((d,i) => `
+            <tr style="background:${i%2===0?'var(--white)':'var(--cream)'};border-bottom:1px solid var(--border)">
+              <td style="padding:9px 14px;font-size:13px;color:var(--text-muted)">${d.cat}${d.detalhe&&d.detalhe!==d.cat?' — '+d.detalhe:''}</td>
+              <td style="padding:9px 14px;font-family:'Cinzel',serif;font-size:13px;font-weight:700;color:var(--red);text-align:right">${fmtVal(d.valor)}</td>
+              ${canEdit?`<td style="padding:9px 14px;text-align:center">${i===0?`<button class="btn" style="padding:3px 8px;font-size:9px;background:linear-gradient(135deg,#25D366,#128C7E);color:#fff;border-color:#128C7E" onclick="cobrarWhatsapp('${m.nome_maconico.replace(/'/g,'')}','${m.telefone||''}',${devia},0)">📱</button>`:''}
+              </td>`:''}
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`).join('');
 }
 
 async function renderMinhaFrequencia() {
@@ -7673,10 +7804,9 @@ function ativarAbaTrabalhos(id) {
 
 // ── Biblioteca ─────────────────────────────────────────────────
 function _biblio(lista, isAdm) {
-  // Correção 2: biblioteca exibe SOMENTE trabalhos aprovados
   const aprovados = lista.filter(t => t.status === 'aprovado');
 
-  if(!aprovados.length) return `
+  if (!aprovados.length) return `
     <div style="text-align:center;padding:48px;color:var(--text-muted)">
       <div style="font-size:40px;opacity:0.2;margin-bottom:12px">📚</div>
       <div style="font-family:'Cinzel',serif;font-size:11px;letter-spacing:0.1em">NENHUM TRABALHO APROVADO DISPONÍVEL PARA SEU GRAU</div>
@@ -7684,31 +7814,45 @@ function _biblio(lista, isAdm) {
 
   const grupos = [0,1,2,3].map(g => ({g, itens:aprovados.filter(t=>_grauTrab(t)===g)})).filter(x=>x.itens.length);
 
+  const thStyle = `padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--gold-pale);text-align:left;background:var(--navy)`;
+
   return grupos.map(({g, itens}) => `
     <div style="margin-bottom:28px">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
         <span style="background:${_GB(g)};border:1px solid ${_GC(g)}40;border-radius:20px;padding:4px 14px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:${_GC(g)}">${_GL(g)}</span>
         <span style="font-size:12px;color:var(--text-muted)">${itens.length} trabalho(s)</span>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px">
-        ${itens.map(t => {
-          const g2  = _grauTrab(t);
-          const autor = t.autor_nome || t.membros?.nome_maconico || 'Irmão';
-          return `
-          <div class="dash-card" style="overflow:hidden;border-radius:8px"
-            <div style="background:${_GB(g2)};border-bottom:1px solid ${_GC(g2)}20;padding:14px 16px">
-              <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:var(--text);line-height:1.5;margin-bottom:6px">${t.titulo||'Sem título'}</div>
-              <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Ir. ${autor} · ${t.data_postagem?new Date(t.data_postagem).toLocaleDateString('pt-BR'):'—'}</div>
-              <span style="background:rgba(27,107,58,0.1);border:1px solid rgba(27,107,58,0.3);border-radius:20px;padding:2px 10px;font-family:'Cinzel',serif;font-size:8px;font-weight:700;color:#1B6B3A">✓ Aprovado e Registado</span>
-            </div>
-            <div style="padding:10px 14px;display:flex;gap:8px">
-              ${t.url_arquivo?`<a href="${t.url_arquivo}" target="_blank" rel="noopener"
-                style="flex:1;text-align:center;padding:7px;background:var(--navy);color:var(--gold-pale);border-radius:4px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;text-decoration:none">📖 LER TRABALHO</a>`:''}
-              ${isAdm?`<button onclick="excluirTrabalho('${t.id}','')"
-                style="padding:7px 10px;border:1px solid rgba(139,32,32,0.25);border-radius:4px;background:none;cursor:pointer;font-size:12px;color:var(--red)" title="${t.titulo||''}">🗑️</button>`:''}
-            </div>
-          </div>`;
-        }).join('')}
+      <div style="border-radius:6px;overflow:hidden;border:1px solid var(--border-mid)">
+        <table style="width:100%;border-collapse:collapse">
+          <thead>
+            <tr>
+              <th style="${thStyle}">Título</th>
+              <th style="${thStyle}">Autor</th>
+              <th style="${thStyle}">Data</th>
+              <th style="${thStyle};text-align:center">Arquivo</th>
+              ${isAdm?`<th style="${thStyle};text-align:center">⚙️</th>`:''}
+            </tr>
+          </thead>
+          <tbody>
+            ${itens.map((t,i) => {
+              const autor = t.autor_nome || t.membros?.nome_maconico || 'Irmão';
+              const rowBg = i%2===0 ? 'var(--white)' : 'var(--cream)';
+              return `
+              <tr style="background:${rowBg};border-bottom:1px solid var(--border)">
+                <td style="padding:11px 14px;font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:var(--text)">${t.titulo||'Sem título'}</td>
+                <td style="padding:11px 14px;font-size:13px;color:var(--text-muted)">Ir. ${autor}</td>
+                <td style="padding:11px 14px;font-size:12px;color:var(--text-muted);white-space:nowrap">${t.data_postagem?new Date(t.data_postagem).toLocaleDateString('pt-BR'):'—'}</td>
+                <td style="padding:11px 14px;text-align:center">
+                  ${t.url_arquivo?`<a href="${t.url_arquivo}" target="_blank" rel="noopener"
+                    style="padding:5px 12px;background:var(--navy);color:var(--gold-pale);border-radius:4px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;text-decoration:none;white-space:nowrap">📖 Ler</a>`:'—'}
+                </td>
+                ${isAdm?`<td style="padding:11px 14px;text-align:center">
+                  <button onclick="excluirTrabalho('${t.id}','')" style="padding:4px 8px;border:1px solid rgba(139,32,32,0.3);border-radius:3px;background:none;cursor:pointer;font-size:13px;color:var(--red)" title="Excluir">🗑️</button>
+                </td>`:''}
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
       </div>
     </div>`).join('');
 }
@@ -7716,170 +7860,168 @@ function _biblio(lista, isAdm) {
 
 // ── Meus Trabalhos ─────────────────────────────────────────────
 function _meusHtml(lista) {
-  if(!lista.length) return `
+  if (!lista.length) return `
     <div style="text-align:center;padding:40px;color:var(--text-muted)">
       <div style="font-size:36px;opacity:0.2;margin-bottom:10px">📝</div>
       <div style="font-family:'Cinzel',serif;font-size:11px">VOCÊ NÃO ENVIOU NENHUM TRABALHO AINDA</div>
       <div style="font-size:13px;margin-top:6px;font-style:italic">Use o botão "📤 Enviar Meu Trabalho" acima.</div>
     </div>`;
 
-  // Agrupar: em revisão primeiro, depois pendentes, depois aprovados
+  const th = (t,extra='') => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--gold-pale);text-align:left;background:var(--navy)${extra}">${t}</th>`;
+
+  // Agrupar: em revisão → pendente → aprovado
   const ordem = ['ajuste','pendente','aprovado'];
-  const grupos = ordem.map(st => ({st, itens: lista.filter(t=>t.status===st)})).filter(x=>x.itens.length);
   let html = '';
 
-  grupos.forEach(({st, itens}) => {
+  ordem.forEach(st => {
+    const itens = lista.filter(t => t.status === st);
+    if (!itens.length) return;
     const cfg = _ST[st];
     html += `
-      <div style="margin-bottom:20px">
+      <div style="margin-bottom:24px">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
           <div style="width:10px;height:10px;border-radius:50%;background:${cfg.cor};flex-shrink:0"></div>
           <span style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.1em;color:${cfg.cor}">${cfg.txt} (${itens.length})</span>
         </div>
-        ${itens.map(t => {
-          const g        = _grauTrab(t);
-          const obs      = (t.observacoes||t.feedback_texto||'').trim();
-          const aprovado = t.status === 'aprovado';
-          const ajuste   = t.status === 'ajuste';
-          return `
-          <div style="background:var(--white);border:2px solid ${cfg.bd};border-radius:8px;overflow:hidden;margin-bottom:10px">
-
-            <!-- Cabeçalho -->
-            <div style="background:${cfg.bg};padding:10px 16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-              <span style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:${cfg.cor};flex:1">${cfg.txt}</span>
-              <span style="background:${_GB(g)};border:1px solid ${_GC(g)}40;border-radius:20px;padding:2px 10px;font-family:'Cinzel',serif;font-size:8px;font-weight:700;color:${_GC(g)}">${_GL(g)}</span>
-              ${aprovado?`<span style="background:rgba(27,107,58,0.1);border:1px solid rgba(27,107,58,0.3);border-radius:20px;padding:2px 10px;font-family:'Cinzel',serif;font-size:8px;font-weight:700;color:#1B6B3A">Visível: ${_GL(t.grau_visibilidade??g)}+</span>`:''}
-            </div>
-
-            <!-- Dados -->
-            <div style="padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-              <div style="flex:1;min-width:160px">
-                <div style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;color:var(--text);margin-bottom:3px">${t.titulo||'—'}</div>
-                <div style="font-size:11px;color:var(--text-muted)">Enviado em ${t.data_postagem?new Date(t.data_postagem).toLocaleDateString('pt-BR'):'—'}</div>
-              </div>
-              ${t.url_arquivo?`<a href="${t.url_arquivo}" target="_blank" rel="noopener"
-                style="padding:6px 12px;border:1px solid var(--border-mid);border-radius:4px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:var(--navy);text-decoration:none">
-                📄 Ver arquivo</a>`:''}
-            </div>
-
-            ${aprovado ? `
-            <!-- Trabalho aprovado: imutável -->
-            <div style="padding:10px 16px;background:rgba(27,107,58,0.04);border-top:1px solid rgba(27,107,58,0.15);display:flex;align-items:center;gap:8px">
-              <span style="font-size:16px">✅</span>
-              <span style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:#1B6B3A;letter-spacing:0.08em">TRABALHO APROVADO E REGISTADO — IMUTÁVEL</span>
-            </div>` : ''}
-
-            ${ajuste?`
-            <!-- Comentário do vigilante -->
-            <div style="border-top:2px dashed rgba(138,27,27,0.25);padding:12px 16px;background:rgba(138,27,27,0.04)">
-              <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:#8A1B1B;letter-spacing:0.12em;margin-bottom:8px">💬 COMENTÁRIO DO APROVADOR</div>
-              ${obs?`
-                <div style="background:var(--white);border:1px solid rgba(138,27,27,0.2);border-radius:4px;padding:10px 14px;font-size:13px;color:var(--text);font-style:italic;line-height:1.7;margin-bottom:6px">"${obs}"</div>
-                <div style="font-size:11px;color:var(--text-muted)">— ${t.feedback_autor||'Vigilante'} · ${t.feedback_data?new Date(t.feedback_data).toLocaleDateString('pt-BR'):''}</div>
-              `:`<div style="font-size:12px;color:var(--text-muted);font-style:italic">Sem comentário adicional.</div>`}
-              <!-- Botão REENVIAR em destaque -->
-              <div style="margin-top:14px">
-                <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;font-style:italic">Faça as correções indicadas e reenvie para nova avaliação:</div>
-                <input type="file" id="reenvio-${t.id}" accept=".pdf,.doc,.docx"
-                  style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px;font-size:12px;background:var(--white);cursor:pointer;margin-bottom:10px">
-                <button onclick="reenviarTrabalho('${t.id}')"
-                  style="width:100%;padding:12px 20px;background:var(--gold-dark);color:var(--white);border:none;border-radius:5px;font-family:'Cinzel',serif;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:0.06em">
-                  ⚠️ REVISAR E REENVIAR PARA APROVAÇÃO
-                </button>
-                <div style="font-size:11px;color:var(--text-muted);margin-top:6px;font-style:italic;text-align:center">Deixe o campo vazio para manter o arquivo atual.</div>
-              </div>
-            </div>`:''}
-
-          </div>`;
-        }).join('')}
+        <div style="border-radius:6px;overflow:hidden;border:1px solid var(--border-mid)">
+          <table style="width:100%;border-collapse:collapse">
+            <thead><tr>
+              ${th('Título')}${th('Grau')}${th('Data')}${th('Observação do Mestre')}${th('Ações',';text-align:center')}
+            </tr></thead>
+            <tbody>
+              ${itens.map((t,i) => {
+                const g        = _grauTrab(t);
+                const obs      = (t.observacoes||t.feedback_texto||'').trim();
+                const aprovado = t.status === 'aprovado';
+                const ajuste   = t.status === 'ajuste';
+                const rowBg    = i%2===0 ? 'var(--white)' : 'var(--cream)';
+                return `
+                <tr style="background:${rowBg};border-bottom:1px solid var(--border)">
+                  <td style="padding:10px 14px;font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:var(--text)">${t.titulo||'—'}</td>
+                  <td style="padding:10px 14px">
+                    <span style="background:${_GB(g)};border:1px solid ${_GC(g)}40;border-radius:20px;padding:2px 10px;font-family:'Cinzel',serif;font-size:8px;font-weight:700;color:${_GC(g)};white-space:nowrap">${_GL(g)}</span>
+                  </td>
+                  <td style="padding:10px 14px;font-size:12px;color:var(--text-muted);white-space:nowrap">${t.data_postagem?new Date(t.data_postagem).toLocaleDateString('pt-BR'):'—'}</td>
+                  <td style="padding:10px 14px;max-width:240px">
+                    ${obs
+                      ? `<div style="font-size:12px;color:${ajuste?'#8A1B1B':'#7A6010'};font-style:italic;line-height:1.5">
+                          ${ajuste?'💬 ':''}"${obs}"
+                          ${t.feedback_autor?`<br><span style="font-size:10px;color:var(--text-muted)">— ${t.feedback_autor}</span>`:''}
+                         </div>`
+                      : `<span style="font-size:12px;color:var(--text-muted);font-style:italic">—</span>`}
+                  </td>
+                  <td style="padding:8px 14px;text-align:center">
+                    <div style="display:flex;gap:6px;justify-content:center;align-items:center;flex-wrap:wrap">
+                      ${t.url_arquivo?`<a href="${t.url_arquivo}" target="_blank" rel="noopener"
+                        style="padding:5px 10px;border:1px solid var(--border-mid);border-radius:3px;font-size:13px;text-decoration:none;color:var(--navy)" title="Ver arquivo">📄</a>`:''}
+                      ${aprovado
+                        ? `<span style="background:rgba(27,107,58,0.1);border:1px solid rgba(27,107,58,0.3);border-radius:4px;padding:4px 10px;font-family:'Cinzel',serif;font-size:8px;font-weight:700;color:#1B6B3A;white-space:nowrap">✅ IMUTÁVEL</span>`
+                        : ajuste
+                          ? `<div style="display:flex;flex-direction:column;gap:4px;min-width:160px">
+                               <input type="file" id="reenvio-${t.id}" accept=".pdf,.doc,.docx"
+                                 style="font-size:10px;border:1px solid var(--border-mid);border-radius:3px;padding:4px;background:var(--white);cursor:pointer">
+                               <button onclick="reenviarTrabalho('${t.id}')"
+                                 style="padding:5px 10px;background:var(--gold-dark);color:var(--white);border:none;border-radius:3px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;cursor:pointer">
+                                 ⚠️ REENVIAR
+                               </button>
+                             </div>`
+                          : ''
+                      }
+                    </div>
+                  </td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
       </div>`;
   });
   return html;
 }
 
-// ── Gestão (vigilantes / venerável) ───────────────────────────
+
+// ── Gestão (vigilantes / venerável) ────────────────────────────
 function _gestaoHtml(fila, ap) {
   const cargo = ap.isVeneravel?'Venerável Mestre':ap.is1Vig?'1º Vigilante':'2º Vigilante';
+  const th = (t, extra='') => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--gold-pale);text-align:left;background:var(--navy)${extra}">${t}</th>`;
 
-  if(!fila.length) return `
-    <div style="background:rgba(27,58,107,0.04);border:1px solid rgba(27,58,107,0.12);border-radius:6px;padding:12px 16px;margin-bottom:16px;font-size:12px;color:var(--text-muted)">
+  if (!fila.length) return `
+    <div style="background:rgba(27,58,107,0.04);border:1px solid rgba(27,58,107,0.12);border-radius:6px;padding:14px 18px;font-size:12px;color:var(--text-muted)">
       <strong>${cargo}</strong> — nenhum trabalho aguardando avaliação.
     </div>`;
 
   const pendentes = fila.filter(t=>t.status==='pendente');
   const emAdj     = fila.filter(t=>t.status==='ajuste');
 
-  const grupo = (lista, titulo, cor) => {
-    if(!lista.length) return '';
+  const tabelaGrupo = (lista, titulo, cor) => {
+    if (!lista.length) return '';
     return `
-      <div style="margin-bottom:22px">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+      <div style="margin-bottom:24px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
           <div style="width:10px;height:10px;border-radius:50%;background:${cor};flex-shrink:0"></div>
           <span style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.1em;color:var(--text-muted);text-transform:uppercase">${titulo} (${lista.length})</span>
         </div>
-        ${lista.map(t => {
-          const g    = _grauTrab(t);
-          const st   = _ST[t.status]||_ST.pendente;
-          const obs  = (t.observacoes||t.feedback_texto||'').trim();
-          const autor = t.autor_nome || t.membros?.nome_maconico || 'Irmão';
-          const optsVis = ap.escolheVis
-            ? [0,1,2,3].map(v=>`<option value="${v}"${v===g?' selected':''}>${_GL(v)}</option>`).join('')
-            : '';
-          return `
-          <div style="background:var(--white);border:1px solid ${st.bd};border-radius:8px;overflow:hidden;margin-bottom:12px">
-            <!-- Status strip -->
-            <div style="background:${st.bg};padding:7px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
-              <span style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:${st.cor}">${st.txt}</span>
-              <span style="background:${_GB(g)};border:1px solid ${_GC(g)}40;border-radius:20px;padding:2px 10px;font-family:'Cinzel',serif;font-size:8px;font-weight:700;color:${_GC(g)}">${_GL(g)}</span>
-            </div>
-            <!-- Dados -->
-            <div style="padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-              <div style="flex:1;min-width:160px">
-                <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:var(--text);margin-bottom:3px">${t.titulo||'—'}</div>
-                <div style="font-size:11px;color:var(--text-muted)">Ir. ${autor} · ${t.data_postagem?new Date(t.data_postagem).toLocaleDateString('pt-BR'):'—'}</div>
-              </div>
-              ${t.url_arquivo?`<a href="${t.url_arquivo}" target="_blank" rel="noopener"
-                style="padding:6px 12px;border:1px solid var(--border-mid);border-radius:4px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:var(--navy);text-decoration:none">
-                📖 Ler</a>`:''}
-            </div>
-            ${obs?`<div style="padding:7px 16px;background:rgba(122,96,16,0.06);border-top:1px solid rgba(122,96,16,0.15);font-size:12px;color:#7A6010;font-style:italic">💬 Obs anterior: "${obs.slice(0,100)}"</div>`:''}
-            <!-- Ações -->
-            <div style="padding:12px 16px;border-top:1px solid var(--border);background:var(--cream);display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
-              <div style="display:flex;gap:8px;align-items:flex-end">
-                ${ap.escolheVis?`
-                <div>
-                  <label style="font-family:'Cinzel',serif;font-size:8px;font-weight:700;letter-spacing:0.1em;color:var(--text-muted);display:block;margin-bottom:4px;text-transform:uppercase">Visível para</label>
-                  <select id="vis-${t.id}" style="border:1px solid var(--border-mid);border-radius:3px;padding:7px 10px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--white)">${optsVis}</select>
-                </div>`:''}
-                <button onclick="aprovarTrabalho('${t.id}',${g})"
-                  style="padding:8px 18px;background:rgba(27,107,58,0.12);border:1px solid rgba(27,107,58,0.35);border-radius:4px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:#1B6B3A;cursor:pointer;white-space:nowrap">
-                  ✅ Aprovar
-                </button>
-              </div>
-              <div style="flex:1;min-width:200px;display:flex;gap:8px;align-items:flex-end">
-                <div style="flex:1">
-                  <label style="font-family:'Cinzel',serif;font-size:8px;font-weight:700;letter-spacing:0.1em;color:var(--text-muted);display:block;margin-bottom:4px;text-transform:uppercase">Motivo da revisão</label>
-                  <input type="text" id="obs-${t.id}" value="${obs.replace(/"/g,'&quot;')}" placeholder="Descreva o que deve ser corrigido..."
-                    style="width:100%;border:1px solid var(--border-mid);border-radius:4px;padding:7px 10px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--white)">
-                </div>
-                <button onclick="pedirRevisao('${t.id}')"
-                  style="padding:8px 14px;background:rgba(138,27,27,0.1);border:1px solid rgba(138,27,27,0.3);border-radius:4px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:#8A1B1B;cursor:pointer;white-space:nowrap">
-                  🔄 Pedir Revisão
-                </button>
-              </div>
-            </div>
-          </div>`;
-        }).join('')}
+        <div style="border-radius:6px;overflow:hidden;border:1px solid var(--border-mid)">
+          <table style="width:100%;border-collapse:collapse">
+            <thead><tr>
+              ${th('Autor')}${th('Título')}${th('Grau')}${th('Data')}${th('Ações',';text-align:center;min-width:200px')}
+            </tr></thead>
+            <tbody>
+              ${lista.map((t,i) => {
+                const g     = _grauTrab(t);
+                const autor = t.autor_nome || t.membros?.nome_maconico || 'Irmão';
+                const obs   = (t.observacoes||t.feedback_texto||'').trim();
+                const rowBg = i%2===0 ? 'var(--white)' : 'var(--cream)';
+                const optsVis = ap.escolheVis
+                  ? `<select id="vis-${t.id}" style="border:1px solid var(--border-mid);border-radius:3px;padding:4px 8px;font-size:12px;background:var(--white);max-width:100px">${[0,1,2,3].map(v=>`<option value="${v}"${v===g?' selected':''}>${_GL(v)}</option>`).join('')}</select>`
+                  : '';
+                return `
+                <tr style="background:${rowBg};border-bottom:1px solid var(--border)">
+                  <td style="padding:10px 14px;font-size:13px;color:var(--text-muted)">Ir. ${autor}</td>
+                  <td style="padding:10px 14px">
+                    <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:var(--text)">${t.titulo||'—'}</div>
+                    ${obs?`<div style="font-size:11px;color:#7A6010;font-style:italic;margin-top:2px">💬 ${obs.slice(0,60)}${obs.length>60?'…':''}</div>`:''}
+                  </td>
+                  <td style="padding:10px 14px">
+                    <span style="background:${_GB(g)};border:1px solid ${_GC(g)}40;border-radius:20px;padding:2px 10px;font-family:'Cinzel',serif;font-size:8px;font-weight:700;color:${_GC(g)};white-space:nowrap">${_GL(g)}</span>
+                  </td>
+                  <td style="padding:10px 14px;font-size:12px;color:var(--text-muted);white-space:nowrap">${t.data_postagem?new Date(t.data_postagem).toLocaleDateString('pt-BR'):'—'}</td>
+                  <td style="padding:8px 14px">
+                    <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:center">
+                      ${t.url_arquivo?`<a href="${t.url_arquivo}" target="_blank" rel="noopener" title="Ver trabalho"
+                        style="padding:5px 10px;border:1px solid var(--border-mid);border-radius:3px;font-size:13px;text-decoration:none;color:var(--navy)">👁️</a>`:''}
+                      ${optsVis}
+                      <button onclick="aprovarTrabalho('${t.id}',${g})" title="Aprovar"
+                        style="padding:5px 10px;background:rgba(27,107,58,0.12);border:1px solid rgba(27,107,58,0.35);border-radius:3px;cursor:pointer;font-size:13px">✅</button>
+                      <button onclick="pedirAjusteTrabalho('${t.id}')" title="Pedir Ajuste"
+                        style="padding:5px 10px;background:rgba(138,27,27,0.08);border:1px solid rgba(138,27,27,0.3);border-radius:3px;cursor:pointer;font-size:13px">⚠️</button>
+                      <button onclick="excluirTrabalho('${t.id}','')" title="Excluir"
+                        style="padding:5px 10px;border:1px solid rgba(139,32,32,0.3);border-radius:3px;background:none;cursor:pointer;font-size:13px;color:var(--red)">🗑️</button>
+                    </div>
+                  </td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
       </div>`;
   };
 
   return `
     <div style="background:rgba(27,58,107,0.04);border:1px solid rgba(27,58,107,0.12);border-radius:6px;padding:10px 16px;margin-bottom:18px;font-size:12px;color:var(--text-muted)">
-      <strong>${cargo}</strong> — avaliando: ${ap.pode.map(g=>_GL(g)).join(', ')}
+      Avaliando como <strong>${cargo}</strong>. Dica: 👁️ Ver · ✅ Aprovar · ⚠️ Pedir Ajuste · 🗑️ Excluir
     </div>
-    ${grupo(pendentes,'Novos — aguardando avaliação','#7A6010')}
-    ${grupo(emAdj,'Em revisão — aguardando correção do autor','#1B5EA0')}`;
+    ${tabelaGrupo(pendentes,'Aguardando Avaliação','#C07000')}
+    ${tabelaGrupo(emAdj,'Em Revisão — Aguardando Correção do Autor','#1B5EA0')}`;
 }
+
+// Abrir prompt para pedir ajuste (substitui input inline)
+function pedirAjusteTrabalho(id) {
+  const motivo = prompt('Descreva o que precisa ser corrigido:');
+  if (motivo === null) return; // cancelado
+  pedirRevisao(id, motivo);
+}
+
 
 // ── Modal enviar trabalho ──────────────────────────────────────
 function abrirModalEnviarTrabalho() {
@@ -8062,8 +8204,8 @@ async function aprovarTrabalho(id, grauTrab) {
   ativarAbaTrabalhos('gestao');
 }
 
-async function pedirRevisao(id) {
-  const obs = document.getElementById(`obs-${id}`)?.value.trim();
+async function pedirRevisao(id, motivoExterno) {
+  const obs = motivoExterno !== undefined ? motivoExterno.trim() : (document.getElementById(`obs-${id}`)?.value.trim() || '');
   if(!obs) {toast('Escreva o motivo da revisão'); return;}
   const eu = _eu();
   const {error} = await sb.from('trabalhos').update({
@@ -8277,6 +8419,7 @@ function legToggleTipo(tipo) {
 }
 
 async function salvarLegislacao(id) {
+  try {
   const titulo    = document.getElementById('leg-titulo')?.value.trim();
   const categoria = document.getElementById('leg-cat')?.value;
   const ano       = parseInt(document.getElementById('leg-ano')?.value) || null;
@@ -8350,9 +8493,14 @@ async function salvarLegislacao(id) {
   const { data } = await sb.from('legislacao').select('*').order('ano', { ascending: false });
   DATA.legislacao = data || [];
   renderLegislacao(ROLES[currentRole].access['legislacao'] || 'read');
+  } catch(e) {
+    console.error("[salvarLegislacao]", e);
+    toast("❌ Erro inesperado. Tente novamente.");
+  }
 }
 
 async function excluirLegislacao(id, titulo) {
+  try {
   if (!confirm(`Excluir "${titulo}"?`)) return;
   const doc = DATA.legislacao.find(x => x.id === id);
   // Remover do Storage se tiver arquivo
@@ -8365,6 +8513,10 @@ async function excluirLegislacao(id, titulo) {
   toast('🗑️ Documento excluído');
   DATA.legislacao = DATA.legislacao.filter(x => x.id !== id);
   renderLegislacao(ROLES[currentRole].access['legislacao'] || 'read');
+  } catch(e) {
+    console.error("[excluirLegislacao]", e);
+    toast("❌ Erro inesperado. Tente novamente.");
+  }
 }
 
 // ─── COMISSÕES — Supabase ─────────────────────────────────────
@@ -8750,6 +8902,7 @@ function setTipoComissao(tipo) {
 }
 
 async function salvarComissao(id) {
+  try {
   const nome = document.getElementById('com-nome')?.value.trim();
   const presidente = document.getElementById('com-presidente')?.value;
   if (!nome || !presidente) { toast('Preencha nome e presidente'); return; }
@@ -8788,9 +8941,14 @@ async function salvarComissao(id) {
   toast(`✅ Comissão ${isEdit ? 'atualizada' : 'criada'}!`);
   fecharModal();
   await renderComissoes(ROLES[currentRole].access['comissoes'] || 'full');
+  } catch(e) {
+    console.error("[salvarComissao]", e);
+    toast("❌ Erro inesperado. Tente novamente.");
+  }
 }
 
 async function excluirComissao(id) {
+  try {
   const c = DATA.comissoes.find(x => x.id === id);
   if (!confirm(`Excluir a comissão "${c?.nome || id}"?`)) return;
   const res = await sb.from('comissoes').delete().eq('id', id);
@@ -8798,6 +8956,10 @@ async function excluirComissao(id) {
   toast('🗑️ Comissão excluída');
   fecharModal();
   await renderComissoes(ROLES[currentRole].access['comissoes'] || 'full');
+  } catch(e) {
+    console.error("[excluirComissao]", e);
+    toast("❌ Erro inesperado. Tente novamente.");
+  }
 }
 
 // ─── EXPORTAR EXCEL (SheetJS) ───
@@ -10185,44 +10347,90 @@ function mostrarRelDebitos() {
   if (!_possoVerRelatorio('debitos')) {
     toast('⛔ Sem permissão para este relatório.'); return;
   }
-  const membros = DATA.membros.filter(m=>m.status==='ativo'||m.status==='iniciado');
-  const mesAtual = new Date().getMonth()+1;
-  const devedores = membros.map(m=>{
-    const pags = DATA.financas.filter(l=>l.membro_id===m.id&&l.tipo==='receita');
-    const totalPago = pags.reduce((s,l)=>s+parseFloat(l.valor||0),0);
-    const mens = parseFloat(m.mensalidade)||100;
-    const mesesPagos = Math.floor(totalPago/mens);
-    const mesesDevidos = Math.max(0, mesAtual-mesesPagos);
-    const valorAberto = mesesDevidos*mens;
-    return {...m,totalPago,mesesPagos,mesesDevidos,valorAberto,emDia:mesesDevidos===0};
-  }).filter(m=>!m.emDia).sort((a,b)=>b.mesesDevidos-a.mesesDevidos);
 
-  const totalAberto = devedores.reduce((s,m)=>s+m.valorAberto,0);
-  const linhas = devedores.length ? devedores.map(m=>`<tr>
-    <td>${m.nome_maconico}</td><td>${m.cargo||'—'}</td>
-    <td>${fmtVal(m.mensalidade||100)}/mês</td>
-    <td style="color:var(--red);font-weight:700">${m.mesesDevidos} ${m.mesesDevidos===1?'mês':'meses'}</td>
-    <td style="color:var(--red);font-weight:700">${fmtVal(m.valorAberto)}</td>
-    <td><button class="btn" style="padding:3px 9px;font-size:8px" onclick="abrirModalLancamentoMembro('${m.id}','${m.nome_maconico}')">+ Registrar Pag.</button></td>
-  </tr>`).join('')
-  : `<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--green);font-style:italic">✅ Todos os irmãos estão em dia!</td></tr>`;
+  // Filtro por irmão específico (bug fix: respeitar seleção do select)
+  const filtroId = document.getElementById('rel-filtro-irmao')?.value ||
+                   document.getElementById('rel-per-irmao')?.value || '';
+
+  const hoje    = new Date();
+  const diaVenc = _getDadosLoja().vencimento || 10;
+  const anoAtual = hoje.getFullYear();
+  const lancs   = DATA.financas;
+
+  const membrosBase = DATA.membros.filter(m => m.status==='ativo' || m.status==='iniciado');
+  // Se filtro selecionado: mostrar apenas aquele irmão
+  const membros = filtroId
+    ? membrosBase.filter(m => m.id === filtroId)
+    : membrosBase;
+
+  const anoIngresso = m => m.data_ingresso ? parseInt(m.data_ingresso.split('-')[0]) : anoAtual;
+  const mesIngresso = m => m.data_ingresso ? parseInt(m.data_ingresso.split('-')[1]) : 1;
+
+  const devedores = membros.map(m => {
+    const mens = parseFloat(m.mensalidade) || 100;
+    if (!mens) return null;
+    const ai = anoIngresso(m), mi = mesIngresso(m);
+    // Só conta o mês atual se já passou o dia de vencimento
+    const mesCorrente = hoje.getDate() >= diaVenc ? hoje.getMonth()+1 : hoje.getMonth();
+    const totalMeses = Math.max(0, (anoAtual - ai)*12 + (mesCorrente - mi));
+    const esperado = totalMeses * mens;
+    const pago = lancs
+      .filter(l => l.membro_id===m.id && l.tipo==='receita' && l.status==='pago' && l.categoria==='mensalidade')
+      .reduce((s,l) => s + parseFloat(l.valor||0), 0);
+    const devia = Math.max(0, esperado - pago);
+    if (devia <= 0) return null;
+    const mesesDev = Math.round(devia / mens);
+    return { ...m, mens, mesesDev, devia };
+  }).filter(Boolean).sort((a,b) => b.mesesDev - a.mesesDev);
+
+  const totalAberto = devedores.reduce((s,m) => s + m.devia, 0);
+
+  // Tabela padrão Azul/Dourado
+  const th = t => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--gold-pale);background:var(--navy);text-align:left">${t}</th>`;
+  const linhas = devedores.length
+    ? devedores.map((m,i) => `
+      <tr style="background:${i%2===0?'var(--white)':'var(--cream)'};border-bottom:1px solid var(--border)">
+        <td style="padding:10px 14px;font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:var(--text)">${m.nome_maconico}</td>
+        <td style="padding:10px 14px;font-size:13px;color:var(--text-muted)">${m.cargo||'—'}</td>
+        <td style="padding:10px 14px;font-size:13px">${fmtVal(m.mens)}/mês</td>
+        <td style="padding:10px 14px;font-family:'Cinzel',serif;font-size:13px;font-weight:700;color:var(--red)">${m.mesesDev} ${m.mesesDev===1?'mês':'meses'}</td>
+        <td style="padding:10px 14px;font-family:'Cinzel',serif;font-size:14px;font-weight:700;color:var(--red)">${fmtVal(m.devia)}</td>
+        <td style="padding:8px 14px"><button class="btn" style="padding:4px 10px;font-size:10px" onclick="abrirModalLancamentoMembro('${m.id}','${m.nome_maconico}')">+ Pag.</button></td>
+      </tr>`)
+    .join('')
+    : `<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--green);font-style:italic;font-size:13px">✅ ${filtroId ? 'Irmão selecionado está em dia!' : 'Todos os irmãos estão em dia!'}</td></tr>`;
+
+  // Select de irmãos para filtro inline
+  const opsMembros = `<option value="">Todos os Irmãos</option>`
+    + DATA.membros.filter(m=>m.status==='ativo'||m.status==='iniciado')
+      .map(m=>`<option value="${m.id}" ${m.id===filtroId?'selected':''}>${m.nome_maconico}</option>`)
+      .join('');
 
   document.getElementById('rel-resultado').innerHTML = `
     <div class="card">
       <div class="card-header">
-        <div class="card-title">⚠️ Irmãos com Débitos</div>
-        <div style="display:flex;gap:8px">
+        <div class="card-title">⚠️ Inadimplência Detalhada <span style="font-weight:400;font-size:11px;color:var(--text-muted)">(vence dia ${diaVenc})</span></div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <select id="rel-filtro-irmao" onchange="mostrarRelDebitos()"
+            style="border:1px solid var(--border-mid);border-radius:3px;padding:6px 10px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--cream)">
+            ${opsMembros}
+          </select>
           <button class="btn" onclick="exportarDebitosExcel()">📊 Excel</button>
           <button class="btn btn-solid" onclick="imprimirRelDebitos()">🖨️ Imprimir</button>
         </div>
       </div>
-      <div style="display:flex;gap:12px;margin:14px 0;flex-wrap:wrap">
+      ${!filtroId ? `
+      <div style="display:flex;gap:12px;padding:16px 0 4px;flex-wrap:wrap">
         <div class="stat-card" style="flex:1"><div class="stat-label">Inadimplentes</div><div class="stat-value" style="color:var(--red)">${devedores.length}</div></div>
-        <div class="stat-card" style="flex:1"><div class="stat-label">Em dia</div><div class="stat-value" style="color:var(--green)">${membros.length-devedores.length}</div></div>
+        <div class="stat-card" style="flex:1"><div class="stat-label">Em dia</div><div class="stat-value" style="color:var(--green)">${membrosBase.length-devedores.length}</div></div>
         <div class="stat-card" style="flex:1"><div class="stat-label">Total em aberto</div><div class="stat-value" style="color:var(--red);font-size:18px">${fmtVal(totalAberto)}</div></div>
+      </div>` : ''}
+      <div style="border-radius:4px;overflow:hidden;border:1px solid var(--border-mid);margin-top:12px">
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr>${th('Irmão')}${th('Cargo')}${th('Mensalidade')}${th('Atraso')}${th('Em Aberto')}${th('')}</tr></thead>
+          <tbody>${linhas}</tbody>
+        </table>
       </div>
-      <table><thead><tr><th>Irmão</th><th>Cargo</th><th>Mensalidade</th><th>Atraso</th><th>Valor Aberto</th><th></th></tr></thead>
-      <tbody>${linhas}</tbody></table>
     </div>`;
 }
 
