@@ -1976,11 +1976,6 @@ function doLoginDemo() {
 }
 
 // ─── LOGIN REAL (Supabase Auth) ───────────────────────────────
-function selectProfile(el) {
-  document.querySelectorAll('.profile-btn').forEach(b => b.classList.remove('selected'));
-  el.classList.add('selected');
-  selectedRole = el.dataset.role;
-}
 
 async function doLogin() {
   const email = document.getElementById('loginUser')?.value.trim();
@@ -3884,38 +3879,6 @@ function imprimirListaPresenca(sessaoId, data, tipo, local) {
     ${htmlAssinaturas(['secretario','veneravel'])}`);  
 }
 
-function imprimirListaPresenca(sessaoId, data, tipo, local) {
-  const membros = DATA.membros.filter(m=>m.status==='ativo'||m.status==='iniciado');
-  const presencas = DATA.presencas.filter(p=>p.sessao_id===sessaoId);
-  const visitantes = presencas.filter(p=>!p.membro_id&&(p.presente||p.situacao==='presente'));
-  // Apenas presentes
-  const membrosPres = membros.filter(m=>presencas.find(p=>p.membro_id===m.id&&(p.presente||p.situacao==='presente')));
-  let rows = membrosPres.map((m,i)=>`<tr>
-    <td style="text-align:center">${i+1}</td>
-    <td>${m.nome_maconico}</td>
-    <td>${m.cargo||'—'}</td>
-    <td style="text-align:center">${m.grau}º</td>
-  </tr>`).join('');
-  if (visitantes.length) {
-    rows += `<tr><td colspan="4" style="background:#f5f0e8;font-weight:bold;padding:6px 8px">Visitantes</td></tr>`;
-    visitantes.forEach(v=>{ rows += `<tr><td></td><td colspan="3">${(v.justificativa||'').replace('VISITANTE | ','')}</td></tr>`; });
-  }
-  abrirJanelaPrint(`
-    <div class="print-header">
-      <div class="print-lodge">A.R.L.S. Fraternidade Acadêmica de Peruíbe Nº 3524</div>
-      <div class="print-title">Lista de Presenças</div>
-      <div class="print-date">${tipo} — ${fmtData(data)}${local?' · '+local:''}</div>
-    </div>
-    <div class="print-resumo">
-      <div class="print-resumo-item"><div class="print-resumo-valor">${membrosPres.length}</div><div class="print-resumo-label">Obreiros Presentes</div></div>
-      <div class="print-resumo-item"><div class="print-resumo-valor">${visitantes.length}</div><div class="print-resumo-label">Visitantes</div></div>
-    </div>
-    <table class="print-table">
-      <thead><tr><th>Nº</th><th>Nome Maçônico</th><th>Cargo</th><th>Grau</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
-    ${htmlAssinaturas(['secretario','veneravel'])}`);  
-}
 async function abrirModalPresenca(sessaoId, dataSessao, tipoSessao) {
   const membros = DATA.membros.filter(m => m.status==='ativo'||m.status==='iniciado');
   const presExist = DATA.presencas.filter(p => p.sessao_id === sessaoId);
@@ -5525,14 +5488,6 @@ function salvarOrcamento() {
 }
 
 // ── Excluir lançamento ────────────────────────────────────────
-async function excluirLancamento(id) {
-  if (!confirm('Excluir este lançamento? Esta ação não pode ser desfeita.')) return;
-  const res = await sb.from('financas').delete().eq('id', id);
-  if (_sbErr('comissao', res.error)) return;
-  toast('Lançamento excluído ✦');
-  await loadAllData();
-  renderFinancas(ROLES[currentRole].access['financas']||'full');
-}
 
 // ── Imprimir extrato ──────────────────────────────────────────
 function imprimirExtrato() {
