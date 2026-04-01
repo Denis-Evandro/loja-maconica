@@ -4441,10 +4441,13 @@ async function salvarLancamento() {
   if (parcelado && nParcelas > 1) {
     const valorParc = parseFloat((valor / nParcelas).toFixed(2));
     const [ano, mes, dia] = data.split('-').map(Number);
+    // Despesas parceladas: todas 'aberto' (já são devidas)
+    // Receitas parceladas: 1ª com status escolhido, demais 'agendado' (ainda não recebidas)
+    const statusParcela = tipo === 'despesa' ? 'aberto' : 'agendado';
     inserts = Array.from({length: nParcelas}, (_, i) => {
       const d = new Date(ano, mes - 1 + i, dia);
       const dStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-      return { descricao: `${descricao} (${i+1}/${nParcelas})`, valor: valorParc, tipo, data: dStr, categoria, status: i===0?status:'agendado', membro_id: membro_id||null };
+      return { descricao: `${descricao} (${i+1}/${nParcelas})`, valor: valorParc, tipo, data: dStr, categoria, status: i===0?status:statusParcela, membro_id: membro_id||null };
     });
   } else {
     inserts = [{ descricao, valor, tipo, data, categoria, status, membro_id: membro_id||null }];
