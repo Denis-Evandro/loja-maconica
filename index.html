@@ -1146,7 +1146,7 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
         <circle cx="64" cy="32" r="1.2" fill="rgba(245,230,163,0.5)"/>
         <circle cx="16" cy="32" r="1.2" fill="rgba(245,230,163,0.5)"/>
       </svg>
-      <div id="login-logo-container" style="display:none;justify-content:center;margin-bottom:12px">
+      <div id="login-logo-container" style="display:none;text-align:center;margin-bottom:12px">
       <img id="login-logo-img" src="" style="max-height:90px;max-width:160px;object-fit:contain">
     </div>
     <div class="login-lodge" id="login-loja-nome">A.R.L.S. Fraternidade<br>Acadêmica de Peruíbe</div>
@@ -1296,7 +1296,7 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
         <circle cx="50" cy="20" r="1.2" fill="rgba(245,230,163,0.5)"/>
         <circle cx="62" cy="30" r="1" fill="rgba(245,230,163,0.4)"/>
       </svg>
-      <div id="sidebar-logo" style="margin-bottom:8px;display:none"><img id="sidebar-logo-img" src="" style="max-height:52px;max-width:80px;object-fit:contain;filter:brightness(0) invert(1);opacity:0.9"></div>
+      <div id="sidebar-logo" style="margin-bottom:8px;display:none"><img id="sidebar-logo-img" src="" style="max-height:52px;max-width:80px;object-fit:contain"></div>
       <div class="s-lodge" id="sidebar-loja-nome">Fraternidade Acadêmica</div>
       <div class="s-sub" id="sidebar-loja-sub">Nº 3524 — G.O.B./SP</div>
     </div>
@@ -1906,12 +1906,12 @@ function _aplicarDadosLoja() {
   const loginLogoImg = document.getElementById('login-logo-img');
   const loginSvg     = document.getElementById('login-svg-logo');
   if (d.logo_url) {
-    if (loginLogoDiv) loginLogoDiv.style.display = 'flex';
-    if (loginLogoImg) loginLogoImg.src = d.logo_url;
+    if (loginLogoDiv) loginLogoDiv.style.display = 'block';
+    if (loginLogoImg) { loginLogoImg.src = d.logo_url; loginLogoImg.style.maxHeight = '90px'; loginLogoImg.style.maxWidth = '160px'; loginLogoImg.style.objectFit = 'contain'; }
     if (loginSvg)     loginSvg.style.display = 'none';
   } else {
-    if (loginLogoDiv) { if(loginLogoDiv) loginLogoDiv.style.display = 'none'; }
-    if (loginSvg)     loginSvg.style.display = 'block';
+    if (loginLogoDiv) loginLogoDiv.style.display = 'none';
+    if (loginSvg)     loginSvg.style.display = '';
   }
 
   // ── Title ─────────────────────────────────────────────────
@@ -2435,11 +2435,12 @@ function previewLogoLoja(input) {
   reader.onload = (e) => {
     const preview = document.getElementById('logo-preview');
     if (preview) preview.innerHTML = `<img src="${e.target.result}" style="max-width:100%;max-height:100%;object-fit:contain" id="logo-img">`;
-    // Salvar no localStorage como base64
+    // Salvar no localStorage como base64 e aplicar imediatamente
     const d = _getDadosLoja();
     d.logo_url = e.target.result;
     _salvarDadosLoja(d);
-    toast('✅ Logo carregada — clique em Salvar para confirmar');
+    _aplicarDadosLoja();
+    toast('✅ Logo carregada e aplicada!');
   };
   reader.readAsDataURL(file);
 }
@@ -2448,6 +2449,7 @@ function removerLogoLoja() {
   const d = _getDadosLoja();
   delete d.logo_url;
   _salvarDadosLoja(d);
+  _aplicarDadosLoja();
   renderConfigLoja();
   toast('🗑️ Logo removida');
 }
