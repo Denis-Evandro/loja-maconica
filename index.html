@@ -1645,33 +1645,27 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
               ✅ = Ver, editar e imprimir &nbsp;·&nbsp; — = Sem acesso &nbsp;·&nbsp; Venerável sempre tem acesso total a todos os relatórios.
             </div>
           </div>
-        </div><button class="btn btn-solid">+ Novo Usuário</button></div>
-          <table>
-            <thead><tr><th>Nome</th><th>Cargo Maçônico</th><th>Perfil de Acesso</th><th>Último Acesso</th><th>Status</th><th></th></tr></thead>
-            <tbody>
-              <tr><td>Ir. João da Luz</td><td>Venerável Mestre</td><td><span class="badge b-pending">👑 Venerável</span></td><td>Hoje, 09:14</td><td><span class="badge b-active">Ativo</span></td><td><button class="btn" style="padding:3px 9px;font-size:8px">Editar</button></td></tr>
-              <tr><td>Ir. Luís da Sabedoria</td><td>Secretário</td><td><span class="badge" style="color:var(--blue);background:var(--blue-bg);border-color:rgba(30,74,122,0.3)">📜 Secretário</span></td><td>10/07/2026</td><td><span class="badge b-active">Ativo</span></td><td><button class="btn" style="padding:3px 9px;font-size:8px">Editar</button></td></tr>
-              <tr><td>Ir. Rafael da Paz</td><td>Tesoureiro</td><td><span class="badge" style="color:#5C3D14;background:rgba(92,61,20,0.1);border-color:rgba(92,61,20,0.3)">⚖️ Tesoureiro</span></td><td>11/07/2026</td><td><span class="badge b-active">Ativo</span></td><td><button class="btn" style="padding:3px 9px;font-size:8px">Editar</button></td></tr>
-              <tr><td>Ir. Fernando da Ordem</td><td>Chanceler</td><td><span class="badge" style="color:#4A3A7A;background:rgba(74,58,122,0.1);border-color:rgba(74,58,122,0.3)">🗂️ Chanceler</span></td><td>09/07/2026</td><td><span class="badge b-active">Ativo</span></td><td><button class="btn" style="padding:3px 9px;font-size:8px">Editar</button></td></tr>
-              <tr><td>Ir. André da Esperança</td><td>Diácono</td><td><span class="badge" style="color:#1A5C8A;background:rgba(26,92,138,0.1);border-color:rgba(26,92,138,0.3)">🔵 Irmão</span></td><td>08/07/2026</td><td><span class="badge b-active">Ativo</span></td><td><button class="btn" style="padding:3px 9px;font-size:8px">Editar</button></td></tr>
-              <tr><td>Ir. Marcos da Força</td><td>2º Vigilante</td><td><span class="badge" style="color:#3A7A4A;background:var(--green-bg);border-color:rgba(58,122,74,0.3)">🏛️ Admin</span></td><td>08/07/2026</td><td><span class="badge b-active">Ativo</span></td><td><button class="btn" style="padding:3px 9px;font-size:8px">Editar</button></td></tr>
-            </tbody>
-          </table>
         </div>
-        <div class="card" style="margin-top:20px" id="card-assinaturas">
-          <div class="card-header">
-            <div class="card-title">✍️ Assinaturas para Relatórios</div>
-            <div style="display:flex;gap:8px">
-              <button class="btn" onclick="imprimirFolhaAssinaturas()" style="font-size:11px;padding:7px 14px">🖨️ Folha Padrão</button>
-              <button class="btn" onclick="abrirRecorteManual()" style="font-size:11px;padding:7px 14px;border-color:rgba(27,58,107,0.4);color:var(--navy)">✂️ Recortar Imagem</button>
+        <div class="card" style="margin-top:20px" id="card-assinaturas-link">
+          <div style="padding:18px 22px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+            <div>
+              <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:var(--navy);margin-bottom:4px">✍️ Assinaturas para Relatórios</div>
+              <div style="font-size:12px;color:var(--text-muted);font-style:italic">As assinaturas utilizadas nos relatórios são gerenciadas em Configurações.</div>
             </div>
+            <button class="btn btn-solid" onclick="abrirConfiguracoes()" style="font-size:11px;padding:8px 18px">⚙️ Ir para Configurações →</button>
           </div>
-          <div style="padding:10px 22px 8px;font-size:13px;color:var(--text-muted);font-style:italic;border-bottom:1px solid var(--border)">
-            Imprima a <strong>Folha Padrão</strong> e colha as assinaturas. Depois use <strong>✂️ Recortar Imagem</strong> para selecionar manualmente cada assinatura na foto/PDF. Ou faça upload individual abaixo.
-          </div>
-          <div id="assinaturas-grid" style="padding:22px"></div>
         </div>
       </div><!-- /panel-permissoes -->
+
+      <!-- ===== CONFIGURAÇÕES ===== -->
+      <div class="panel" id="panel-configuracoes">
+        <div class="section-header">
+          <div class="section-title">Configurações</div>
+          <div class="section-subtitle">Assinaturas, log de acessos e preferências do sistema</div>
+          <div class="gold-rule"></div>
+        </div>
+        <div id="configuracoes-content"><!-- preenchido por renderConfiguracoes() --></div>
+      </div>
   </main>
 
   <!-- Backdrop para fechar sidebar no mobile -->
@@ -1729,32 +1723,32 @@ const ROLES = {
   veneravel: {
     label:'Venerável Mestre', icon:'👑', badge:'Venerável',
     initials:'JL', name:'Ir. João da Luz', color:'#B8860B',
-    access:{ dashboard:'full', membros:'full', frequencia:'full', financas:'full', eventos:'full', permissoes:'full', comissoes:'full', legislacao:'full', trabalhos:'full', 'minha-frequencia':'full', 'meu-financeiro':'full', atas:'full', relatorios:'full' }
+    access:{ dashboard:'full', membros:'full', frequencia:'full', financas:'full', eventos:'full', permissoes:'full', comissoes:'full', legislacao:'full', trabalhos:'full', 'minha-frequencia':'full', 'meu-financeiro':'full', atas:'full', relatorios:'full', configuracoes:'full' }
   },
   secretario: {
     label:'Secretário', icon:'📜', badge:'Secretário',
     initials:'LS', name:'Ir. Luís da Sabedoria', color:'#1E4A7A',
-    access:{ dashboard:'full', membros:'full', frequencia:'full', financas:'read', eventos:'full', permissoes:'none', comissoes:'full', legislacao:'full', trabalhos:'full', 'minha-frequencia':'full', 'meu-financeiro':'full', atas:'full', relatorios:'full' }
+    access:{ dashboard:'full', membros:'full', frequencia:'full', financas:'read', eventos:'full', permissoes:'none', comissoes:'full', legislacao:'full', trabalhos:'full', 'minha-frequencia':'full', 'meu-financeiro':'full', atas:'full', relatorios:'full', configuracoes:'full' }
   },
   tesoureiro: {
     label:'Tesoureiro', icon:'⚖️', badge:'Tesoureiro',
     initials:'RP', name:'Ir. Rafael da Paz', color:'#7A4A00',
-    access:{ dashboard:'full', membros:'read', frequencia:'read', financas:'full', eventos:'read', permissoes:'none', comissoes:'read', legislacao:'read', trabalhos:'read', 'minha-frequencia':'full', 'meu-financeiro':'full', atas:'full', relatorios:'full' }
+    access:{ dashboard:'full', membros:'read', frequencia:'read', financas:'full', eventos:'read', permissoes:'none', comissoes:'read', legislacao:'read', trabalhos:'read', 'minha-frequencia':'full', 'meu-financeiro':'full', atas:'full', relatorios:'full', configuracoes:'full' }
   },
   chanceler: {
     label:'Chanceler', icon:'🗂️', badge:'Chanceler',
     initials:'FO', name:'Ir. Fernando da Ordem', color:'#4A3A7A',
-    access:{ dashboard:'full', membros:'full', frequencia:'full', financas:'none', eventos:'read', permissoes:'none', comissoes:'full', legislacao:'read', trabalhos:'read', 'minha-frequencia':'full', 'meu-financeiro':'full', atas:'full', relatorios:'full' }
+    access:{ dashboard:'full', membros:'full', frequencia:'full', financas:'none', eventos:'read', permissoes:'none', comissoes:'full', legislacao:'read', trabalhos:'read', 'minha-frequencia':'full', 'meu-financeiro':'full', atas:'full', relatorios:'full', configuracoes:'full' }
   },
   irmao: {
     label:'Irmão', icon:'🔵', badge:'Irmão',
     initials:'AE', name:'Ir. André da Esperança', color:'#1A5C8A',
-    access:{ dashboard:'read', membros:'read', frequencia:'none', financas:'none', eventos:'read', permissoes:'none', comissoes:'read', legislacao:'read', trabalhos:'full', 'minha-frequencia':'full', 'meu-financeiro':'full', atas:'full', relatorios:'none' }
+    access:{ dashboard:'read', membros:'read', frequencia:'none', financas:'none', eventos:'read', permissoes:'none', comissoes:'read', legislacao:'read', trabalhos:'full', 'minha-frequencia':'full', 'meu-financeiro':'full', atas:'full', relatorios:'none', configuracoes:'none' }
   },
   admin: {
     label:'Administrador', icon:'🏛️', badge:'Admin',
     initials:'MF', name:'Ir. Marcos da Força', color:'#3A7A4A',
-    access:{ dashboard:'full', membros:'full', frequencia:'full', financas:'full', eventos:'full', permissoes:'full', comissoes:'full', legislacao:'full', 'minha-frequencia':'full', 'meu-financeiro':'full', atas:'full', relatorios:'full' }
+    access:{ dashboard:'full', membros:'full', frequencia:'full', financas:'full', eventos:'full', permissoes:'full', comissoes:'full', legislacao:'full', 'minha-frequencia':'full', 'meu-financeiro':'full', atas:'full', relatorios:'full', configuracoes:'full' }
   }
 };
 
@@ -1769,6 +1763,7 @@ const NAV_ITEMS = [
   { id:'eventos', label:'Sessão / Convites', icon:`<rect x="3" y="4" width="18" height="18" rx="2" stroke-width="1.5"/><line x1="16" y1="2" x2="16" y2="6" stroke-width="1.5"/><line x1="8" y1="2" x2="8" y2="6" stroke-width="1.5"/><line x1="3" y1="10" x2="21" y2="10" stroke-width="1.5"/>` },
   { id:'comissoes', label:'Comissões', icon:`<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke-width="1.5"/><circle cx="9" cy="7" r="4" stroke-width="1.5"/><path d="M23 21v-2a4 4 0 00-3-3.87" stroke-width="1.5"/><path d="M16 3.13a4 4 0 010 7.75" stroke-width="1.5"/>` },
   { id:'relatorios', label:'Relatórios', icon:`<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke-width="1.5"/><polyline points="14,2 14,8 20,8" stroke-width="1.5"/><line x1="16" y1="13" x2="8" y2="13" stroke-width="1.5"/><line x1="16" y1="17" x2="8" y2="17" stroke-width="1.5"/><polyline points="10,9 9,9 8,9" stroke-width="1.5"/>`, hideFor:['irmao'] },
+  { id:'configuracoes', label:'Configurações', icon:`<circle cx="12" cy="12" r="3" stroke-width="1.5"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" stroke-width="1.5"/>`, hideFor:['irmao'] },
   { id:'atas', label:'Atas & Eventos', icon:`<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke-width="1.5"/><polyline points="14,2 14,8 20,8" stroke-width="1.5"/>`, section:'pessoal' },
   { id:'legislacao', label:'Legislação', icon:`<path d="M12 2L2 7l10 5 10-5-10-5z" stroke-width="1.5"/><path d="M2 17l10 5 10-5" stroke-width="1.5"/><path d="M2 12l10 5 10-5" stroke-width="1.5"/>`, section:'pessoal' },
   { id:'trabalhos', label:'Biblioteca de Instrução', icon:`<path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z" stroke-width="1.5"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z" stroke-width="1.5"/>`, section:'pessoal' },
@@ -1783,7 +1778,7 @@ const PANEL_TITLES = {
   eventos:'Sessão / Convites', permissoes:'Gestão de Permissões',
   comissoes:'Comissões da Loja', legislacao:'Legislação & Decretos',
   trabalhos:'Biblioteca de Instrução',
-  'minha-frequencia':'Minha Frequência', 'meu-financeiro':'Meu Financeiro', atas:'Atas & Eventos', relatorios:'Relatórios'
+  'minha-frequencia':'Minha Frequência', 'meu-financeiro':'Meu Financeiro', atas:'Atas & Eventos', relatorios:'Relatórios', configuracoes:'Configurações'
 };
 
 // ===================== DATA CACHE =====================
@@ -1838,6 +1833,7 @@ function reRenderActive() {
   if (id==='meu-financeiro') renderMeuFinanceiro();
   if (id==='atas') renderAtas();
   if (id==='relatorios') renderRelatorios();
+  if (id==='configuracoes') renderConfiguracoes();
 }
 
 // ===================== HELPERS =====================
@@ -2024,6 +2020,13 @@ function _aplicarRoleNaTela(role, membro) {
 
   renderNav();
   showPanel('dashboard');
+  // Registrar no log de acessos
+  _registrarAcesso(
+    nome,
+    cargo,
+    role,
+    _modoDemo ? 'demo' : 'login'
+  );
   loadAllData().catch(e => console.warn(e));
 }
 
@@ -2129,9 +2132,10 @@ function renderNav() {
   });
 
   // Configurações (engrenagem) no sistema — só venerável/admin
-  if (currentRole === 'veneravel' || currentRole === 'admin') {
+  const podeConfig = ['veneravel','admin','secretario','tesoureiro','chanceler'].includes(currentRole);
+  if (podeConfig) {
     if (!inSistema) html += `<div class="nav-sec">Sistema</div>`;
-    html += `<button class="nav-item" id="nav-config" onclick="abrirConfiguracoes()">
+    html += `<button class="nav-item" id="nav-configuracoes" onclick="abrirConfiguracoes()">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
         <circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>
       </svg>Configurações</button>`;
@@ -2140,12 +2144,152 @@ function renderNav() {
 }
 
 function abrirConfiguracoes() {
-  showPanel('permissoes');
-  setTimeout(() => {
-    renderAssinaturas();
-    const el = document.getElementById('card-assinaturas');
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, 150);
+  showPanel('configuracoes');
+}
+
+function renderConfiguracoes() {
+  const el = document.getElementById('configuracoes-content');
+  if (!el) return;
+  el.innerHTML = `
+    <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:20px">
+      <button id="cfg-aba-assinaturas" onclick="ativarAbaConfig('assinaturas')"
+        style="padding:10px 22px;border:none;background:none;cursor:pointer;font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.08em;color:var(--navy);border-bottom:2px solid var(--navy);margin-bottom:-2px;transition:all 0.15s">
+        ✍️ Assinaturas
+      </button>
+      <button id="cfg-aba-acessos" onclick="ativarAbaConfig('acessos')"
+        style="padding:10px 22px;border:none;background:none;cursor:pointer;font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.08em;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all 0.15s">
+        📋 Log de Acessos
+      </button>
+    </div>
+    <div id="cfg-cont-assinaturas"></div>
+    <div id="cfg-cont-acessos" style="display:none"></div>`;
+
+  ativarAbaConfig('assinaturas');
+}
+
+function ativarAbaConfig(aba) {
+  ['assinaturas','acessos'].forEach(a => {
+    const btn  = document.getElementById(`cfg-aba-${a}`);
+    const cont = document.getElementById(`cfg-cont-${a}`);
+    const ok   = a === aba;
+    if (btn)  { btn.style.color = ok ? 'var(--navy)' : 'var(--text-muted)'; btn.style.borderBottom = ok ? '2px solid var(--navy)' : '2px solid transparent'; }
+    if (cont) cont.style.display = ok ? 'block' : 'none';
+  });
+  if (aba === 'assinaturas') renderConfigAssinaturas();
+  if (aba === 'acessos')     renderLogAcessos();
+}
+
+function renderConfigAssinaturas() {
+  const el = document.getElementById('cfg-cont-assinaturas');
+  if (!el) return;
+  el.innerHTML = `
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">✍️ Assinaturas para Relatórios</div>
+        <div style="display:flex;gap:8px">
+          <button class="btn" onclick="imprimirFolhaAssinaturas()" style="font-size:11px;padding:7px 14px">🖨️ Folha Padrão</button>
+          <button class="btn" onclick="abrirRecorteManual()" style="font-size:11px;padding:7px 14px;border-color:rgba(27,58,107,0.4);color:var(--navy)">✂️ Recortar Imagem</button>
+        </div>
+      </div>
+      <div style="padding:10px 22px 8px;font-size:13px;color:var(--text-muted);font-style:italic;border-bottom:1px solid var(--border)">
+        Imprima a <strong>Folha Padrão</strong> e colha as assinaturas. Depois use <strong>✂️ Recortar Imagem</strong> para selecionar cada assinatura. As assinaturas aqui cadastradas serão usadas automaticamente em todos os relatórios.
+      </div>
+      <div id="assinaturas-grid" style="padding:22px"></div>
+    </div>`;
+  renderAssinaturas();
+}
+
+function renderLogAcessos() {
+  const el = document.getElementById('cfg-cont-acessos');
+  if (!el) return;
+
+  // Ler log do localStorage
+  let log = [];
+  try { log = JSON.parse(localStorage.getItem('log_acessos') || '[]'); } catch(e) {}
+
+  // Combinar com membros cadastrados para mostrar quadro completo
+  const membros = DATA.membros || [];
+
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-header">
+        <div class="card-title">📋 Log de Acessos dos Irmãos</div>
+        <button class="btn" onclick="limparLogAcessos()" style="font-size:11px;padding:6px 14px;color:var(--red);border-color:rgba(139,32,32,0.3)">🗑️ Limpar Log</button>
+      </div>
+      <div style="padding:8px 22px 4px;font-size:12px;color:var(--text-muted);font-style:italic;border-bottom:1px solid var(--border)">
+        Registros das últimas sessões abertas neste dispositivo. O log é armazenado localmente.
+      </div>
+      ${log.length === 0 ? `
+        <div style="text-align:center;padding:32px;color:var(--text-muted)">
+          <div style="font-size:32px;opacity:0.2;margin-bottom:8px">📋</div>
+          <div style="font-family:'Cinzel',serif;font-size:11px">NENHUM ACESSO REGISTRADO AINDA</div>
+          <div style="font-size:12px;margin-top:6px;font-style:italic">Os acessos serão registrados automaticamente a partir de agora.</div>
+        </div>` : `
+        <table>
+          <thead>
+            <tr>
+              <th>Irmão</th>
+              <th>Cargo</th>
+              <th>Perfil</th>
+              <th>Data / Hora</th>
+              <th>Tipo</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${log.slice().reverse().slice(0,50).map(r => `
+              <tr>
+                <td style="font-weight:600">${r.nome||'—'}</td>
+                <td style="font-size:12px;color:var(--text-muted)">${r.cargo||'—'}</td>
+                <td><span class="badge b-active" style="font-size:9px">${r.perfil||'irmao'}</span></td>
+                <td style="font-family:'Cormorant Garamond',serif;font-size:13px">${r.data||'—'}</td>
+                <td><span style="font-size:11px">${r.tipo==='demo'?'🧪 Demo':'🔐 Login'}</span></td>
+              </tr>`).join('')}
+          </tbody>
+        </table>`}
+    </div>
+
+    <div class="card">
+      <div class="card-header"><div class="card-title">👥 Último Acesso por Irmão</div></div>
+      <table>
+        <thead><tr><th>Irmão</th><th>Grau</th><th>Cargo</th><th>Último Acesso</th><th>Status</th></tr></thead>
+        <tbody>
+          ${membros.filter(m=>m.status==='ativo'||m.status==='iniciado').map(m => {
+            const ultimo = log.slice().reverse().find(r =>
+              (r.nome||'').toLowerCase() === (m.nome_maconico||'').toLowerCase()
+            );
+            return `<tr>
+              <td style="font-weight:600">${m.nome_maconico}</td>
+              <td>${m.grau ? `${m.grau}º Grau` : '—'}</td>
+              <td style="font-size:12px;color:var(--text-muted)">${m.cargo||'—'}</td>
+              <td style="font-family:'Cormorant Garamond',serif;font-size:13px;color:${ultimo?'var(--text)':'var(--text-muted)'}">
+                ${ultimo ? ultimo.data : '<em>Nunca registrado</em>'}
+              </td>
+              <td><span class="badge ${m.status==='ativo'?'b-active':'b-pending'}">${m.status}</span></td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function limparLogAcessos() {
+  if (!confirm('Limpar todo o log de acessos?')) return;
+  localStorage.removeItem('log_acessos');
+  renderLogAcessos();
+  toast('🗑️ Log limpo');
+}
+
+function _registrarAcesso(nome, cargo, perfil, tipo) {
+  try {
+    const log = JSON.parse(localStorage.getItem('log_acessos') || '[]');
+    log.push({
+      nome, cargo, perfil, tipo,
+      data: new Date().toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})
+    });
+    // Manter apenas últimos 200 registros
+    if (log.length > 200) log.splice(0, log.length - 200);
+    localStorage.setItem('log_acessos', JSON.stringify(log));
+  } catch(e) {}
 }
 
 // ===================== PANELS =====================
@@ -2178,6 +2322,7 @@ function showPanel(id) {
   if (id==='meu-financeiro') renderMeuFinanceiro();
   if (id==='atas') renderAtas();
   if (id==='relatorios') renderRelatorios();
+  if (id==='configuracoes') renderConfiguracoes();
 }
 
 // ─── Mobile sidebar ────────────────────────────────────────
