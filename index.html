@@ -1792,8 +1792,8 @@ async function loadAllData() {
     const [m, s, p, f, e, c, leg, trab] = await Promise.allSettled([
       ft(sb.from('membros').select('*').order('numero_sequencial')),
       ft(sb.from('sessoes').select('*').order('data', {ascending:false})),
-      ft(sb.from('presencas').select('*')),
-      ft(sb.from('financas').select('*').order('data', {ascending:false})),
+      ft(sb.from('presencas').select('*').limit(2000)),
+      ft(sb.from('financas').select('*').order('data', {ascending:false}).limit(1000)),
       ft(sb.from('eventos').select('*').order('data')),
       ft(sb.from('comissoes').select('*').order('data_criacao', {ascending:false})),
       ft(sb.from('legislacao').select('*').order('ano', {ascending:false})),
@@ -1815,6 +1815,66 @@ async function loadAllData() {
     renderDashboard();
   } catch(err) { console.warn('Supabase:', err); }
 }
+
+// ═══════════════════════════════════════════════════════════════
+//  HELPERS GLOBAIS — tratamento de erro, sanitização, reloads
+// ═══════════════════════════════════════════════════════════════
+
+// ── _rl: reload de tabela com proteção de erro ─────────────────
+// Uso: const d = await _rl('membros', {orderDesc:'nome_maconico'});
+async function _rl(tabela, opts = {}) {
+  try {
+    let q = sb.from(tabela).select(opts.select || '*');
+    if (opts.order)     q = q.order(opts.order,     { ascending: opts.asc ?? true  });
+    if (opts.orderDesc) q = q.order(opts.orderDesc, { ascending: false              });
+    if (opts.limit)     q = q.limit(opts.limit);
+    const { data, error } = await q;
+    if (error) { console.error(`_rl(${tabela}):`, error); return null; }
+    return data || [];
+  } catch(e) { console.error(`_rl(${tabela}) exceção:`, e); return null; }
+}
+
+// ── Reloads seletivos — usar após operações que afetam UMA tabela
+async function _reloadMembros()   { const d = await _rl('membros',   { order:'numero_sequencial' }); if (d) DATA.membros   = d; }
+async function _reloadSessoes()   { const d = await _rl('sessoes',   { orderDesc:'data'          }); if (d) DATA.sessoes   = d; }
+async function _reloadPresencas() { const d = await _rl('presencas', { limit:2000                }); if (d) DATA.presencas = d; }
+async function _reloadFinancas()  { const d = await _rl('financas',  { orderDesc:'data', limit:1000 }); if (d) DATA.financas = d; }
+async function _reloadEventos()   { const d = await _rl('eventos',   { orderDesc:'data'          }); if (d) DATA.eventos   = d; }
+async function _reloadComissoes() {
+  const d = await _rl('comissoes', { orderDesc:'data_criacao' });
+  if (d) DATA.comissoes = _parseComissoes(d);
+}
+async function _reloadLegislacao(){ const d = await _rl('legislacao',{ orderDesc:'ano'           }); if (d) DATA.legislacao = d; }
+async function _reloadTrabalhos() {
+  const d = await _rl('trabalhos', { select:'*,membros(id,nome_maconico,grau,cargo)', orderDesc:'data_postagem' });
+  if (d) DATA.trabalhos = d.map(t => ({ ...t, grau_trabalho: t.grau_trabalho ?? t.grau_autor ?? 1 }));
+}
+async function _reloadAtas()      { const d = await _rl('atas',      { orderDesc:'data'          }); if (d) DATA.atas      = d; }
+
+// ── _sbErr: tratamento centralizado de erros do Supabase ───────
+// Uso: if (_sbErr('salvarMembro', error)) return;
+// Retorna true se houve erro (para poder usar como guard)
+function _sbErr(contexto, error, msgUsuario = null) {
+  if (!error) return false;
+  console.error(`[Supabase:${contexto}]`, error.message || error);
+  if (msgUsuario !== false) {
+    toast('❌ ' + (msgUsuario || error.message || 'Erro de conexão. Tente novamente.'));
+  }
+  return true;
+}
+
+// ── _esc: sanitização de strings para innerHTML (previne XSS) ──
+// Usar ao inserir dados do usuário diretamente em innerHTML
+function _esc(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+}
+
 
 function reRenderActive() {
   const active = document.querySelector('.panel.active');
@@ -5468,7 +5528,7 @@ function salvarOrcamento() {
 async function excluirLancamento(id) {
   if (!confirm('Excluir este lançamento? Esta ação não pode ser desfeita.')) return;
   const res = await sb.from('financas').delete().eq('id', id);
-  if (res.error) { toast('Erro: '+res.error.message); return; }
+  if (_sbErr('comissao', res.error)) return;
   toast('Lançamento excluído ✦');
   await loadAllData();
   renderFinancas(ROLES[currentRole].access['financas']||'full');
@@ -5701,7 +5761,7 @@ async function lancarAgape() {
     membro_id: m.id
   }));
   const res = await sb.from('financas').insert(debitos);
-  if (res.error) { toast('Erro: '+res.error.message); return; }
+  if (_sbErr('comissao', res.error)) return;
   toast(`🍽️ Rateio lançado! ${participantes.length} irmãos — ${fmtVal(valPorCabeca)} cada`);
   fecharModal();
   await loadAllData();
@@ -5779,7 +5839,7 @@ async function lancarMensalidadesAuto() {
   });
 
   const res = await sb.from('financas').insert(inserts);
-  if (res.error) { toast('Erro: '+res.error.message); return; }
+  if (_sbErr('comissao', res.error)) return;
   toast(`✦ ${inserts.length} mensalidades lançadas com sucesso!`);
   fecharModal();
   await loadAllData();
@@ -5838,7 +5898,7 @@ async function salvarEdicaoSessao(id) {
   const descricao_local = document.getElementById('ed-sess-local')?.value.trim()||'Templo';
   if (!data||!tipo) { toast('Preencha data e tipo'); return; }
   const res = await sb.from('sessoes').update({data,tipo,grau,descricao_local}).eq('id',id);
-  if (res.error) { toast('Erro: '+res.error.message); return; }
+  if (_sbErr('comissao', res.error)) return;
   toast('Sessão atualizada ✦');
   fecharModal();
   await loadAllData();
@@ -5848,7 +5908,7 @@ async function excluirSessao(id, tipo) {
   if (!confirm(`Excluir a sessão "${tipo}"?\nIsso também excluirá os registros de presença.`)) return;
   await sb.from('presencas').delete().eq('sessao_id', id);
   const res = await sb.from('sessoes').delete().eq('id', id);
-  if (res.error) { toast('Erro: '+res.error.message); return; }
+  if (_sbErr('comissao', res.error)) return;
   toast('Sessão excluída ✦');
   fecharModal();
   await loadAllData();
@@ -5913,7 +5973,7 @@ async function salvarEdicaoEvento(id) {
   const local = document.getElementById('ed-ev-local')?.value.trim();
   if (!titulo||!data) { toast('Preencha título e data'); return; }
   const res = await sb.from('eventos').update({titulo,descricao:titulo,data,hora,tipo,grau,local}).eq('id',id);
-  if (res.error) { toast('Erro: '+res.error.message); return; }
+  if (_sbErr('comissao', res.error)) return;
   toast('Evento atualizado ✦');
   fecharModal();
   await loadAllData();
@@ -5922,7 +5982,7 @@ async function salvarEdicaoEvento(id) {
 async function excluirEvento(id, titulo) {
   if (!confirm(`Excluir o evento "${titulo}"?`)) return;
   const res = await sb.from('eventos').delete().eq('id', id);
-  if (res.error) { toast('Erro: '+res.error.message); return; }
+  if (_sbErr('comissao', res.error)) return;
   toast('Evento excluído ✦');
   fecharModal();
   await loadAllData();
@@ -6833,7 +6893,7 @@ async function aprovarVisita(id, aprovar) {
   const status = aprovar ? 'aprovado' : 'recusado';
   const aprovPor = ROLES[currentRole]?.name || currentRole;
   const res = await sb.from('visitas_externas').update({status_aprovacao:status, aprovado_por:aprovPor}).eq('id',id);
-  if (res.error) { toast('Erro: '+res.error.message); return; }
+  if (_sbErr('comissao', res.error)) return;
   toast(aprovar ? '✅ Visita aprovada!' : '✗ Visita recusada');
   renderMinhaFrequencia();
 }
@@ -6920,7 +6980,7 @@ async function salvarVisitaExterna(membroId) {
     status_aprovacao: 'pendente',
     criado_em: new Date().toISOString()
   });
-  if (res.error) { toast('Erro: '+res.error.message); return; }
+  if (_sbErr('comissao', res.error)) return;
   toast('✅ Visita enviada! Aguardando aprovação do Secretário.');
   fecharModal();
   renderMinhaFrequencia();
@@ -7722,7 +7782,7 @@ async function reenviarTrabalho(id) {
     upd.url_arquivo = url;
   }
   const {error} = await sb.from('trabalhos').update(upd).eq('id',id);
-  if(error) {console.error('reenviarTrabalho:',error); toast('❌ '+error.message); return;}
+  if (_sbErr('reenviarTrabalho', error)) return;
   toast('✅ Reenviado! O Vigilante receberá para nova avaliação.');
   await _recarregarTrabalhos();
   await renderTrabalhos(ROLES[currentRole].access['trabalhos']||'full');
@@ -7790,7 +7850,7 @@ async function excluirTrabalho(id, titulo) {
     await sb.storage.from('documentos').remove([`trabalhos/${nome}`]).catch(()=>{});
   }
   const {error} = await sb.from('trabalhos').delete().eq('id',id);
-  if(error) {toast('Erro: '+error.message); return;}
+  if (_sbErr('excluirTrabalho', error)) return;
   toast('🗑️ Trabalho excluído');
   await _recarregarTrabalhos();
   await renderTrabalhos(ROLES[currentRole].access['trabalhos']||'full');
@@ -10215,7 +10275,7 @@ async function salvarLancamentoTronco() {
   const data = document.getElementById('tronco-data')?.value;
   if (!valor||!data) { toast('Preencha valor e data'); return; }
   const res = await sb.from('financas').insert({tipo,descricao,valor,data,categoria:'tronco'});
-  if (res.error) { toast('Erro: '+res.error.message); return; }
+  if (_sbErr('comissao', res.error)) return;
   toast('Tronco registrado ✦');
   fecharModal();
   await loadAllData();
