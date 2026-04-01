@@ -2389,7 +2389,16 @@ function renderConfigLoja() {
           <div>${lb('Telefone')}<input id="loja-telefone" ${inp} value="${d.telefone||''}" placeholder="ex: (13) 99999-9999"></div>
         </div>
         <div style="margin-bottom:14px">${lb('Endereço do Templo')}<input id="loja-endereco" ${inp} value="${d.endereco||''}" placeholder="Rua, número, bairro, cidade — SP"></div>
-        <div style="margin-bottom:14px">${lb('Dia e Hora das Sessões')}<input id="loja-sessoes" ${inp} value="${d.sessoes||''}" placeholder="ex: 1ª e 3ª quinta-feira do mês às 20h"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+          <div>${lb('Dia de Vencimento da Mensalidade')}
+            <input id="loja-vencimento" type="number" min="1" max="31" ${inp} value="${d.vencimento||10}" placeholder="ex: 10">
+            <div style="font-size:11px;color:var(--text-muted);margin-top:4px;font-style:italic">
+              📅 Irmãos com mensalidades em aberto são marcados como inadimplentes após este dia.<br>
+              <strong>Padrão:</strong> dia 10. Altere conforme o estatuto da loja.
+            </div>
+          </div>
+          <div>${lb('Dia e Hora das Sessões')}<input id="loja-sessoes" ${inp} value="${d.sessoes||''}" placeholder="ex: 1ª e 3ª quinta-feira do mês às 20h"></div>
+        </div>
       </div>
     </div>`;
 }
@@ -2430,6 +2439,7 @@ function salvarDadosLoja() {
   d.telefone  = document.getElementById('loja-telefone')?.value.trim()   || '';
   d.endereco  = document.getElementById('loja-endereco')?.value.trim()   || '';
   d.sessoes   = document.getElementById('loja-sessoes')?.value.trim()    || '';
+  d.vencimento= parseInt(document.getElementById('loja-vencimento')?.value)||10;
   _salvarDadosLoja(d);
   toast('✅ Dados da loja salvos com sucesso!');
   _aplicarDadosLoja();
@@ -4771,26 +4781,33 @@ function renderFinancas(access) {
   const membrosAtivos = DATA.membros.filter(m=>(m.status==='ativo'||m.status==='iniciado')&&m.tipo_membro!=='visitante');
   const anoIngresso = (m) => m.data_ingresso ? parseInt(m.data_ingresso.split('-')[0]) : anoAtual;
   const mesIngresso = (m) => m.data_ingresso ? parseInt(m.data_ingresso.split('-')[1]) : 1;
+  const diaVenc = _getDadosLoja().vencimento || 10; // dia do mês configurado em Configurações
   const inadimplentes = membrosAtivos.map(m=>{
     const mens = parseFloat(m.mensalidade)||100;
-    // Dívida de mensalidade
     let debitoMensalidade = 0, mesesDev = 0;
     if (mens > 0) {
       const ai = anoIngresso(m), mi = mesIngresso(m);
-      const totalMeses = Math.max(0, (anoAtual-ai)*12+(hoje.getMonth()+1-mi));
+      // Meses vencidos: só conta o mês atual se já passou o dia de vencimento
+      const mesCorrente = hoje.getDate() >= diaVenc ? hoje.getMonth()+1 : hoje.getMonth();
+      const totalMeses = Math.max(0, (anoAtual-ai)*12+(mesCorrente-mi));
       const esperado = totalMeses * mens;
       const pago = lancs.filter(l=>l.membro_id===m.id&&l.tipo==='receita'&&l.status==='pago'&&l.categoria==='mensalidade').reduce((s,l)=>s+parseFloat(l.valor||0),0);
       debitoMensalidade = Math.max(0, esperado-pago);
       mesesDev = Math.round(debitoMensalidade/mens);
     }
-    // Outros débitos em aberto/agendado vinculados ao membro
-    const outrosDebitos = lancs.filter(l=>l.membro_id===m.id&&(l.status==='aberto'||l.status==='agendado')&&l.tipo==='receita'&&l.categoria!=='mensalidade');
+    // Outros débitos em aberto (NÃO agendado — agendado = futuro, não é dívida ainda)
+    const outrosDebitos = lancs.filter(l=>
+      l.membro_id===m.id &&
+      l.status==='aberto' &&   // só 'aberto', não 'agendado'
+      l.tipo==='receita' &&
+      l.categoria!=='mensalidade' &&
+      l.data <= hoje.toISOString().split('T')[0] // só vencidos até hoje
+    );
     const totalOutros = outrosDebitos.reduce((s,l)=>s+parseFloat(l.valor||0),0);
     const totalDevia = debitoMensalidade + totalOutros;
     if (totalDevia <= 0) return null;
-    // Montar detalhes das dívidas
     const detalhes = [];
-    if (mesesDev > 0) detalhes.push({cat:'Mensalidade', valor:debitoMensalidade, detalhe:`${mesesDev} mês(es)`});
+    if (mesesDev > 0) detalhes.push({cat:'Mensalidade', valor:debitoMensalidade, detalhe:`${mesesDev} mês(es) · vence dia ${diaVenc}`});
     outrosDebitos.forEach(l=>detalhes.push({cat:getCatLabel(l.categoria)||l.descricao, valor:parseFloat(l.valor||0), detalhe:l.descricao, lancId:l.id}));
     return {m, devia:totalDevia, mesesDev, detalhes};
   }).filter(Boolean);
@@ -4960,18 +4977,38 @@ function renderFinancas(access) {
 
         <!-- Parcelas em andamento -->
         ${parcelados.length>0?`<div class="card">
-          <div class="card-header"><div class="card-title">💳 Parcelas em Andamento</div></div>
-          ${parcelados.map(p=>`
-            <div style="padding:6px 0;border-bottom:1px solid var(--border);font-family:'Cormorant Garamond',serif">
-              <div style="display:flex;justify-content:space-between;align-items:center">
-                <span style="font-size:14px;font-weight:700;color:var(--text)">${p.desc}</span>
-                <span style="font-size:11px;color:var(--text-muted)">${p.pagas}/${p.total} pagas</span>
+          <div class="card-header"><div class="card-title">💳 Parcelas em Andamento <span style="font-weight:400;font-size:12px;color:var(--text-muted)">(${parcelados.length})</span></div></div>
+          <div style="padding:4px 0">
+          ${parcelados.map(p=>{
+            const isReceita = p.tipo === 'receita';
+            const cor = isReceita ? 'var(--green)' : 'var(--red)';
+            const badgeBg  = isReceita ? 'rgba(27,107,58,0.1)' : 'rgba(139,32,32,0.1)';
+            const badgeBd  = isReceita ? 'rgba(27,107,58,0.35)' : 'rgba(139,32,32,0.35)';
+            const icone    = isReceita ? '↑' : '↓';
+            const pct = Math.round(p.pagas/p.total*100);
+            return `
+            <div style="padding:14px 22px;border-bottom:1px solid var(--border)">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:10px">
+                <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:180px">
+                  <span style="background:${badgeBg};border:1.5px solid ${badgeBd};border-radius:6px;padding:6px 12px;font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:${cor};white-space:nowrap;flex-shrink:0">
+                    ${icone} ${isReceita ? 'RECEITA' : 'DESPESA'}
+                  </span>
+                  <span style="font-size:17px;font-family:'Cinzel',serif;font-weight:700;color:var(--text);line-height:1.3">${p.desc}</span>
+                </div>
+                <div style="text-align:right;flex-shrink:0">
+                  <div style="font-family:'Cinzel',serif;font-size:20px;font-weight:700;color:${cor};line-height:1">${fmtVal(p.valorParc*p.pendentes)}</div>
+                  <div style="font-size:12px;color:var(--text-muted);margin-top:3px">${p.pendentes} de ${p.total} parcela(s) restantes</div>
+                </div>
               </div>
-              <div style="background:var(--cream-mid);border-radius:2px;height:4px;margin:4px 0;overflow:hidden">
-                <div style="height:100%;width:${Math.round(p.pagas/p.total*100)}%;background:var(--navy);border-radius:2px"></div>
+              <div style="display:flex;align-items:center;gap:10px">
+                <div style="flex:1;background:var(--cream-mid,#EEF4FB);border-radius:4px;height:8px;overflow:hidden">
+                  <div style="height:100%;width:${pct}%;background:${cor};border-radius:4px;transition:width 0.4s ease"></div>
+                </div>
+                <span style="font-size:12px;color:var(--text-muted);white-space:nowrap;font-weight:600">${p.pagas}/${p.total} pago · ${pct}%</span>
               </div>
-              <div style="font-size:11px;color:var(--text-muted)">${p.pendentes} parcela(s) · ${fmtVal(p.valorParc*p.pendentes)} restante</div>
-            </div>`).join('')}
+            </div>`;
+          }).join('')}
+          </div>
         </div>`:''}
 
         <!-- Tronco de Beneficência -->
@@ -5274,13 +5311,15 @@ function gerarMsgCobrancaGeral() {
   const membrosAtivos = DATA.membros.filter(m=>(m.status==='ativo'||m.status==='iniciado')&&m.tipo_membro!=='visitante');
   const hoje = new Date();
   const anoAtual = hoje.getFullYear();
+  const diaVenc = _getDadosLoja().vencimento || 10;
   const inadimplentes = membrosAtivos.map(m=>{
     const mens = parseFloat(m.mensalidade)||100;
     if (!mens) return null;
     const ai = m.data_ingresso?parseInt(m.data_ingresso.split('-')[0]):anoAtual;
     const mi = m.data_ingresso?parseInt(m.data_ingresso.split('-')[1]):1;
-    const totalMeses = (anoAtual-ai)*12+(hoje.getMonth()+1-mi);
-    const esperado = Math.max(0,totalMeses)*mens;
+    const mesCorrente = hoje.getDate() >= diaVenc ? hoje.getMonth()+1 : hoje.getMonth();
+    const totalMeses = Math.max(0,(anoAtual-ai)*12+(mesCorrente-mi));
+    const esperado = totalMeses*mens;
     const pago = DATA.financas.filter(l=>l.membro_id===m.id&&l.tipo==='receita'&&l.status==='pago'&&l.categoria==='mensalidade').reduce((s,l)=>s+parseFloat(l.valor||0),0);
     const devia = Math.max(0,esperado-pago);
     return devia>0?{m,devia,mesesDev:Math.round(devia/mens)}:null;
@@ -5491,13 +5530,16 @@ function abrirModalTronco() {
           <div style="font-family:'Cinzel',serif;font-size:14px;font-weight:700;letter-spacing:0.1em;color:#7A4A00;margin-bottom:4px">🏺 Tronco de Beneficência</div>
           <div style="font-size:13px;color:var(--text-muted);font-style:italic;margin-bottom:22px">Registrar arrecadação ou concessão vinculada à sessão</div>
 
-          <!-- Tipo: entrada ou saída -->
+          <!-- Tipo: entrada, saída ou doação avulsa -->
           <div style="margin-bottom:16px">
             ${lb('Tipo de Lançamento')}
-            <div style="display:flex;gap:8px">
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
               <button type="button" id="btn-tronco-entrada" onclick="setTipoTronco('entrada')"
                 style="flex:1;padding:10px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.08em;cursor:pointer;border-radius:3px;border:2px solid #7A4A00;background:rgba(160,117,42,0.12);color:#7A4A00">
-                ↑ Arrecadação ✓</button>
+                🏺 Arrecadação em Sessão ✓</button>
+              <button type="button" id="btn-tronco-avulso" onclick="setTipoTronco('avulso')"
+                style="flex:1;padding:10px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.08em;cursor:pointer;border-radius:3px;border:2px solid var(--border-mid);background:var(--cream);color:var(--text-muted)">
+                🤲 Doação Avulsa</button>
               <button type="button" id="btn-tronco-saida" onclick="setTipoTronco('saida')"
                 style="flex:1;padding:10px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.08em;cursor:pointer;border-radius:3px;border:2px solid var(--border-mid);background:var(--cream);color:var(--text-muted)">
                 ↓ Benefício Concedido</button>
@@ -5554,25 +5596,38 @@ function abrirModalTronco() {
 function setTipoTronco(tipo) {
   document.getElementById('tronco-tipo').value = tipo;
   const btnE = document.getElementById('btn-tronco-entrada');
+  const btnA = document.getElementById('btn-tronco-avulso');
   const btnS = document.getElementById('btn-tronco-saida');
-  if (btnE) {
-    const ativo = tipo==='entrada';
-    btnE.style.border = `2px solid ${ativo?'#7A4A00':'var(--border-mid)'}`;
-    btnE.style.background = ativo?'rgba(160,117,42,0.12)':'var(--cream)';
-    btnE.style.color = ativo?'#7A4A00':'var(--text-muted)';
-    btnE.textContent = '↑ Arrecadação'+(ativo?' ✓':'');
-  }
-  if (btnS) {
-    const ativo = tipo==='saida';
-    btnS.style.border = `2px solid ${ativo?'#7A4A00':'var(--border-mid)'}`;
-    btnS.style.background = ativo?'rgba(160,117,42,0.12)':'var(--cream)';
-    btnS.style.color = ativo?'#7A4A00':'var(--text-muted)';
-    btnS.textContent = '↓ Benefício Concedido'+(ativo?' ✓':'');
-  }
-  // Atualizar label do valor
-  const lb = document.querySelector('label[for="tronco-valor"], label:has(+#tronco-valor)');
+
+  const ativar = (btn, ativo, label) => {
+    if (!btn) return;
+    btn.style.border     = `2px solid ${ativo?'#7A4A00':'var(--border-mid)'}`;
+    btn.style.background = ativo ? 'rgba(160,117,42,0.12)' : 'var(--cream)';
+    btn.style.color      = ativo ? '#7A4A00' : 'var(--text-muted)';
+    btn.textContent      = label + (ativo ? ' ✓' : '');
+  };
+
+  ativar(btnE, tipo==='entrada',  '🏺 Arrecadação em Sessão');
+  ativar(btnA, tipo==='avulso',   '🤲 Doação Avulsa');
+  ativar(btnS, tipo==='saida',    '↓ Benefício Concedido');
+
+  // Sessão vinculada: obrigatória só na arrecadação em sessão
+  const campoSessao = document.getElementById('campo-sessao-tronco');
+  if (campoSessao) campoSessao.style.display = tipo==='entrada' ? 'block' : 'none';
+
+  // Placeholder do valor
   const inp = document.getElementById('tronco-valor');
-  if (inp) inp.placeholder = tipo==='entrada'?'Ex: 45.00':'Ex: 200.00';
+  if (inp) inp.placeholder = tipo==='saida' ? 'Ex: 200.00' : 'Ex: 45.00';
+
+  // Placeholder da descrição
+  const descEl = document.getElementById('tronco-desc');
+  if (descEl) {
+    const ph = tipo==='entrada' ? 'Ex: Tronco Sessão Ordinária de Março'
+             : tipo==='avulso'  ? 'Ex: Doação de Ir. Fulano / Evento especial'
+             :                    'Ex: Auxílio ao Ir. Fulano';
+    descEl.placeholder = ph;
+    if (tipo==='avulso') descEl.value = descEl.value || 'Doação avulsa ao Tronco';
+  }
 }
 
 function atualizarDataTronco() {
@@ -5599,13 +5654,22 @@ async function salvarTronco() {
   if (!data) { toast('Informe a data'); return; }
   if (!valor || valor <= 0) { toast('Informe o valor'); return; }
 
-  const sessao = DATA.sessoes.find(s=>s.id===sessId);
-  const descFinal = desc || (sessao ? `Tronco — ${sessao.tipo||'Sessão'} ${fmtData(sessao.data)}` : `Tronco — ${fmtData(data)}`);
+  // Buscar dados da sessão vinculada (se houver)
+  const sessao = sessId ? DATA.sessoes.find(s => s.id === sessId) : null;
+
+  // avulso = receita sem sessão; entrada = receita em sessão; saida = despesa
+  const tipoFinanceiro = tipo === 'saida' ? 'despesa' : 'receita';
+  const descPadrao = tipo === 'avulso'
+    ? `Doação avulsa ao Tronco — ${fmtData(data)}`
+    : tipo === 'entrada' && sessao
+      ? `Tronco — ${sessao.tipo||'Sessão'} ${fmtData(sessao.data)}`
+      : `Tronco — ${fmtData(data)}`;
+  const descFinal = desc || descPadrao;
 
   const res = await sb.from('financas').insert({
     data,
     descricao: descFinal + (obs ? ` | ${obs}` : ''),
-    tipo: tipo === 'entrada' ? 'receita' : 'despesa',
+    tipo: tipoFinanceiro,
     categoria: 'tronco',
     valor,
     status: 'pago',
@@ -5613,7 +5677,7 @@ async function salvarTronco() {
   });
 
   if (res.error) { toast('Erro: ' + res.error.message); return; }
-  toast(`🏺 ${tipo==='entrada'?'Arrecadação':'Benefício'} registrado no Tronco ✦`);
+  toast(`🏺 ${tipo==='saida'?'Benefício':tipo==='avulso'?'Doação avulsa':'Arrecadação'} registrado no Tronco ✦`);
   fecharModal();
   await loadAllData();
   renderFinancas(ROLES[currentRole].access['financas']||'full');
