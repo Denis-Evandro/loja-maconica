@@ -553,17 +553,39 @@ body {
 .stats-grid-3 { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; margin-bottom:24px; padding:4px; backface-visibility:hidden; -webkit-font-smoothing:subpixel-antialiased; isolation:isolate; }
 .stat-card.financeiro-loja { border-left:5px solid var(--gold-rich); background:linear-gradient(135deg,#FFFFFF 0%,var(--cream) 100%); }
 
-/* ── Anti-tremor global: todos os cards clicáveis ── */
+/* ── Cards do dashboard (inline, gerados por JS) ── */
+.dash-card {
+  background: var(--white);
+  border: 2px solid var(--border-mid);
+  border-radius: 6px;
+  padding: 18px;
+  box-shadow: 0 2px 8px rgba(27,58,107,0.06);
+  transform: translateY(0);
+  transition: transform 0.25s ease-out, box-shadow 0.25s ease-out, border-color 0.25s ease-out;
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.dash-card-click {
+  cursor: pointer;
+}
+.dash-card-click:hover,
+.dash-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(27,58,107,0.14);
+  border-color: var(--gold-rich);
+}
+/* Containers de grid — isolamento de stacking context */
+.stats-grid,
+.stats-grid-3 {
+  isolation: isolate;
+}
+/* Anti-aliasing global */
 .stat-card,
 .rel-card,
 .card-menu,
-[onmouseover] {
+.dash-card {
   -webkit-font-smoothing: subpixel-antialiased;
-}
-/* Garantir que containers de grid não recalculem layout no hover */
-.stats-grid,
-.stats-grid-3 {
-  isolation: isolate;  /* cria novo stacking context, evita reflow */
 }
 
 .stat-card {
@@ -1642,36 +1664,59 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
                 </tr>
               </thead>
               <tbody>
-                ${[
-                  {nome:'👥 Membros',             ven:1, sec:1, tes:0, cha:1, irm:0},
-                  {nome:'📊 Frequência',           ven:1, sec:0, tes:0, cha:1, irm:0},
-                  {nome:'💰 Extrato Financeiro',   ven:1, sec:0, tes:1, cha:0, irm:0},
-                  {nome:'⚠️ Débitos Pendentes',    ven:1, sec:0, tes:1, cha:0, irm:0},
-                  {nome:'🏺 Tronco de Beneficência',ven:1, sec:0, tes:1, cha:0, irm:0},
-                  {nome:'🏛️ Comissões da Loja',    ven:1, sec:0, tes:0, cha:1, irm:0},
-                ].map(r => {
-                  const cel = (v) => `<td style="text-align:center;padding:10px">
-                    <span style="font-size:14px">${v ? '✅' : '—'}</span>
-                  </td>`;
-                  return `<tr style="border-bottom:1px solid var(--border)">
-                    <td style="padding:10px 22px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:var(--text)">${r.nome}</td>
-                    ${cel(r.ven)}${cel(r.sec)}${cel(r.tes)}${cel(r.cha)}${cel(r.irm)}
-                  </tr>`;
-                }).join('')}
+                <tr style="border-bottom:1px solid var(--border)">
+                  <td style="padding:10px 22px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:var(--text)">👥 Membros</td>
+                  <td style="text-align:center;padding:10px"><span style="font-size:14px">✅</span></td>
+                  <td style="text-align:center;padding:10px"><span style="font-size:14px">✅</span></td>
+                  <td style="text-align:center;padding:10px"><span style="font-size:14px">—</span></td>
+                  <td style="text-align:center;padding:10px"><span style="font-size:14px">✅</span></td>
+                  <td style="text-align:center;padding:10px"><span style="font-size:14px">—</span></td>
+                </tr>
+                <tr style="border-bottom:1px solid var(--border)">
+                  <td style="padding:10px 22px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:var(--text)">📊 Frequência</td>
+                  <td style="text-align:center;padding:10px"><span style="font-size:14px">✅</span></td>
+                  <td style="text-align:center;padding:10px"><span style="font-size:14px">—</span></td>
+                  <td style="text-align:center;padding:10px"><span style="font-size:14px">—</span></td>
+                  <td style="text-align:center;padding:10px"><span style="font-size:14px">✅</span></td>
+                  <td style="text-align:center;padding:10px"><span style="font-size:14px">—</span></td>
+                </tr>
+                <tr style="border-bottom:1px solid var(--border)">
+                  <td style="padding:10px 22px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:var(--text)">💰 Extrato Financeiro</td>
+                  <td style="text-align:center;padding:10px"><span style="font-size:14px">✅</span></td>
+                  <td style="text-align:center;padding:10px"><span style="font-size:14px">—</span></td>
+                  <td style="text-align:center;padding:10px"><span style="font-size:14px">✅</span></td>
+                  <td style="text-align:center;padding:10px"><span style="font-size:14px">—</span></td>
+                  <td style="text-align:center;padding:10px"><span style="font-size:14px">—</span></td>
+                </tr>
+                <tr style="border-bottom:1px solid var(--border)">
+                  <td style="padding:10px 22px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:var(--text)">⚠️ Débitos Pendentes</td>
+                  <td style="text-align:center;padding:10px"><span style="font-size:14px">✅</span></td>
+                  <td style="text-align:center;padding:10px"><span style="font-size:14px">—</span></td>
+                  <td style="text-align:center;padding:10px"><span style="font-size:14px">✅</span></td>
+                  <td style="text-align:center;padding:10px"><span style="font-size:14px">—</span></td>
+                  <td style="text-align:center;padding:10px"><span style="font-size:14px">—</span></td>
+                </tr>
+                <tr style="border-bottom:1px solid var(--border)">
+                  <td style="padding:10px 22px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:var(--text)">🏺 Tronco de Beneficência</td>
+                  <td style="text-align:center;padding:10px"><span style="font-size:14px">✅</span></td>
+                  <td style="text-align:center;padding:10px"><span style="font-size:14px">—</span></td>
+                  <td style="text-align:center;padding:10px"><span style="font-size:14px">✅</span></td>
+                  <td style="text-align:center;padding:10px"><span style="font-size:14px">—</span></td>
+                  <td style="text-align:center;padding:10px"><span style="font-size:14px">—</span></td>
+                </tr>
+                <tr>
+                  <td style="padding:10px 22px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:var(--text)">🏛️ Comissões da Loja</td>
+                  <td style="text-align:center;padding:10px"><span style="font-size:14px">✅</span></td>
+                  <td style="text-align:center;padding:10px"><span style="font-size:14px">—</span></td>
+                  <td style="text-align:center;padding:10px"><span style="font-size:14px">—</span></td>
+                  <td style="text-align:center;padding:10px"><span style="font-size:14px">✅</span></td>
+                  <td style="text-align:center;padding:10px"><span style="font-size:14px">—</span></td>
+                </tr>
               </tbody>
             </table>
             <div style="padding:12px 22px 6px;font-size:11px;color:var(--text-muted);font-style:italic;border-top:1px solid var(--border);margin-top:6px">
-              ✅ = Ver, editar e imprimir &nbsp;·&nbsp; — = Sem acesso &nbsp;·&nbsp; Venerável sempre tem acesso total a todos os relatórios.
+              ✅ = Ver, editar e imprimir &nbsp;·&nbsp; — = Sem acesso &nbsp;·&nbsp; Venerável sempre tem acesso total.
             </div>
-          </div>
-        </div>
-        <div class="card" style="margin-top:20px" id="card-assinaturas-link">
-          <div style="padding:18px 22px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
-            <div>
-              <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:var(--navy);margin-bottom:4px">✍️ Assinaturas para Relatórios</div>
-              <div style="font-size:12px;color:var(--text-muted);font-style:italic">As assinaturas utilizadas nos relatórios são gerenciadas em Configurações.</div>
-            </div>
-            <button class="btn btn-solid" onclick="abrirConfiguracoes()" style="font-size:11px;padding:8px 18px">⚙️ Ir para Configurações →</button>
           </div>
         </div>
       </div><!-- /panel-permissoes -->
@@ -2512,8 +2557,8 @@ async function renderDashboardIrmao(el) {
   const todosAniv = [...anivMembros,...anivFam].sort((a,b)=>(a.data||'').slice(8).localeCompare((b.data||'').slice(8)));
 
   // ── Helpers de estilo ──────────────────────────────────────
-  const cardBase = `background:var(--white);border:2px solid var(--border);border-radius:6px;box-shadow:0 2px 8px rgba(27,58,107,0.06);transform:translateY(0);transition:transform 0.3s cubic-bezier(0.25,0.8,0.25,1),box-shadow 0.3s cubic-bezier(0.25,0.8,0.25,1),border-color 0.3s ease;will-change:transform;backface-visibility:hidden;-webkit-backface-visibility:hidden;-webkit-font-smoothing:subpixel-antialiased`;
-  const cardClick = (panel) => `${cardBase};cursor:pointer" onclick="showPanel('${panel}')" onmouseover="this.style.transform='translateY(-5px)';this.style.boxShadow='0 8px 20px rgba(27,58,107,0.14)';this.style.borderColor='var(--gold-rich)'" onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 2px 8px rgba(27,58,107,0.06)';this.style.borderColor=''`;
+  const cardBase = 'dash-card';
+  const cardClick = (panel) => `class="dash-card dash-card-click" onclick="showPanel('${panel}')` ;
   const sectionLabel = (txt) => `<div style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.18em;color:var(--text-muted);text-transform:uppercase;margin-bottom:12px">${txt}</div>`;
 
   el.innerHTML = `
@@ -2538,7 +2583,7 @@ async function renderDashboardIrmao(el) {
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:16px">
 
       <!-- Membros -->
-      <div style="padding:18px 18px;${cardClick('membros')}">
+      <div class="dash-card dash-card-click" style="padding:18px 18px" onclick="showPanel('membros')">
         ${sectionLabel('👥 Irmãos')}
         <div style="font-size:40px;font-weight:700;font-family:'Cinzel',serif;color:var(--navy);line-height:1;margin-bottom:8px">${quadro.length}</div>
         <div style="font-size:12px;color:var(--text-muted);line-height:1.5">
@@ -2548,7 +2593,7 @@ async function renderDashboardIrmao(el) {
       </div>
 
       <!-- Registros -->
-      <div style="padding:18px 18px;${cardBase}">
+      <div class="dash-card" style="padding:18px 18px">
         ${sectionLabel('📋 Registros')}
         <div style="display:flex;gap:8px;margin-bottom:8px">
           <div style="flex:1;cursor:pointer;border-radius:4px;padding:8px 6px;background:rgba(27,58,107,0.05);border:1px solid rgba(27,58,107,0.12);text-align:center" onclick="showPanel('atas')">
@@ -2564,7 +2609,7 @@ async function renderDashboardIrmao(el) {
       </div>
 
       <!-- Frequência pessoal -->
-      <div style="padding:18px 18px;${cardClick('minha-frequencia')}">
+      <div class="dash-card dash-card-click" style="padding:18px 18px" onclick="showPanel('minha-frequencia')">
         ${sectionLabel('📊 Minha Frequência')}
         <div style="font-size:40px;font-weight:700;font-family:'Cinzel',serif;color:${corFreq};line-height:1;margin-bottom:6px">${pctFreq}<span style="font-size:18px">%</span></div>
         <div style="background:rgba(0,0,0,0.05);border-radius:3px;height:5px;overflow:hidden;margin-bottom:8px">
@@ -2575,7 +2620,7 @@ async function renderDashboardIrmao(el) {
       </div>
 
       <!-- Financeiro pessoal -->
-      <div style="padding:18px 18px;${cardClick('meu-financeiro')}">
+      <div class="dash-card dash-card-click" style="padding:18px 18px" onclick="showPanel('meu-financeiro')">
         ${sectionLabel('💰 Meu Financeiro')}
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
           <div style="font-size:22px">${emDia?'✅':'⚠️'}</div>
@@ -2594,7 +2639,7 @@ async function renderDashboardIrmao(el) {
     <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:12px;margin-bottom:16px">
 
       <!-- Últimas presenças -->
-      <div style="${cardBase};padding:18px 20px">
+      <div class="dash-card" style="padding:18px 20px">
         ${sectionLabel('📅 Minhas Últimas Presenças')}
         ${ultimasPres.length===0
           ? `<div style="font-style:italic;color:var(--text-muted);font-size:13px">Nenhuma presença registrada.</div>`
@@ -2614,7 +2659,7 @@ async function renderDashboardIrmao(el) {
       </div>
 
       <!-- Próximos Eventos -->
-      <div style="${cardBase};padding:18px 20px">
+      <div class="dash-card" style="padding:18px 20px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
           ${sectionLabel('📅 Próximos Eventos & Convites')}
           <button class="btn" onclick="showPanel('eventos')" style="font-size:9px;padding:3px 10px;margin-top:-12px">Ver todos →</button>
@@ -2756,9 +2801,9 @@ async function renderDashboard() {
   const podeVerFinanceiroLoja = ['veneravel','tesoureiro','admin'].includes(currentRole) ||
     ['venerável mestre','tesoureiro','administrador'].includes((_eu().cargo||'').toLowerCase());
 
-  const cardStyle = `background:var(--white);border:2px solid var(--border-mid);border-radius:6px;padding:18px 20px;cursor:pointer;transform:translateY(0);transition:transform 0.3s cubic-bezier(0.25,0.8,0.25,1),box-shadow 0.3s cubic-bezier(0.25,0.8,0.25,1),border-color 0.3s ease;will-change:transform;backface-visibility:hidden;-webkit-backface-visibility:hidden;-webkit-font-smoothing:subpixel-antialiased`;
-  const hoverIn = `this.style.transform='translateY(-5px)';this.style.boxShadow='0 8px 20px rgba(27,58,107,0.14)';this.style.borderColor='var(--gold-rich)'`;
-  const hoverOut = `this.style.transform='translateY(0)';this.style.boxShadow='0 2px 8px rgba(27,58,107,0.06)';this.style.borderColor=''`;
+  const cardStyle = 'dash-card dash-card-click';
+  const hoverIn = ``; // hover gerenciado por CSS
+  const hoverOut = ``; // hover gerenciado por CSS
 
   el.innerHTML = `
     ${avisoRevisao}
@@ -2766,7 +2811,7 @@ async function renderDashboard() {
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px">
 
       <!-- Card 1: Irmãos do Quadro + Visitantes -->
-      <div style="${cardStyle}" onclick="showPanel('membros')" onmouseover="${hoverIn}" onmouseout="${hoverOut}">
+      <div class="dash-card dash-card-click" onclick="showPanel('membros')">
         <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;margin-bottom:12px">👥 Membros</div>
         <div style="display:flex;gap:12px;align-items:flex-end;margin-bottom:10px">
           <div>
@@ -2784,7 +2829,7 @@ async function renderDashboard() {
       </div>
 
       <!-- Card 2: Sessões + Atas (cliques separados) -->
-      <div style="${cardStyle.replace('cursor:pointer','')}">
+      <div class="dash-card" style="padding:18px 20px">
         <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;margin-bottom:12px">📋 Registros</div>
         <div style="display:flex;gap:12px;align-items:flex-end;margin-bottom:10px">
           <div style="flex:1;cursor:pointer;border-radius:4px;padding:6px 8px;background:rgba(27,58,107,0.04);border:1px solid rgba(27,58,107,0.12)" onclick="showPanel('eventos')">
@@ -2804,7 +2849,7 @@ async function renderDashboard() {
       </div>
 
       <!-- Card 3: Presença -->
-      <div style="${cardStyle}" onclick="showPanel('frequencia')" onmouseover="${hoverIn}" onmouseout="${hoverOut}">
+      <div class="dash-card dash-card-click" onclick="showPanel('frequencia')">
         <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;margin-bottom:12px">📊 Frequência</div>
         <div style="margin-bottom:10px">
           <div style="font-size:36px;font-weight:700;font-family:'Cinzel',serif;color:${pctObreiros>=75?'var(--green)':pctObreiros>=50?'var(--gold-dark)':'var(--red)'};line-height:1">${pctObreiros}<span style="font-size:18px">%</span></div>
@@ -2821,7 +2866,7 @@ async function renderDashboard() {
 
     <!-- LINHA 2: Card financeiro da loja — apenas Venerável, Tesoureiro e Admin -->
     ${podeVerFinanceiroLoja ? `
-    <div style="background:var(--white);border:2px solid var(--border-mid);border-left:5px solid var(--gold-rich);border-radius:6px;padding:18px 22px;cursor:pointer;transform:translateY(0);transition:transform 0.3s cubic-bezier(0.25,0.8,0.25,1),box-shadow 0.3s cubic-bezier(0.25,0.8,0.25,1),border-color 0.3s ease;margin-bottom:14px;will-change:transform;backface-visibility:hidden;-webkit-backface-visibility:hidden" onclick="showPanel('financas')" onmouseover="${hoverIn}" onmouseout="${hoverOut}">
+    <div class="dash-card dash-card-click" style="border-left:5px solid var(--gold-rich);padding:18px 22px;margin-bottom:14px" onclick="showPanel('financas')">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
         <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase">💰 Tesouraria da Loja — ${meses[hoje.getMonth()]} ${anoAtual}</div>
         <span style="background:rgba(212,168,67,0.12);border:1px solid rgba(212,168,67,0.4);border-radius:20px;padding:2px 10px;font-family:'Cinzel',serif;font-size:8px;font-weight:700;color:var(--gold-dark)">🔒 Restrito</span>
@@ -7425,9 +7470,7 @@ function _biblio(lista, isAdm) {
           const g2  = _grauTrab(t);
           const autor = t.autor_nome || t.membros?.nome_maconico || 'Irmão';
           return `
-          <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:8px;overflow:hidden;transition:transform 0.3s cubic-bezier(0.25,0.8,0.25,1),box-shadow 0.3s ease;will-change:transform"
-            onmouseover="this.style.transform='translateY(-5px)';this.style.boxShadow='0 8px 20px rgba(27,58,107,0.14)'"
-            onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='none'">
+          <div class="dash-card" style="overflow:hidden;border-radius:8px"
             <div style="background:${_GB(g2)};border-bottom:1px solid ${_GC(g2)}20;padding:14px 16px">
               <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:var(--text);line-height:1.5;margin-bottom:6px">${t.titulo||'Sem título'}</div>
               <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Ir. ${autor} · ${t.data_postagem?new Date(t.data_postagem).toLocaleDateString('pt-BR'):'—'}</div>
