@@ -553,63 +553,26 @@ body {
 .stats-grid-3 { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; margin-bottom:24px; padding:4px; backface-visibility:hidden; -webkit-font-smoothing:subpixel-antialiased; isolation:isolate; }
 .stat-card.financeiro-loja { border-left:5px solid var(--gold-rich); background:linear-gradient(135deg,#FFFFFF 0%,var(--cream) 100%); }
 
-/* ── Cards do dashboard (inline, gerados por JS) ── */
+/* ── Cards do dashboard ── */
 .dash-card {
   background: var(--white);
   border: 2px solid var(--border-mid);
   border-radius: 6px;
   padding: 18px;
   box-shadow: 0 2px 8px rgba(27,58,107,0.06);
-  transform: translateY(0);
-  transition: transform 0.25s ease-out, box-shadow 0.25s ease-out, border-color 0.25s ease-out;
-  will-change: transform;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
+  position: relative;
 }
-.dash-card-click {
-  cursor: pointer;
-}
-.dash-card-click:hover,
-.dash-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 20px rgba(27,58,107,0.14);
-  border-color: var(--gold-rich);
-}
-/* Containers de grid — isolamento de stacking context */
-.stats-grid,
-.stats-grid-3 {
-  isolation: isolate;
-}
-/* Anti-aliasing global */
-.stat-card,
-.rel-card,
-.card-menu,
-.dash-card {
-  -webkit-font-smoothing: subpixel-antialiased;
-}
+.dash-card-click { cursor: pointer; }
+/* Containers de grid */
+.stats-grid, .stats-grid-3 { isolation: isolate; }
 
 .stat-card {
   background: linear-gradient(135deg, #FFFFFF 0%, #EEF4FB 100%);
-  border: 2px solid rgba(27,58,107,0.12);   /* largura FIXA — não muda no hover */
+  border: 2px solid rgba(27,58,107,0.12);
   border-radius: 4px;
   padding: 20px 18px;
   position: relative; overflow: hidden;
   box-shadow: 0 2px 8px rgba(27,58,107,0.06);
-  transform: translateY(0);                  /* estado base explícito — evita jitter */
-  transition: transform 0.3s cubic-bezier(0.25,0.8,0.25,1),
-              box-shadow 0.3s cubic-bezier(0.25,0.8,0.25,1),
-              border-color 0.3s ease;
-  will-change: transform;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-  -webkit-font-smoothing: subpixel-antialiased;
-}
-
-.stat-card:hover {
-  border-color: var(--gold-rich);
-  box-shadow: 0 8px 20px rgba(27,58,107,0.14);
-  transform: translateY(-5px);               /* só eixo Y, sem scale */
-  z-index: 2;
 }
 
 .stat-card::after {
@@ -1076,16 +1039,7 @@ tr:hover td { background:rgba(184,134,11,0.03); }
   padding: 24px 22px;
   cursor: pointer;
   position: relative; overflow: hidden;
-  transform: translateY(0);
-  transition: transform 0.3s cubic-bezier(0.25,0.8,0.25,1),
-              box-shadow 0.3s cubic-bezier(0.25,0.8,0.25,1),
-              border-color 0.3s ease;
-  will-change: transform;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-  -webkit-font-smoothing: subpixel-antialiased;
 }
-.rel-card:hover { border-color:var(--gold-mid); box-shadow:0 8px 20px rgba(27,58,107,0.14); transform:translateY(-5px); z-index:2; }
 .rel-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,var(--gold-dark),var(--gold-rich)); }
 .rel-card-icon { font-size:32px; margin-bottom:14px; }
 .rel-card-title { font-family:'Cinzel',serif; font-size:13px; font-weight:700; letter-spacing:0.12em; color:var(--gold-dark); text-transform:uppercase; margin-bottom:8px; }
@@ -1126,6 +1080,36 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
   .print-resumo-item { text-align:center; }
   .print-resumo-valor { font-size:20px; font-weight:700; color:#333; }
   .print-resumo-label { font-size:9px; text-transform:uppercase; letter-spacing:0.1em; color:#888; }
+}
+
+/* ══════════════════════════════════════════════════════
+   HOVER DOS CARDS — implementado via pseudo-elemento
+   Evita qualquer conflito com animações/compositing
+   ══════════════════════════════════════════════════════ */
+@media (hover: hover) {
+  .dash-card-click,
+  .stat-card,
+  .rel-card {
+    transition: box-shadow 0.2s ease, border-color 0.2s ease, margin-top 0.2s ease, margin-bottom 0.2s ease;
+  }
+  .dash-card-click:hover {
+    box-shadow: 0 8px 20px rgba(27,58,107,0.16);
+    border-color: var(--gold-rich);
+    margin-top: -4px;
+    margin-bottom: 4px;
+  }
+  .stat-card:hover {
+    box-shadow: 0 8px 20px rgba(27,58,107,0.16);
+    border-color: var(--gold-rich);
+    margin-top: -4px;
+    margin-bottom: 4px;
+  }
+  .rel-card:hover {
+    box-shadow: 0 8px 20px rgba(27,58,107,0.16);
+    border-color: var(--gold-mid);
+    margin-top: -4px;
+    margin-bottom: 4px;
+  }
 }
 </style>
 </head>
@@ -2269,10 +2253,15 @@ function abrirConfiguracoes() {
 function renderConfiguracoes() {
   const el = document.getElementById('configuracoes-content');
   if (!el) return;
+  const abas = ['loja','assinaturas','acessos'];
   el.innerHTML = `
-    <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:20px">
-      <button id="cfg-aba-assinaturas" onclick="ativarAbaConfig('assinaturas')"
+    <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:20px;flex-wrap:wrap">
+      <button id="cfg-aba-loja" onclick="ativarAbaConfig('loja')"
         style="padding:10px 22px;border:none;background:none;cursor:pointer;font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.08em;color:var(--navy);border-bottom:2px solid var(--navy);margin-bottom:-2px;transition:all 0.15s">
+        🏛️ Dados da Loja
+      </button>
+      <button id="cfg-aba-assinaturas" onclick="ativarAbaConfig('assinaturas')"
+        style="padding:10px 22px;border:none;background:none;cursor:pointer;font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.08em;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all 0.15s">
         ✍️ Assinaturas
       </button>
       <button id="cfg-aba-acessos" onclick="ativarAbaConfig('acessos')"
@@ -2280,22 +2269,134 @@ function renderConfiguracoes() {
         📋 Log de Acessos
       </button>
     </div>
-    <div id="cfg-cont-assinaturas"></div>
+    <div id="cfg-cont-loja"></div>
+    <div id="cfg-cont-assinaturas" style="display:none"></div>
     <div id="cfg-cont-acessos" style="display:none"></div>`;
 
-  ativarAbaConfig('assinaturas');
+  ativarAbaConfig('loja');
 }
 
 function ativarAbaConfig(aba) {
-  ['assinaturas','acessos'].forEach(a => {
+  ['loja','assinaturas','acessos'].forEach(a => {
     const btn  = document.getElementById(`cfg-aba-${a}`);
     const cont = document.getElementById(`cfg-cont-${a}`);
     const ok   = a === aba;
     if (btn)  { btn.style.color = ok ? 'var(--navy)' : 'var(--text-muted)'; btn.style.borderBottom = ok ? '2px solid var(--navy)' : '2px solid transparent'; }
     if (cont) cont.style.display = ok ? 'block' : 'none';
   });
+  if (aba === 'loja')        renderConfigLoja();
   if (aba === 'assinaturas') renderConfigAssinaturas();
   if (aba === 'acessos')     renderLogAcessos();
+}
+
+function _getDadosLoja() {
+  try { return JSON.parse(localStorage.getItem('dados_loja') || '{}'); } catch(e) { return {}; }
+}
+function _salvarDadosLoja(dados) {
+  localStorage.setItem('dados_loja', JSON.stringify(dados));
+}
+
+function renderConfigLoja() {
+  const el = document.getElementById('cfg-cont-loja');
+  if (!el) return;
+  const d = _getDadosLoja();
+  const logo = d.logo_url || '';
+  const inp = `style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:9px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"`;
+  const lb  = (t) => `<label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">${t}</label>`;
+
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-header">
+        <div class="card-title">🏛️ Dados da Loja</div>
+        <button class="btn btn-solid" onclick="salvarDadosLoja()" style="padding:7px 18px">💾 Salvar</button>
+      </div>
+      <div style="padding:18px 22px">
+        <div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-bottom:18px;background:rgba(27,58,107,0.04);border:1px solid rgba(27,58,107,0.1);border-radius:4px;padding:10px 14px">
+          Estas informações são usadas em relatórios, cabeçalhos e no painel geral da loja.
+        </div>
+
+        <!-- Logo da Loja -->
+        <div style="margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid var(--border)">
+          <div style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.12em;color:var(--navy);margin-bottom:12px">LOGOMARCA DA LOJA</div>
+          <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap">
+            <div id="logo-preview" style="width:100px;height:100px;border:2px dashed var(--border-mid);border-radius:6px;display:flex;align-items:center;justify-content:center;background:var(--cream);overflow:hidden;flex-shrink:0">
+              ${logo
+                ? `<img src="${logo}" style="max-width:100%;max-height:100%;object-fit:contain" id="logo-img">`
+                : `<div style="text-align:center"><div style="font-size:28px;opacity:0.2">🏛️</div><div style="font-size:10px;color:var(--text-muted);margin-top:4px">Sem logo</div></div>`}
+            </div>
+            <div style="flex:1">
+              <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Formatos aceitos: PNG, JPG, SVG · Recomendado: 200×200px, fundo transparente</div>
+              <input type="file" id="logo-file" accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                style="display:none" onchange="previewLogoLoja(this)">
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn btn-solid" onclick="document.getElementById('logo-file').click()" style="font-size:11px;padding:7px 14px">📁 Carregar Logo</button>
+                ${logo ? `<button class="btn" onclick="removerLogoLoja()" style="font-size:11px;padding:7px 14px;color:var(--red);border-color:rgba(139,32,32,0.3)">🗑️ Remover</button>` : ''}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dados da loja -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+          <div>${lb('Nome da Loja *')}<input id="loja-nome" ${inp} value="${d.nome||''}"></div>
+          <div>${lb('Número da Loja')}<input id="loja-numero" ${inp} value="${d.numero||''}" placeholder="ex: 3524"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+          <div>${lb('Potência / Grande Loja')}<input id="loja-potencia" ${inp} value="${d.potencia||''}" placeholder="ex: GOB · Grande Oriente do Brasil"></div>
+          <div>${lb('Oriente (Cidade/Estado)')}<input id="loja-oriente" ${inp} value="${d.oriente||''}" placeholder="ex: Peruíbe — SP"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+          <div>${lb('CNPJ')}<input id="loja-cnpj" ${inp} value="${d.cnpj||''}" placeholder="ex: 00.000.000/0001-00"></div>
+          <div>${lb('Data de Fundação')}<input id="loja-fundacao" type="date" ${inp} value="${d.fundacao||''}"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+          <div>${lb('E-mail da Loja')}<input id="loja-email" type="email" ${inp} value="${d.email||''}" placeholder="ex: secretaria@loja.com.br"></div>
+          <div>${lb('Telefone')}<input id="loja-telefone" ${inp} value="${d.telefone||''}" placeholder="ex: (13) 99999-9999"></div>
+        </div>
+        <div style="margin-bottom:14px">${lb('Endereço do Templo')}<input id="loja-endereco" ${inp} value="${d.endereco||''}" placeholder="Rua, número, bairro, cidade — SP"></div>
+        <div style="margin-bottom:14px">${lb('Dia e Hora das Sessões')}<input id="loja-sessoes" ${inp} value="${d.sessoes||''}" placeholder="ex: 1ª e 3ª quinta-feira do mês às 20h"></div>
+      </div>
+    </div>`;
+}
+
+function previewLogoLoja(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const preview = document.getElementById('logo-preview');
+    if (preview) preview.innerHTML = `<img src="${e.target.result}" style="max-width:100%;max-height:100%;object-fit:contain" id="logo-img">`;
+    // Salvar no localStorage como base64
+    const d = _getDadosLoja();
+    d.logo_url = e.target.result;
+    _salvarDadosLoja(d);
+    toast('✅ Logo carregada — clique em Salvar para confirmar');
+  };
+  reader.readAsDataURL(file);
+}
+
+function removerLogoLoja() {
+  const d = _getDadosLoja();
+  delete d.logo_url;
+  _salvarDadosLoja(d);
+  renderConfigLoja();
+  toast('🗑️ Logo removida');
+}
+
+function salvarDadosLoja() {
+  const d = _getDadosLoja(); // mantém logo_url existente
+  d.nome      = document.getElementById('loja-nome')?.value.trim()      || '';
+  d.numero    = document.getElementById('loja-numero')?.value.trim()     || '';
+  d.potencia  = document.getElementById('loja-potencia')?.value.trim()   || '';
+  d.oriente   = document.getElementById('loja-oriente')?.value.trim()    || '';
+  d.cnpj      = document.getElementById('loja-cnpj')?.value.trim()       || '';
+  d.fundacao  = document.getElementById('loja-fundacao')?.value          || '';
+  d.email     = document.getElementById('loja-email')?.value.trim()      || '';
+  d.telefone  = document.getElementById('loja-telefone')?.value.trim()   || '';
+  d.endereco  = document.getElementById('loja-endereco')?.value.trim()   || '';
+  d.sessoes   = document.getElementById('loja-sessoes')?.value.trim()    || '';
+  _salvarDadosLoja(d);
+  toast('✅ Dados da loja salvos com sucesso!');
 }
 
 function renderConfigAssinaturas() {
@@ -3103,7 +3204,29 @@ function abrirModalMembro(membro=null) {
                   <option value="nao" ${!membro?.mestre_instalado?'selected':''}>Não</option>
                   <option value="sim" ${membro?.mestre_instalado?'selected':''}>Sim</option></select></div>
               <div>${lb('Cargo')}
-                <input id="f-cargo" value="${membro?.cargo||''}" ${inp} placeholder="ex: 1º Vigilante"></div>
+                <input id="f-cargo" value="${membro?.cargo||''}" ${inp} placeholder="Selecione ou digite o cargo" list="lista-cargos">
+                <datalist id="lista-cargos">
+                  <option value="Venerável Mestre">
+                  <option value="1º Vigilante">
+                  <option value="2º Vigilante">
+                  <option value="Orador">
+                  <option value="Secretário">
+                  <option value="Tesoureiro">
+                  <option value="Chanceler">
+                  <option value="Mestre de Cerimônias">
+                  <option value="1º Diácono">
+                  <option value="2º Diácono">
+                  <option value="Hospitaleiro">
+                  <option value="Porta-Estandarte">
+                  <option value="1º Cobridor Interno">
+                  <option value="2º Cobridor Interno">
+                  <option value="Cobridor Externo">
+                  <option value="Arquiteto">
+                  <option value="Mestre de Harmonia">
+                  <option value="Porta-Espada">
+                  <option value="Limoeiro">
+                  <option value="Membro">
+                </datalist></div>
             </div>
 
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px">
@@ -6634,7 +6757,6 @@ async function renderAtas() {
       <div class="card">
         <div class="card-header">
           <div class="card-title">Atas Registradas <span style="font-size:11px;color:var(--text-muted);font-weight:400">(${atas.length})</span></div>
-          ${canEdit?`<button class="btn btn-solid" onclick="abrirModalAta()">+ Nova Ata</button>`:''}
         </div>
         <div style="padding:4px 0">${atasRows}</div>
       </div>
