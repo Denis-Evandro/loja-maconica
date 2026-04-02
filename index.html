@@ -1022,7 +1022,7 @@ tr:hover td { background:rgba(184,134,11,0.03); }
 /* TOAST */
 .toast {
   position:fixed; bottom:28px; right:28px;
-  background:var(--brown); color:var(--gold-pale);
+  background:var(--brown); color:#FFFFFF;
   font-family:'Cinzel', serif; font-size:10px; font-weight:700;
   letter-spacing:0.15em; text-transform:uppercase;
   padding:12px 20px; border-radius:3px;
@@ -1702,6 +1702,20 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
             </div>
           </div>
         </div>
+      <!-- Permissões Funcionais — configuráveis pelo Venerável -->
+      <div class="card" style="margin-top:16px">
+        <div class="card-header">
+          <div class="card-title">⚙️ Permissões Funcionais</div>
+          <span style="font-family:'Cinzel',serif;font-size:8px;font-weight:700;letter-spacing:0.1em;color:var(--navy);background:rgba(27,58,107,0.08);border:1px solid rgba(27,58,107,0.2);border-radius:20px;padding:3px 12px">VENERÁVEL / ADMIN</span>
+        </div>
+        <div style="padding:14px 22px">
+          <div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-bottom:14px">
+            Configure quais cargos têm acesso a funções especiais do sistema.
+          </div>
+          <div id="perm-func-container"><!-- renderizado por renderPermFunc() --></div>
+          <button class="btn btn-solid" onclick="salvarPermFunc()" style="margin-top:12px;padding:8px 20px">💾 Salvar Permissões</button>
+        </div>
+      </div>
       </div><!-- /panel-permissoes -->
 
       <!-- ===== CONFIGURAÇÕES ===== -->
@@ -1810,7 +1824,7 @@ const NAV_ITEMS = [
   { id:'eventos', label:'Sessão / Convites', icon:`<rect x="3" y="4" width="18" height="18" rx="2" stroke-width="1.5"/><line x1="16" y1="2" x2="16" y2="6" stroke-width="1.5"/><line x1="8" y1="2" x2="8" y2="6" stroke-width="1.5"/><line x1="3" y1="10" x2="21" y2="10" stroke-width="1.5"/>` },
   { id:'comissoes', label:'Comissões', icon:`<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke-width="1.5"/><circle cx="9" cy="7" r="4" stroke-width="1.5"/><path d="M23 21v-2a4 4 0 00-3-3.87" stroke-width="1.5"/><path d="M16 3.13a4 4 0 010 7.75" stroke-width="1.5"/>` },
   { id:'relatorios', label:'Relatórios', icon:`<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke-width="1.5"/><polyline points="14,2 14,8 20,8" stroke-width="1.5"/><line x1="16" y1="13" x2="8" y2="13" stroke-width="1.5"/><line x1="16" y1="17" x2="8" y2="17" stroke-width="1.5"/><polyline points="10,9 9,9 8,9" stroke-width="1.5"/>`, hideFor:['irmao'] },
-  { id:'configuracoes', label:'Configurações', icon:`<circle cx="12" cy="12" r="3" stroke-width="1.5"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" stroke-width="1.5"/>`, hideFor:['irmao'] },
+
   { id:'atas', label:'Atas & Eventos', icon:`<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke-width="1.5"/><polyline points="14,2 14,8 20,8" stroke-width="1.5"/>`, section:'pessoal' },
   { id:'legislacao', label:'Legislação', icon:`<path d="M12 2L2 7l10 5 10-5-10-5z" stroke-width="1.5"/><path d="M2 17l10 5 10-5" stroke-width="1.5"/><path d="M2 12l10 5 10-5" stroke-width="1.5"/>`, section:'pessoal' },
   { id:'trabalhos', label:'Biblioteca de Instrução', icon:`<path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z" stroke-width="1.5"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z" stroke-width="1.5"/>`, section:'pessoal' },
@@ -2000,6 +2014,7 @@ function reRenderActive() {
   if (id==='atas') renderAtas();
   if (id==='relatorios') renderRelatorios();
   if (id==='configuracoes') renderConfiguracoes();
+  if (id==='permissoes') setTimeout(renderPermFunc, 50);
 }
 
 // ===================== HELPERS =====================
@@ -2322,6 +2337,54 @@ function abrirConfiguracoes() {
   showPanel('configuracoes');
 }
 
+
+// ─── Permissões Funcionais ────────────────────────────────────
+const PERM_FUNC = [
+  { id: 'perm_freq_historico', label: 'Ver Histórico de Frequência da Loja', desc: 'Auditoria geral de presença dos irmãos', padrao: ['veneravel','chanceler'] },
+  { id: 'perm_financas_loja',  label: 'Ver Resumo Financeiro da Loja',       desc: 'Card financeiro no dashboard',          padrao: ['veneravel','tesoureiro'] },
+];
+const TODOS_ROLES = ['veneravel','secretario','tesoureiro','chanceler','irmao','admin'];
+const ROLE_LABEL  = {veneravel:'👑 Venerável',secretario:'📜 Secretário',tesoureiro:'⚖️ Tesoureiro',chanceler:'🗂️ Chanceler',irmao:'🔵 Irmão',admin:'🏛️ Admin'};
+
+function renderPermFunc() {
+  const el = document.getElementById('perm-func-container');
+  if (!el) return;
+  const canEdit = currentRole === 'veneravel' || currentRole === 'admin';
+
+  el.innerHTML = PERM_FUNC.map(p => {
+    const extra   = JSON.parse(localStorage.getItem(p.id) || '[]');
+    const ativos  = [...new Set([...p.padrao, ...extra])];
+    return `
+      <div style="margin-bottom:14px;padding:12px 14px;background:var(--cream);border:1px solid var(--border-mid);border-radius:6px">
+        <div style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:var(--navy);margin-bottom:4px">${p.label}</div>
+        <div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-bottom:10px">${p.desc}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          ${TODOS_ROLES.map(role => {
+            const ativo = ativos.includes(role);
+            const isPadrao = p.padrao.includes(role);
+            return `<label style="display:flex;align-items:center;gap:6px;cursor:${canEdit?'pointer':'default'};padding:4px 10px;border:1px solid ${ativo?'var(--navy)':'var(--border-mid)'};border-radius:20px;background:${ativo?'rgba(27,58,107,0.08)':'transparent'}">
+              <input type="checkbox" name="${p.id}" value="${role}" ${ativo?'checked':''} ${canEdit?'':'disabled'}
+                style="accent-color:var(--navy);cursor:${canEdit?'pointer':'default'}">
+              <span style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:${ativo?'var(--navy)':'var(--text-muted)'}">${ROLE_LABEL[role]||role}${isPadrao?' 🔒':''}</span>
+            </label>`;
+          }).join('')}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function salvarPermFunc() {
+  if (currentRole !== 'veneravel' && currentRole !== 'admin') {
+    toast('⛔ Apenas o Venerável ou Administrador pode alterar permissões'); return;
+  }
+  PERM_FUNC.forEach(p => {
+    const checks = [...document.querySelectorAll(`input[name="${p.id}"]:checked`)].map(c => c.value);
+    const extra  = checks.filter(r => !p.padrao.includes(r));
+    localStorage.setItem(p.id, JSON.stringify(extra));
+  });
+  toast('✅ Permissões funcionais salvas!');
+}
+
 function renderConfiguracoes() {
   const el = document.getElementById('configuracoes-content');
   if (!el) return;
@@ -2567,7 +2630,7 @@ function renderLogAcessos() {
         <button class="btn" onclick="limparLogAcessos()" style="font-size:11px;padding:6px 14px;color:var(--red);border-color:rgba(139,32,32,0.3)">🗑️ Limpar Log</button>
       </div>
       <div style="padding:8px 22px 4px;font-size:12px;color:var(--text-muted);font-style:italic;border-bottom:1px solid var(--border)">
-        Registros das últimas sessões abertas neste dispositivo. O log é armazenado localmente.
+        Últimos 10 acessos registrados neste dispositivo. O log é sincronizado por navegador.
       </div>
       ${log.length === 0 ? `
         <div style="text-align:center;padding:32px;color:var(--text-muted)">
@@ -2586,7 +2649,7 @@ function renderLogAcessos() {
             </tr>
           </thead>
           <tbody>
-            ${log.slice().reverse().slice(0,50).map(r => `
+            ${log.slice().reverse().slice(0,10).map(r => `
               <tr>
                 <td style="font-weight:600">${r.nome||'—'}</td>
                 <td style="font-size:12px;color:var(--text-muted)">${r.cargo||'—'}</td>
@@ -2604,9 +2667,13 @@ function renderLogAcessos() {
         <thead><tr><th>Irmão</th><th>Grau</th><th>Cargo</th><th>Último Acesso</th><th>Status</th></tr></thead>
         <tbody>
           ${membros.filter(m=>m.status==='ativo'||m.status==='iniciado').map(m => {
-            const ultimo = log.slice().reverse().find(r =>
-              (r.nome||'').toLowerCase() === (m.nome_maconico||'').toLowerCase()
+            // Buscar o acesso mais recente (com timestamp ISO quando disponível)
+            const acessosMembro = log.filter(r =>
+              (r.nome||'').toLowerCase().trim() === (m.nome_maconico||'').toLowerCase().trim()
             );
+            const ultimo = acessosMembro.length
+              ? acessosMembro.sort((a,b) => (b.iso||b.data||'').localeCompare(a.iso||a.data||'')).at(0)
+              : null;
             return `<tr>
               <td style="font-weight:600">${m.nome_maconico}</td>
               <td>${m.grau ? `${m.grau}º Grau` : '—'}</td>
@@ -2631,13 +2698,19 @@ function limparLogAcessos() {
 
 function _registrarAcesso(nome, cargo, perfil, tipo) {
   try {
+    const agora = new Date();
     const log = JSON.parse(localStorage.getItem('log_acessos') || '[]');
+    // Remover entradas duplicadas do mesmo usuário nas últimas 5 min (evitar spam)
+    const cincoMinAtras = new Date(agora - 5*60*1000).toISOString();
+    const recente = log.findIndex(r => r.nome === nome && r.iso && r.iso > cincoMinAtras);
+    if (recente >= 0) log.splice(recente, 1); // remove o anterior
     log.push({
       nome, cargo, perfil, tipo,
-      data: new Date().toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})
+      iso:  agora.toISOString(),
+      data: agora.toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})
     });
-    // Manter apenas últimos 200 registros
-    if (log.length > 200) log.splice(0, log.length - 200);
+    // Manter apenas últimos 100 registros
+    if (log.length > 100) log.splice(0, log.length - 100);
     localStorage.setItem('log_acessos', JSON.stringify(log));
   } catch(e) {}
 }
@@ -2673,9 +2746,8 @@ function showPanel(id) {
   if (id==='atas') renderAtas();
   if (id==='relatorios') renderRelatorios();
   if (id==='configuracoes') renderConfiguracoes();
+  if (id==='permissoes') setTimeout(renderPermFunc, 50);
 }
-
-// ─── Mobile sidebar ────────────────────────────────────────
 function toggleSidebar() {
   const sidebar  = document.querySelector('.sidebar');
   const backdrop = document.getElementById('sidebar-backdrop');
@@ -4090,14 +4162,80 @@ function renderFrequencia(access) {
         </tr>`;
       }).join('');
 
+  // Permissão para ver histórico geral (padrão: veneravel, chanceler)
+  const podeVerHistorico = _permFreqHistorico();
+
   document.getElementById('frequencia-content').innerHTML = `
     ${!canEdit ? readOnlyBanner() : ''}
-    <div class="card">
+    <div class="card" style="margin-bottom:16px">
       <div class="card-header">
         <div class="card-title">Sessões Realizadas</div>
       </div>
       <table><thead><tr><th>Data</th><th>Tipo</th><th>Grau</th><th>Local</th><th>Presenças</th><th></th></tr></thead>
       <tbody>${rows}</tbody></table>
+    </div>
+
+    ${podeVerHistorico ? _renderHistoricoFreqLoja(membrosAtivos, sessoes, presencas) : ''}`;
+}
+
+// Verificar permissão para ver histórico geral de frequência
+function _permFreqHistorico() {
+  // Cargos com acesso por padrão (pode ser alterado em Permissões)
+  const padrao = ['veneravel','chanceler','admin'];
+  const extra   = JSON.parse(localStorage.getItem('perm_freq_historico') || '[]');
+  const permitidos = [...new Set([...padrao, ...extra])];
+  return permitidos.includes(currentRole);
+}
+
+// Renderizar bloco de Histórico de Frequência da Loja
+function _renderHistoricoFreqLoja(membrosAtivos, sessoes, presencas) {
+  if (!membrosAtivos.length || !sessoes.length) return '';
+  const totalSessoes = sessoes.length;
+  const th = t => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF;background:var(--navy);text-align:left">${t}</th>`;
+
+  // Calcular frequência de cada irmão
+  const dados = membrosAtivos.map(m => {
+    const presM = presencas.filter(p => p.membro_id === m.id && (p.presente || p.situacao==='presente')).length;
+    const pct   = totalSessoes > 0 ? Math.round(presM / totalSessoes * 100) : 0;
+    const cor   = pct >= 75 ? 'var(--green)' : pct >= 50 ? 'var(--gold-dark)' : 'var(--red)';
+    return {m, presM, pct, cor};
+  }).sort((a,b) => b.pct - a.pct); // ordenar do mais frequente
+
+  const rows = dados.map(({m, presM, pct, cor}, i) => `
+    <tr style="background:${i%2===0?'var(--white)':'var(--cream)'};border-bottom:1px solid var(--border)">
+      <td style="padding:10px 14px;font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:var(--text)">${m.nome_maconico}</td>
+      <td style="padding:10px 14px;font-size:12px;color:var(--text-muted)">${m.cargo||'—'}</td>
+      <td style="padding:10px 14px">${degreeBadge(m.grau||3)}</td>
+      <td style="padding:10px 14px;font-family:'Cinzel',serif;font-size:13px;color:var(--text)">${presM} / ${totalSessoes}</td>
+      <td style="padding:10px 14px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="flex:1;background:var(--cream);border-radius:3px;height:7px;overflow:hidden;min-width:60px">
+            <div style="height:100%;width:${pct}%;background:${cor};border-radius:3px"></div>
+          </div>
+          <span style="font-size:12px;font-weight:700;color:${cor};white-space:nowrap">${pct}%</span>
+        </div>
+      </td>
+      <td style="padding:10px 14px">
+        <span class="badge ${pct>=75?'b-active':pct>=50?'b-pending':'b-inactive'}" style="font-size:9px">${pct>=75?'Em dia':pct>=50?'Atenção':'Crítico'}</span>
+      </td>
+    </tr>`).join('');
+
+  return `
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">📊 Histórico de Frequência da Loja</div>
+        <span style="font-family:'Cinzel',serif;font-size:8px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);background:rgba(212,168,67,0.1);border:1px solid rgba(212,168,67,0.3);border-radius:20px;padding:3px 12px">AUDITORIA</span>
+      </div>
+      <div style="padding:6px 22px 4px;font-size:12px;color:var(--text-muted);font-style:italic;border-bottom:1px solid var(--border)">
+        Visível apenas para cargos com permissão de auditoria (${totalSessoes} sessões no total).
+        Configurável em <a href="#" onclick="showPanel('permissoes');return false" style="color:var(--navy)">Permissões</a>.
+      </div>
+      <div style="border-top:1px solid var(--border)">
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr>${th('Irmão')}${th('Cargo')}${th('Grau')}${th('Presenças')}${th('Frequência')}${th('Status')}</tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
     </div>`;
 }
 
@@ -5105,10 +5243,10 @@ function renderFinancas(access) {
             <table style="width:100%;border-collapse:collapse">
               <thead>
                 <tr>
-                  <th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--gold-pale);background:var(--navy);text-align:left">Descrição</th>
-                  <th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--gold-pale);background:var(--navy);text-align:center">Tipo</th>
-                  <th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--gold-pale);background:var(--navy);text-align:center">Progresso</th>
-                  <th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--gold-pale);background:var(--navy);text-align:right">Restante</th>
+                  <th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF;background:var(--navy);text-align:left">Descrição</th>
+                  <th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF;background:var(--navy);text-align:center">Tipo</th>
+                  <th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF;background:var(--navy);text-align:center">Progresso</th>
+                  <th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF;background:var(--navy);text-align:right">Restante</th>
                 </tr>
               </thead>
               <tbody>
@@ -7214,7 +7352,7 @@ function _renderInadimplCorpo(filtroId, containerId) {
   if (filtroId) inadimplentes = inadimplentes.filter(i => i.m.id === filtroId);
 
   const canEdit = ROLES[currentRole].access['financas'] === 'full';
-  const thS = `padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--gold-pale);text-align:left;background:var(--navy)`;
+  const thS = `padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF;text-align:left;background:var(--navy)`;
 
   container.innerHTML = inadimplentes.length === 0
     ? `<div style="padding:20px;text-align:center;color:var(--green);font-style:italic">✅ Nenhum inadimplente${filtroId?' para este irmão':''}!</div>`
@@ -7979,7 +8117,7 @@ function _biblio(lista, isAdm) {
 
   const grupos = [0,1,2,3].map(g => ({g, itens:aprovados.filter(t=>_grauTrab(t)===g)})).filter(x=>x.itens.length);
 
-  const thStyle = `padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--gold-pale);text-align:left;background:var(--navy)`;
+  const thStyle = `padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF;text-align:left;background:var(--navy)`;
 
   const nomeGrauLongo = {
     0: '📖 Geral — Acessível a Todos',
@@ -8018,7 +8156,7 @@ function _biblio(lista, isAdm) {
                 <td style="padding:11px 14px;font-size:12px;color:var(--text-muted);white-space:nowrap">${t.data_postagem?new Date(t.data_postagem).toLocaleDateString('pt-BR'):'—'}</td>
                 <td style="padding:11px 14px;text-align:center">
                   ${t.url_arquivo?`<a href="${t.url_arquivo}" target="_blank" rel="noopener"
-                    style="padding:5px 12px;background:var(--navy);color:var(--gold-pale);border-radius:4px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;text-decoration:none;white-space:nowrap">📖 Ler</a>`:'—'}
+                    style="padding:5px 12px;background:var(--navy);color:#FFFFFF;border-radius:4px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;text-decoration:none;white-space:nowrap">📖 Ler</a>`:'—'}
                 </td>
                 ${isAdm?`<td style="padding:11px 14px;text-align:center">
                   <button onclick="excluirTrabalho('${t.id}','')" style="padding:4px 8px;border:1px solid rgba(139,32,32,0.3);border-radius:3px;background:none;cursor:pointer;font-size:13px;color:var(--red)" title="Excluir">🗑️</button>
@@ -8041,7 +8179,7 @@ function _meusHtml(lista) {
       <div style="font-size:13px;margin-top:6px;font-style:italic">Use o botão "📤 Enviar Meu Trabalho" acima.</div>
     </div>`;
 
-  const th = (t,extra='') => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--gold-pale);text-align:left;background:var(--navy)${extra}">${t}</th>`;
+  const th = (t,extra='') => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF;text-align:left;background:var(--navy)${extra}">${t}</th>`;
 
   // Agrupar: em revisão → pendente → aprovado
   const ordem = ['ajuste','pendente','aprovado'];
@@ -8121,7 +8259,7 @@ function _meusHtml(lista) {
 // ── Gestão (vigilantes / venerável) ────────────────────────────
 function _gestaoHtml(fila, ap) {
   const cargo = ap.isVeneravel?'Venerável Mestre':ap.is1Vig?'1º Vigilante':'2º Vigilante';
-  const th = (t, extra='') => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--gold-pale);text-align:left;background:var(--navy)${extra}">${t}</th>`;
+  const th = (t, extra='') => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF;text-align:left;background:var(--navy)${extra}">${t}</th>`;
 
   if (!fila.length) return `
     <div style="background:rgba(27,58,107,0.04);border:1px solid rgba(27,58,107,0.12);border-radius:6px;padding:14px 18px;font-size:12px;color:var(--text-muted)">
@@ -8202,7 +8340,7 @@ function _gestaoTodosHtml() {
   });
   if (!todos.length) return '';
 
-  const thN = (t, extra='') => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--gold-pale);text-align:left;background:var(--navy)${extra}">${t}</th>`;
+  const thN = (t, extra='') => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF;text-align:left;background:var(--navy)${extra}">${t}</th>`;
   const ST = {aprovado:'#1B6B3A', pendente:'#C07000', ajuste:'#8A1B1B'};
 
   return `
@@ -8573,7 +8711,7 @@ function renderLegislacao(access) {
   const canEdit = access === 'full' || cargoLogado.includes('orador');
   const docs = DATA.legislacao || [];
 
-  const th = t => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--gold-pale);background:var(--navy);text-align:left">${t}</th>`;
+  const th = t => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF;background:var(--navy);text-align:left">${t}</th>`;
 
   el.innerHTML = `
     <!-- Toolbar -->
@@ -8638,7 +8776,7 @@ function _legRow(d, canEdit, idx) {
       <td style="padding:11px 14px;font-family:'Cormorant Garamond',serif;font-size:14px;color:var(--text-muted)">${d.ano||'—'}</td>
       <td style="padding:11px 14px;text-align:center">
         <a href="${url}" target="_blank" rel="noopener"
-          style="padding:5px 12px;background:var(--navy);color:var(--gold-pale);border-radius:4px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;text-decoration:none;white-space:nowrap">
+          style="padding:5px 12px;background:var(--navy);color:#FFFFFF;border-radius:4px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;text-decoration:none;white-space:nowrap">
           ${isExt?'🌐 Link':'📥 Abrir'}
         </a>
       </td>
@@ -8689,7 +8827,7 @@ function _legCard(d, canEdit) {
     <!-- Rodapé com ações -->
     <div style="padding:10px 18px;display:flex;gap:8px;align-items:center;margin-top:auto">
       <a href="${url}" target="_blank" rel="noopener"
-        style="flex:1;text-align:center;padding:7px;background:var(--navy);color:var(--gold-pale);border-radius:4px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.08em;text-decoration:none;transition:opacity 0.15s"
+        style="flex:1;text-align:center;padding:7px;background:var(--navy);color:#FFFFFF;border-radius:4px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.08em;text-decoration:none;transition:opacity 0.15s"
         onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
         ${isExterno ? '🌐 ACESSAR LINK' : '📥 ABRIR DOCUMENTO'}
       </a>
@@ -8730,7 +8868,7 @@ function filtrarLegislacao(cat) {
     grid.innerHTML = _legVazio(canEdit);
   } else {
     // Recriar tabela com linhas filtradas
-    const th = t => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--gold-pale);background:var(--navy);text-align:left">${t}</th>`;
+    const th = t => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF;background:var(--navy);text-align:left">${t}</th>`;
     grid.innerHTML = `<table style="width:100%;border-collapse:collapse">
       <thead><tr>${th('Documento')}${th('Categoria')}${th('Ano')}${th('Acesso')}${canEdit?th('⚙️'):''}</tr></thead>
       <tbody>${filtrados.map((d,i) => _legRow(d, canEdit, i)).join('')}</tbody>
@@ -10769,7 +10907,7 @@ function mostrarRelDebitos() {
   const totalAberto = devedores.reduce((s,m) => s + m.devia, 0);
 
   // Tabela padrão Azul/Dourado
-  const th = t => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--gold-pale);background:var(--navy);text-align:left">${t}</th>`;
+  const th = t => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF;background:var(--navy);text-align:left">${t}</th>`;
   const linhas = devedores.length
     ? devedores.map((m,i) => `
       <tr style="background:${i%2===0?'var(--white)':'var(--cream)'};border-bottom:1px solid var(--border)">
