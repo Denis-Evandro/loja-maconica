@@ -1861,6 +1861,7 @@ async function loadAllData() {
     reRenderActive();
     renderDashboard();
     _aplicarDadosLoja(); // atualizar nome/logo com dados salvos
+    _carregarConfiguracoes(); // sincronizar dados da loja do Supabase
   } catch(err) { console.warn('Supabase:', err); }
 }
 
@@ -2361,10 +2362,36 @@ function ativarAbaConfig(aba) {
 }
 
 function _getDadosLoja() {
+  // Prioridade: cache em memória > localStorage
   try { return JSON.parse(localStorage.getItem('dados_loja') || '{}'); } catch(e) { return {}; }
 }
 function _salvarDadosLoja(dados) {
   localStorage.setItem('dados_loja', JSON.stringify(dados));
+  // Sincronizar com Supabase em background (tabela configuracoes)
+  _syncConfiguracoes(dados).catch(e => console.warn('sync config:', e));
+}
+async function _syncConfiguracoes(dados) {
+  if (!sb) return;
+  try {
+    await sb.from('configuracoes').upsert({
+      id: 'loja_principal',
+      dados: JSON.stringify(dados),
+      atualizado_em: new Date().toISOString()
+    }, { onConflict: 'id' });
+  } catch(e) { console.warn('_syncConfiguracoes:', e); }
+}
+async function _carregarConfiguracoes() {
+  try {
+    const { data, error } = await sb.from('configuracoes').select('dados').eq('id','loja_principal').maybeSingle();
+    if (error || !data?.dados) return;
+    const remoto = JSON.parse(data.dados);
+    // Mesclar: remoto tem prioridade sobre localStorage
+    const local = _getDadosLoja();
+    const merged = { ...local, ...remoto };
+    localStorage.setItem('dados_loja', JSON.stringify(merged));
+    _aplicarDadosLoja();
+    console.log('✅ Configurações carregadas do Supabase');
+  } catch(e) { console.warn('_carregarConfiguracoes:', e); }
 }
 
 function renderConfigLoja() {
@@ -2431,7 +2458,11 @@ function renderConfigLoja() {
           <div style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.12em;color:var(--navy);margin-bottom:12px">💳 DADOS FINANCEIROS PARA COBRANÇA</div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
-          <div>${lb('Banco / Instituição')}<input id="loja-banco" ${inp} value="${d.banco||''}" placeholder="ex: Banco do Brasil / Nubank"></div>
+          <div>${lb('Banco / Instituição')}<input id="loja-banco" ${inp} value="${d.banco||''}" placeholder="ex: Banco do Brasil · Código 001"></div>
+          <div>${lb('Agência')}<input id="loja-agencia" ${inp} value="${d.agencia||''}" placeholder="ex: 1234-5"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+          <div>${lb('Conta Bancária')}<input id="loja-conta" ${inp} value="${d.conta||''}" placeholder="ex: 12345-6"></div>
           <div>${lb('Chave PIX')}<input id="loja-pix" ${inp} value="${d.pix||''}" placeholder="ex: CNPJ, celular ou e-mail"></div>
         </div>
         <div style="margin-bottom:14px">${lb('Favorecido (nome no PIX)')}<input id="loja-favorecido" ${inp} value="${d.favorecido||''}" placeholder="Nome que aparece no recibo do PIX"></div>
@@ -2490,6 +2521,8 @@ function salvarDadosLoja() {
   d.vencimento  = parseInt(document.getElementById('loja-vencimento')?.value)||10;
   d.pix         = document.getElementById('loja-pix')?.value.trim()       || '';
   d.banco       = document.getElementById('loja-banco')?.value.trim()     || '';
+  d.agencia     = document.getElementById('loja-agencia')?.value.trim()   || '';
+  d.conta       = document.getElementById('loja-conta')?.value.trim()     || '';
   d.favorecido  = document.getElementById('loja-favorecido')?.value.trim()|| '';
   _salvarDadosLoja(d);
   toast('✅ Dados da loja salvos com sucesso!');
@@ -4498,6 +4531,12 @@ function calcularParcelas() {
 
 async function salvarLancamento() {
   try {
+  // Verificar se o mês do lançamento está encerrado
+  const dataLanc = document.getElementById('f-data-fin')?.value;
+  if (dataLanc && _mesFechado(dataLanc)) {
+    toast('⛔ Este mês já foi encerrado. Edições bloqueadas.');
+    return;
+  }
   const descricao = document.getElementById('f-desc')?.value.trim();
   const valor = parseFloat(document.getElementById('f-valor')?.value);
   const tipo = document.getElementById('f-tipo')?.value;
@@ -4655,6 +4694,11 @@ function lbl() { return "font-family:'Cinzel',serif;font-size:9px;font-weight:70
 function inp() { return "width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"; }
 
 async function salvarEdicaoLancamento(lancId) {
+  const lancObj = DATA.financas.find(l => l.id === lancId);
+  if (lancObj?.data && _mesFechado(lancObj.data)) {
+    toast('⛔ Lançamento de mês encerrado — edição bloqueada.');
+    return;
+  }
   const descricao = document.getElementById('ed-desc')?.value.trim();
   const valor = parseFloat(document.getElementById('ed-valor')?.value);
   const tipo = document.getElementById('ed-tipo')?.value;
@@ -5076,7 +5120,7 @@ function renderFinancas(access) {
                   const pct = Math.round(p.pagas/p.total*100);
                   const rowBg = i%2===0 ? 'var(--white)' : 'var(--cream)';
                   return `<tr style="background:${rowBg};border-bottom:1px solid var(--border)">
-                    <td style="padding:11px 14px;font-family:'Cinzel',serif;font-size:12px;font-weight:700;color:var(--text)">${p.desc}</td>
+                    <td style="padding:10px 14px;font-family:'Cormorant Garamond',serif;font-size:14px;font-weight:600;color:var(--text)">${p.desc}</td>
                     <td style="padding:11px 14px;text-align:center">
                       <span style="background:${badgeBg};border:1.5px solid ${badgeBd};border-radius:6px;padding:3px 10px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:${cor};white-space:nowrap">
                         ${isReceita ? '↑ RECEITA' : '↓ DESPESA'}
@@ -5348,7 +5392,10 @@ function cobrarWhatsapp(nome, telefone, valor, meses) {
   const pixLoja    = dadosLoja.pix    || localStorage.getItem('pix_loja') || 'informar chave PIX';
   const banco      = dadosLoja.banco  || '';
   const favorecido = dadosLoja.favorecido || nomeLoja;
-  const pixInfo    = banco ? `${banco} — ${pixLoja}\nFavorecido: ${favorecido}` : `PIX: ${pixLoja}`;
+  const agencia    = dadosLoja.agencia  || '';
+  const conta      = dadosLoja.conta    || '';
+  const dadosBanc  = [banco, agencia ? `Ag: ${agencia}` : '', conta ? `Cc: ${conta}` : ''].filter(Boolean).join(' · ');
+  const pixInfo    = pixLoja ? (dadosBanc ? `Banco: ${dadosBanc}\nChave PIX: ${pixLoja}\nFavorecido: ${favorecido}` : `Chave PIX: ${pixLoja}\nFavorecido: ${favorecido}`) : (dadosBanc ? `Banco: ${dadosBanc}` : 'Consultar tesouraria');
   const msg = `Amado Ir. ${nome},
 
 Identificamos uma pendência de ${valorFmt}.
@@ -5398,9 +5445,12 @@ function atualizarMsgCobranca(pix, nome, valor) {
   const valorFmt = parseFloat(valor).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
   const dadosLoja = _getDadosLoja();
   const nomeLoja  = dadosLoja.nome || 'A.R.L.S. Fraternidade Acadêmica de Peruíbe';
-  const banco     = dadosLoja.banco || '';
+  const banco      = dadosLoja.banco    || '';
+  const agencia2   = dadosLoja.agencia  || '';
+  const conta2     = dadosLoja.conta    || '';
   const favorecido = dadosLoja.favorecido || nomeLoja;
-  const pixInfo   = banco ? `${banco} — ${pix}\nFavorecido: ${favorecido}` : `PIX: ${pix}`;
+  const dadosBanc2 = [banco, agencia2 ? `Ag: ${agencia2}` : '', conta2 ? `Cc: ${conta2}` : ''].filter(Boolean).join(' · ');
+  const pixInfo    = pix ? (dadosBanc2 ? `Banco: ${dadosBanc2}\nChave PIX: ${pix}\nFavorecido: ${favorecido}` : `Chave PIX: ${pix}\nFavorecido: ${favorecido}`) : (dadosBanc2 ? `Banco: ${dadosBanc2}` : 'Consultar tesouraria');
   const textarea = document.getElementById('msg-whatsapp');
   if (!textarea) return;
   textarea.value = `Amado Ir. ${nome},\n\nIdentificamos uma pendência de ${valorFmt}.\n\nPedimos o seu apoio para regularizar este montante, pois este valor é fundamental para honrarmos as despesas fixas e mantermos nossa Loja de pé.\n\nContamos com sua prontidão e compromisso.\n\nDados para pagamento:\n${pixInfo}\n\nFraternalmente,\nTesouraria – ${nomeLoja}.`;
@@ -5786,37 +5836,102 @@ async function salvarTronco() {
 function abrirModalFecharMes() {
   const hoje = new Date();
   const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-  const mesNome = meses[hoje.getMonth()];
   const anoAtual = hoje.getFullYear();
-  const mesStr = String(hoje.getMonth()+1).padStart(2,'0');
-  const finMes = DATA.financas.filter(l=>l.data?.startsWith(`${anoAtual}-${mesStr}`));
-  const recMes = finMes.filter(l=>l.tipo==='receita'&&l.status==='pago').reduce((s,l)=>s+parseFloat(l.valor||0),0);
-  const despMes = finMes.filter(l=>l.tipo==='despesa'&&l.status==='pago').reduce((s,l)=>s+parseFloat(l.valor||0),0);
-  const recTotal = DATA.financas.filter(l=>l.tipo==='receita'&&l.status==='pago'&&!l.data?.startsWith(`${anoAtual}-${mesStr}`)).reduce((s,l)=>s+parseFloat(l.valor||0),0);
-  const despTotal = DATA.financas.filter(l=>l.tipo==='despesa'&&l.status==='pago'&&!l.data?.startsWith(`${anoAtual}-${mesStr}`)).reduce((s,l)=>s+parseFloat(l.valor||0),0);
-  const saldoInicial = recTotal - despTotal;
-  const saldoFinal = saldoInicial + recMes - despMes;
+  const fechamentos = JSON.parse(localStorage.getItem('fechamentos_mensais')||'[]');
+
+  // Gerar opções dos últimos 24 meses
+  const opcoes = [];
+  for (let i = 0; i < 24; i++) {
+    const d = new Date(anoAtual, hoje.getMonth() - i, 1);
+    const ano = d.getFullYear();
+    const mes = String(d.getMonth()+1).padStart(2,'0');
+    const nome = meses[d.getMonth()] + ' ' + ano;
+    const jaFechado = fechamentos.some(f => f.mesAno === nome);
+    opcoes.push({ano, mes, nome, jaFechado});
+  }
+
+  // Pré-selecionar mês anterior (mais recente não fechado)
+  const sugerido = opcoes.find(o => !o.jaFechado) || opcoes[0];
+  const optsHtml = opcoes.map(o =>
+    `<option value="${o.ano}-${o.mes}" ${o.ano+'-'+o.mes===sugerido.ano+'-'+sugerido.mes?'selected':''}>${o.nome}${o.jaFechado?' ✓ (já fechado)':''}</option>`
+  ).join('');
+
   document.body.insertAdjacentHTML('beforeend', `
     <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px">
-      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;padding:28px 36px;width:460px;position:relative">
+      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;padding:28px 36px;width:500px;position:relative">
         <div style="height:3px;background:linear-gradient(90deg,#3A006B,#6A2AAC);border-radius:6px 6px 0 0;position:absolute;top:0;left:0;right:0"></div>
-        <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;letter-spacing:0.1em;color:#3A006B;margin-bottom:20px">📦 Fechar Mês — ${mesNome} ${anoAtual}</div>
-        <div style="display:grid;gap:8px;font-family:'Cormorant Garamond',serif">
-          ${[['Saldo Inicial (antes do mês)',saldoInicial,'var(--navy)'],['Receitas do Mês',recMes,'var(--green)'],['Despesas do Mês',despMes,'var(--red)'],['Saldo Final',saldoFinal,saldoFinal>=0?'var(--green)':'var(--red)']].map(([l,v,c])=>`
-            <div style="display:flex;justify-content:space-between;padding:8px 14px;background:var(--cream);border-radius:3px;border:1px solid var(--border)">
-              <span style="font-size:13px;color:var(--text-muted)">${l}</span>
-              <span style="font-size:14px;font-weight:700;color:${c}">${fmtVal(v)}</span>
-            </div>`).join('')}
+        <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;letter-spacing:0.1em;color:#3A006B;margin-bottom:20px">📦 Fechar Mês</div>
+        <div style="margin-bottom:16px">
+          <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Selecionar Mês</label>
+          <select id="fechar-mes-sel" onchange="atualizarResumoFechamento(this.value)"
+            style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:9px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)">
+            ${optsHtml}
+          </select>
         </div>
-        <div style="font-size:11px;color:var(--text-muted);font-style:italic;margin-top:12px">Ao confirmar, este resumo ficará salvo no histórico de fechamentos.</div>
-        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
+        <div id="fechar-mes-resumo"></div>
+        <div style="font-size:11px;color:rgba(139,32,32,0.7);font-style:italic;margin-top:8px;background:rgba(139,32,32,0.04);border:1px solid rgba(139,32,32,0.12);border-radius:3px;padding:8px 12px">
+          ⚠️ Após o fechamento, os lançamentos desse mês ficam <strong>bloqueados para edição</strong>.
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
           <button class="btn" onclick="fecharModal()" style="padding:8px 20px">Cancelar</button>
-          <button class="btn btn-solid" onclick="confirmarFechamentoMes('${mesNome} ${anoAtual}',${saldoInicial},${recMes},${despMes},${saldoFinal})" style="padding:8px 20px;background:linear-gradient(135deg,#3A006B,#6A2AAC)">📦 Confirmar Fechamento</button>
+          <button id="btn-confirmar-fechamento" class="btn btn-solid" style="padding:8px 20px;background:linear-gradient(135deg,#3A006B,#6A2AAC)">📦 Confirmar Fechamento</button>
         </div>
       </div>
     </div>`);
+
+  // Carregar resumo inicial
+  atualizarResumoFechamento(sugerido.ano + '-' + sugerido.mes);
 }
 
+function atualizarResumoFechamento(anoMes) {
+  const resumoEl = document.getElementById('fechar-mes-resumo');
+  const btnEl    = document.getElementById('btn-confirmar-fechamento');
+  if (!resumoEl || !anoMes) return;
+
+  const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const [ano, mes] = anoMes.split('-');
+  const mesNome = meses[parseInt(mes)-1] + ' ' + ano;
+  const fechamentos = JSON.parse(localStorage.getItem('fechamentos_mensais')||'[]');
+  const jaFechado = fechamentos.some(f => f.mesAno === mesNome);
+
+  const finMes  = DATA.financas.filter(l => l.data?.startsWith(anoMes));
+  const recMes  = finMes.filter(l => l.tipo==='receita' && l.status==='pago').reduce((s,l)=>s+parseFloat(l.valor||0),0);
+  const despMes = finMes.filter(l => l.tipo==='despesa' && l.status==='pago').reduce((s,l)=>s+parseFloat(l.valor||0),0);
+  const recAntes  = DATA.financas.filter(l => l.tipo==='receita'  && l.status==='pago' && l.data < anoMes+'-01').reduce((s,l)=>s+parseFloat(l.valor||0),0);
+  const despAntes = DATA.financas.filter(l => l.tipo==='despesa'  && l.status==='pago' && l.data < anoMes+'-01').reduce((s,l)=>s+parseFloat(l.valor||0),0);
+  const saldoInicial = recAntes - despAntes;
+  const saldoFinal   = saldoInicial + recMes - despMes;
+
+  resumoEl.innerHTML = `
+    <div style="display:grid;gap:6px;font-family:'Cormorant Garamond',serif;margin-bottom:6px">
+      ${[['Saldo antes do mês', saldoInicial,'var(--navy)'],['Receitas pagas', recMes,'var(--green)'],['Despesas pagas', despMes,'var(--red)'],['Saldo Final', saldoFinal, saldoFinal>=0?'var(--green)':'var(--red)']].map(([l,v,c])=>`
+        <div style="display:flex;justify-content:space-between;padding:8px 12px;background:var(--cream);border-radius:3px;border:1px solid var(--border)">
+          <span style="font-size:13px;color:var(--text-muted)">${l}</span>
+          <span style="font-size:14px;font-weight:700;color:${c}">${fmtVal(v)}</span>
+        </div>`).join('')}
+    </div>
+    ${jaFechado ? `<div style="background:rgba(27,107,58,0.08);border:1px solid rgba(27,107,58,0.3);border-radius:4px;padding:8px 12px;font-size:12px;color:#1B6B3A;font-style:italic">✅ Este mês já foi fechado anteriormente.</div>` : ''}`;
+
+  if (btnEl) {
+    btnEl.disabled = jaFechado;
+    btnEl.style.opacity = jaFechado ? '0.4' : '1';
+    btnEl.onclick = jaFechado ? null : () => {
+      confirmarFechamentoMes(mesNome, saldoInicial, recMes, despMes, saldoFinal);
+    };
+  }
+}
+
+
+// ─── Verificar se um mês está encerrado ─────────────────────
+function _mesFechado(dataStr) {
+  if (!dataStr) return false;
+  const fechamentos = JSON.parse(localStorage.getItem('fechamentos_mensais')||'[]');
+  if (!fechamentos.length) return false;
+  const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const [ano, mes] = dataStr.split('-');
+  const mesNome = meses[parseInt(mes)-1] + ' ' + ano;
+  return fechamentos.some(f => f.mesAno === mesNome);
+}
 function confirmarFechamentoMes(mesAno, saldoInicial, receitas, despesas, saldoFinal) {
   const fechamentos = JSON.parse(localStorage.getItem('fechamentos_mensais')||'[]');
   if (fechamentos.find(f=>f.mesAno===mesAno)) { toast('Este mês já foi fechado!'); fecharModal(); return; }
@@ -7129,12 +7244,13 @@ function _renderInadimplCorpo(filtroId, containerId) {
 }
 
 async function renderMinhaFrequencia() {
-  const isSecretario = currentRole === 'secretario';
-  const isChanc = currentRole === 'chanceler' || currentRole === 'veneravel' || currentRole === 'admin';
   const el = document.getElementById('minha-frequencia-content');
+  // Todos os cargos veem apenas SUA frequência pessoal aqui
+  // A frequência geral da loja está em Frequência > Auditoria da Loja
+  const isAdmin = ['veneravel','chanceler','secretario','admin'].includes(currentRole);
 
-  // ── SECRETÁRIO/ADMIN: painel de aprovação de visitas + frequência de todos ─
-  if (isSecretario || isChanc) {
+  // Aprovação de visitas (só para cargos administrativos, como bloco separado no topo)
+  if (isAdmin) {
     // Buscar visitas pendentes de aprovação
     let visitasPend = [];
     try {
@@ -7183,17 +7299,16 @@ async function renderMinhaFrequencia() {
         </div>
         <div style="padding:0 22px">${rowsPend}</div>
       </div>`:''}
-      <div class="card">
-        <div class="card-header"><div class="card-title">Frequência de Todos os Irmãos</div></div>
-        <table><thead><tr><th>Irmão</th><th>Cargo</th><th>Presenças</th><th>Frequência</th></tr></thead>
-        <tbody>${rows}</tbody></table>
       </div>`;
-    return;
+    // NÃO retorna — continua para mostrar frequência pessoal do admin abaixo
   }
 
-  // ── IRMÃO: painel pessoal ────────────────────────────────────
-  const name = ROLES[currentRole].name;
-  const membro = DATA.membros.find(m => m.nome_maconico === name) || DATA.membros[0];
+  // ── FREQUÊNCIA PESSOAL (todos os cargos, incluindo admins) ──
+  // Prioridade: membro logado > nome do role > primeiro membro
+  const euNome = _membroLogado?.nome_maconico || _eu()?.nome || ROLES[currentRole].name;
+  const membro = (_membroLogado?.id ? DATA.membros.find(m => m.id === _membroLogado.id) : null)
+    || DATA.membros.find(m => m.nome_maconico === euNome)
+    || DATA.membros[0];
   if (!membro) { el.innerHTML = `<div style="padding:20px;font-style:italic;color:var(--text-muted)">Membro não encontrado.</div>`; return; }
 
   // Filtros
@@ -8453,12 +8568,16 @@ const CATEGORIAS_LEG = ['Lei', 'Decreto', 'RGF', 'Regimento', 'Circular', 'Porta
 function renderLegislacao(access) {
   const el = document.getElementById('legislacao-content');
   if (!el) return;
-  const canEdit = access === 'full';
+  // Permissão de edição: role full OU cargo orador (conforme regra maçônica)
+  const cargoLogado = (_membroLogado?.cargo || '').toLowerCase();
+  const canEdit = access === 'full' || cargoLogado.includes('orador');
   const docs = DATA.legislacao || [];
+
+  const th = t => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--gold-pale);background:var(--navy);text-align:left">${t}</th>`;
 
   el.innerHTML = `
     <!-- Toolbar -->
-    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:18px">
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
       <div style="flex:1;min-width:200px;position:relative">
         <svg style="position:absolute;left:12px;top:50%;transform:translateY(-50%);opacity:0.4;pointer-events:none" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--navy)" stroke-width="2">
           <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
@@ -8471,7 +8590,7 @@ function renderLegislacao(access) {
     </div>
 
     <!-- Filtros por categoria -->
-    <div id="leg-filtros" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px">
+    <div id="leg-filtros" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px">
       ${['Todos','Lei','Decreto','RGF','Regimento','Circular','Portaria','Outro'].map((cat,i) =>
         `<button onclick="filtrarLegislacao('${cat}')" data-cat="${cat}"
           class="leg-filtro-btn ${i===0?'ativo':''}"
@@ -8479,13 +8598,59 @@ function renderLegislacao(access) {
       ).join('')}
     </div>
 
-    <!-- Grid de cards -->
-    <div id="leg-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">
-      ${docs.length === 0 ? _legVazio(canEdit) : docs.map(d => _legCard(d, canEdit)).join('')}
+    <!-- Tabela de legislação -->
+    <div id="leg-grid" style="border-radius:6px;overflow:hidden;border:1px solid var(--border-mid)">
+      ${docs.length === 0 ? _legVazio(canEdit) : `
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr>
+          ${th('Documento')}${th('Categoria')}${th('Ano')}${th('Acesso')}${canEdit?th('⚙️'):''}
+        </tr></thead>
+        <tbody id="leg-tbody">
+          ${docs.map((d,i) => _legRow(d, canEdit, i)).join('')}
+        </tbody>
+      </table>`}
     </div>`;
 
   // Guardar estado dos filtros
   window._legFiltroAtivo = 'Todos';
+}
+
+
+// Linha de tabela para legislação (substitui _legCard)
+function _legRow(d, canEdit, idx) {
+  const catCor = {
+    'Lei':'#1B5EA0','Decreto':'#6B3A8A','RGF':'#1B6B3A',
+    'Regimento':'#8A3A1B','Circular':'#8A6B1B','Portaria':'#3A6B8A','Outro':'#5A5A5A'
+  }[d.categoria] || '#5A5A5A';
+  const url = d.url_arquivo || d.url_externa || '#';
+  const isExt = !!d.url_externa;
+  const rowBg = idx%2===0 ? 'var(--white)' : 'var(--cream)';
+  return `
+    <tr class="leg-row" data-titulo="${(d.titulo||'').toLowerCase()}" data-cat="${d.categoria||'Outro'}"
+      style="background:${rowBg};border-bottom:1px solid var(--border)">
+      <td style="padding:11px 14px">
+        <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:var(--text)">${d.titulo||'Sem título'}</div>
+        ${d.descricao?`<div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-top:2px">${d.descricao.slice(0,80)}${d.descricao.length>80?'…':''}</div>`:''}
+      </td>
+      <td style="padding:11px 14px">
+        <span style="background:${catCor}18;color:${catCor};border:1px solid ${catCor}30;border-radius:20px;padding:2px 10px;font-family:'Cinzel',serif;font-size:8px;font-weight:700;white-space:nowrap">${d.categoria||'Outro'}</span>
+      </td>
+      <td style="padding:11px 14px;font-family:'Cormorant Garamond',serif;font-size:14px;color:var(--text-muted)">${d.ano||'—'}</td>
+      <td style="padding:11px 14px;text-align:center">
+        <a href="${url}" target="_blank" rel="noopener"
+          style="padding:5px 12px;background:var(--navy);color:var(--gold-pale);border-radius:4px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;text-decoration:none;white-space:nowrap">
+          ${isExt?'🌐 Link':'📥 Abrir'}
+        </a>
+      </td>
+      ${canEdit?`<td style="padding:8px 14px;text-align:center">
+        <div style="display:flex;gap:4px;justify-content:center">
+          <button onclick="abrirModalLegislacao('${d.id}')" title="Editar"
+            style="padding:5px 8px;border:1px solid var(--border-mid);border-radius:3px;background:none;cursor:pointer;font-size:12px">✏️</button>
+          <button onclick="excluirLegislacao('${d.id}','${(d.titulo||'').replace(/'/g,'')}')" title="Excluir"
+            style="padding:5px 8px;border:1px solid rgba(139,32,32,0.3);border-radius:3px;background:none;cursor:pointer;font-size:12px;color:var(--red)">🗑️</button>
+        </div>
+      </td>`:''}
+    </tr>`;
 }
 
 function _legVazio(canEdit) {
@@ -8557,9 +8722,20 @@ function filtrarLegislacao(cat) {
     const matchBusca = !busca || (d.titulo||'').toLowerCase().includes(busca) || (d.categoria||'').toLowerCase().includes(busca) || String(d.ano||'').includes(busca);
     return matchCat && matchBusca;
   });
-  const canEdit = ROLES[currentRole]?.access['legislacao'] === 'full';
+  const cargoLogadoF = (_membroLogado?.cargo || '').toLowerCase();
+  const canEdit = ROLES[currentRole]?.access['legislacao'] === 'full' || cargoLogadoF.includes('orador');
   const grid = document.getElementById('leg-grid');
-  if (grid) grid.innerHTML = filtrados.length ? filtrados.map(d => _legCard(d, canEdit)).join('') : _legVazio(canEdit);
+  if (!grid) return;
+  if (!filtrados.length) {
+    grid.innerHTML = _legVazio(canEdit);
+  } else {
+    // Recriar tabela com linhas filtradas
+    const th = t => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--gold-pale);background:var(--navy);text-align:left">${t}</th>`;
+    grid.innerHTML = `<table style="width:100%;border-collapse:collapse">
+      <thead><tr>${th('Documento')}${th('Categoria')}${th('Ano')}${th('Acesso')}${canEdit?th('⚙️'):''}</tr></thead>
+      <tbody>${filtrados.map((d,i) => _legRow(d, canEdit, i)).join('')}</tbody>
+    </table>`;
+  }
 }
 
 function abrirModalLegislacao(id) {
