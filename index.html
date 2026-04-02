@@ -1625,88 +1625,25 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
           </div>
         </div>
 
-        <!-- Bloco informativo: Permissões de Relatórios (regras fixas) -->
-        <div class="card" style="margin-bottom:20px">
+        <!-- Permissões de Relatórios — dinâmico, só Admin -->
+        <div class="card" style="margin-bottom:16px" id="card-perm-relatorios">
           <div class="card-header">
             <div class="card-title">📋 Permissões de Relatórios</div>
-            <span style="font-family:'Cinzel',serif;font-size:8px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);background:rgba(212,168,67,0.1);border:1px solid rgba(212,168,67,0.3);border-radius:20px;padding:3px 12px">REGRAS MAÇÔNICAS FIXAS</span>
+            <span style="font-family:'Cinzel',serif;font-size:8px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);background:rgba(212,168,67,0.08);border:1px solid rgba(212,168,67,0.3);border-radius:20px;padding:3px 12px">VER: Venerável · EDITAR: Admin</span>
           </div>
-          <div style="padding:6px 0 10px">
-            <div style="font-size:12px;color:var(--text-muted);font-style:italic;padding:0 22px 14px">
-              Estas permissões seguem a hierarquia maçônica e não podem ser alteradas individualmente.
+          <div style="padding:14px 22px">
+            <div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-bottom:14px">
+              Configure quais cargos podem acessar cada relatório. O Venerável sempre tem acesso total e não pode ser removido.
             </div>
-            <table style="width:100%">
-              <thead>
-                <tr>
-                  <th style="text-align:left;padding:8px 22px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;color:var(--text-muted);background:var(--cream)">Relatório</th>
-                  <th style="text-align:center;padding:8px 10px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;color:var(--text-muted);background:var(--cream)">👑 Ven.</th>
-                  <th style="text-align:center;padding:8px 10px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;color:var(--text-muted);background:var(--cream)">📜 Secr.</th>
-                  <th style="text-align:center;padding:8px 10px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;color:var(--text-muted);background:var(--cream)">⚖️ Tes.</th>
-                  <th style="text-align:center;padding:8px 10px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;color:var(--text-muted);background:var(--cream)">🗂️ Chan.</th>
-                  <th style="text-align:center;padding:8px 10px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;color:var(--text-muted);background:var(--cream)">🔵 Irmão</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr style="border-bottom:1px solid var(--border)">
-                  <td style="padding:10px 22px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:var(--text)">👥 Membros</td>
-                  <td style="text-align:center;padding:10px"><span style="font-size:14px">✅</span></td>
-                  <td style="text-align:center;padding:10px"><span style="font-size:14px">✅</span></td>
-                  <td style="text-align:center;padding:10px"><span style="font-size:14px">—</span></td>
-                  <td style="text-align:center;padding:10px"><span style="font-size:14px">✅</span></td>
-                  <td style="text-align:center;padding:10px"><span style="font-size:14px">—</span></td>
-                </tr>
-                <tr style="border-bottom:1px solid var(--border)">
-                  <td style="padding:10px 22px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:var(--text)">📊 Frequência</td>
-                  <td style="text-align:center;padding:10px"><span style="font-size:14px">✅</span></td>
-                  <td style="text-align:center;padding:10px"><span style="font-size:14px">—</span></td>
-                  <td style="text-align:center;padding:10px"><span style="font-size:14px">—</span></td>
-                  <td style="text-align:center;padding:10px"><span style="font-size:14px">✅</span></td>
-                  <td style="text-align:center;padding:10px"><span style="font-size:14px">—</span></td>
-                </tr>
-                <tr style="border-bottom:1px solid var(--border)">
-                  <td style="padding:10px 22px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:var(--text)">💰 Extrato Financeiro</td>
-                  <td style="text-align:center;padding:10px"><span style="font-size:14px">✅</span></td>
-                  <td style="text-align:center;padding:10px"><span style="font-size:14px">—</span></td>
-                  <td style="text-align:center;padding:10px"><span style="font-size:14px">✅</span></td>
-                  <td style="text-align:center;padding:10px"><span style="font-size:14px">—</span></td>
-                  <td style="text-align:center;padding:10px"><span style="font-size:14px">—</span></td>
-                </tr>
-                <tr style="border-bottom:1px solid var(--border)">
-                  <td style="padding:10px 22px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:var(--text)">⚠️ Débitos Pendentes</td>
-                  <td style="text-align:center;padding:10px"><span style="font-size:14px">✅</span></td>
-                  <td style="text-align:center;padding:10px"><span style="font-size:14px">—</span></td>
-                  <td style="text-align:center;padding:10px"><span style="font-size:14px">✅</span></td>
-                  <td style="text-align:center;padding:10px"><span style="font-size:14px">—</span></td>
-                  <td style="text-align:center;padding:10px"><span style="font-size:14px">—</span></td>
-                </tr>
-                <tr style="border-bottom:1px solid var(--border)">
-                  <td style="padding:10px 22px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:var(--text)">🏺 Tronco de Beneficência</td>
-                  <td style="text-align:center;padding:10px"><span style="font-size:14px">✅</span></td>
-                  <td style="text-align:center;padding:10px"><span style="font-size:14px">—</span></td>
-                  <td style="text-align:center;padding:10px"><span style="font-size:14px">✅</span></td>
-                  <td style="text-align:center;padding:10px"><span style="font-size:14px">—</span></td>
-                  <td style="text-align:center;padding:10px"><span style="font-size:14px">—</span></td>
-                </tr>
-                <tr>
-                  <td style="padding:10px 22px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:var(--text)">🏛️ Comissões da Loja</td>
-                  <td style="text-align:center;padding:10px"><span style="font-size:14px">✅</span></td>
-                  <td style="text-align:center;padding:10px"><span style="font-size:14px">—</span></td>
-                  <td style="text-align:center;padding:10px"><span style="font-size:14px">—</span></td>
-                  <td style="text-align:center;padding:10px"><span style="font-size:14px">✅</span></td>
-                  <td style="text-align:center;padding:10px"><span style="font-size:14px">—</span></td>
-                </tr>
-              </tbody>
-            </table>
-            <div style="padding:12px 22px 6px;font-size:11px;color:var(--text-muted);font-style:italic;border-top:1px solid var(--border);margin-top:6px">
-              ✅ = Ver, editar e imprimir &nbsp;·&nbsp; — = Sem acesso &nbsp;·&nbsp; Venerável sempre tem acesso total.
-            </div>
+            <div id="perm-rel-container"><!-- renderizado por renderPermRelatorios() --></div>
+            <button class="btn btn-solid" onclick="salvarPermRelatorios()" style="margin-top:12px;padding:8px 20px">💾 Salvar Permissões</button>
           </div>
         </div>
-      <!-- Permissões Funcionais — configuráveis pelo Venerável -->
-      <div class="card" style="margin-top:16px">
+      <!-- Permissões Funcionais — só Admin -->
+      <div class="card" style="margin-top:16px" id="card-perm-funcionais">
         <div class="card-header">
           <div class="card-title">⚙️ Permissões Funcionais</div>
-          <span style="font-family:'Cinzel',serif;font-size:8px;font-weight:700;letter-spacing:0.1em;color:var(--navy);background:rgba(27,58,107,0.08);border:1px solid rgba(27,58,107,0.2);border-radius:20px;padding:3px 12px">VENERÁVEL / ADMIN</span>
+          <span style="font-family:'Cinzel',serif;font-size:8px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);background:rgba(212,168,67,0.08);border:1px solid rgba(212,168,67,0.3);border-radius:20px;padding:3px 12px">VER: Venerável · EDITAR: Admin</span>
         </div>
         <div style="padding:14px 22px">
           <div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-bottom:14px">
@@ -2014,7 +1951,7 @@ function reRenderActive() {
   if (id==='atas') renderAtas();
   if (id==='relatorios') renderRelatorios();
   if (id==='configuracoes') renderConfiguracoes();
-  if (id==='permissoes') setTimeout(renderPermFunc, 50);
+  if (id==='permissoes') { setTimeout(renderPermFunc, 50); setTimeout(renderPermRelatorios, 80); }
 }
 
 // ===================== HELPERS =====================
@@ -2269,6 +2206,7 @@ async function verificarSessaoAtiva() {
 
 verificarSessaoAtiva();
 _aplicarDadosLoja();
+_aplicarPermRelatorios(); // aplicar permissões salvas de relatórios
 
 // ─── Nome completo da loja para impressão ────────────────────────
 function _nomeImpressao() {
@@ -2349,7 +2287,10 @@ const ROLE_LABEL  = {veneravel:'👑 Venerável',secretario:'📜 Secretário',t
 function renderPermFunc() {
   const el = document.getElementById('perm-func-container');
   if (!el) return;
-  const canEdit = currentRole === 'veneravel' || currentRole === 'admin';
+  // Venerável: visualiza (somente leitura) · Admin: edita
+  const canEdit = currentRole === 'admin';
+  const canView = currentRole === 'veneravel' || currentRole === 'admin';
+  if (!canView) { el.innerHTML = '<div style="padding:16px;font-style:italic;color:var(--text-muted)">Acesso restrito ao Administrador.</div>'; return; }
 
   el.innerHTML = PERM_FUNC.map(p => {
     const extra   = JSON.parse(localStorage.getItem(p.id) || '[]');
@@ -2374,8 +2315,8 @@ function renderPermFunc() {
 }
 
 function salvarPermFunc() {
-  if (currentRole !== 'veneravel' && currentRole !== 'admin') {
-    toast('⛔ Apenas o Venerável ou Administrador pode alterar permissões'); return;
+  if (currentRole !== 'admin') {
+    toast('⛔ Apenas o Administrador pode alterar permissões'); return;
   }
   PERM_FUNC.forEach(p => {
     const checks = [...document.querySelectorAll(`input[name="${p.id}"]:checked`)].map(c => c.value);
@@ -2384,6 +2325,73 @@ function salvarPermFunc() {
   });
   toast('✅ Permissões funcionais salvas!');
 }
+
+
+// ─── Permissões de Relatórios (dinâmico, igual às Funcionais) ──
+const PERM_REL = [
+  { id: 'rel_membros',    label: '👥 Relatório de Membros',          desc: 'Lista completa por status, grau e cargo.',              padrao: ['veneravel','secretario','chanceler'] },
+  { id: 'rel_frequencia', label: '📊 Relatório de Frequência',       desc: 'Presenças e percentuais por período.',                  padrao: ['veneravel','chanceler'] },
+  { id: 'rel_financas',   label: '💰 Extrato Financeiro',            desc: 'Receitas, despesas e saldo do período.',                padrao: ['veneravel','tesoureiro'] },
+  { id: 'rel_debitos',    label: '⚠️ Débitos Pendentes',             desc: 'Irmãos com mensalidades e outros débitos em aberto.',   padrao: ['veneravel','tesoureiro'] },
+  { id: 'rel_tronco',     label: '🏺 Tronco de Beneficência',        desc: 'Arrecadações, benefícios e saldo do tronco.',           padrao: ['veneravel','tesoureiro'] },
+  { id: 'rel_comissoes',  label: '🏛️ Comissões da Loja',             desc: 'Membros, responsáveis e situação das comissões.',       padrao: ['veneravel','chanceler'] },
+];
+
+function renderPermRelatorios() {
+  const el = document.getElementById('perm-rel-container');
+  if (!el) return;
+  const canEdit = currentRole === 'admin';
+  const canView = currentRole === 'veneravel' || currentRole === 'admin';
+  if (!canView) { el.innerHTML = '<div style="padding:16px;font-style:italic;color:var(--text-muted)">Acesso restrito ao Administrador.</div>'; return; }
+
+  el.innerHTML = PERM_REL.map(p => {
+    const extra  = JSON.parse(localStorage.getItem(p.id) || '[]');
+    const ativos = [...new Set([...p.padrao, ...extra])];
+    return `
+      <div style="margin-bottom:14px;padding:12px 14px;background:var(--cream);border:1px solid var(--border-mid);border-radius:6px">
+        <div style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:var(--navy);margin-bottom:4px">${p.label}</div>
+        <div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-bottom:10px">${p.desc}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          ${TODOS_ROLES.map(role => {
+            const ativo    = ativos.includes(role);
+            const isPadrao = p.padrao.includes(role);
+            const isVen    = role === 'veneravel'; // venerável sempre tem acesso
+            return `<label style="display:flex;align-items:center;gap:6px;cursor:${canEdit&&!isVen?'pointer':'default'};padding:4px 10px;border:1px solid ${ativo?'var(--navy)':'var(--border-mid)'};border-radius:20px;background:${ativo?'rgba(27,58,107,0.08)':'transparent'}">
+              <input type="checkbox" name="${p.id}" value="${role}" ${ativo?'checked':''} ${canEdit&&!isVen?'':'disabled'}
+                style="accent-color:var(--navy);cursor:${canEdit&&!isVen?'pointer':'default'}">
+              <span style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:${ativo?'var(--navy)':'var(--text-muted)'}">${ROLE_LABEL[role]||role}${isVen?' 👑':isPadrao?' 🔒':''}</span>
+            </label>`;
+          }).join('')}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function salvarPermRelatorios() {
+  if (currentRole !== 'admin') {
+    toast('⛔ Apenas o Administrador pode alterar permissões de relatórios'); return;
+  }
+  PERM_REL.forEach(p => {
+    const checks = [...document.querySelectorAll(`input[name="${p.id}"]:checked`)].map(c => c.value);
+    // Garantir que veneravel sempre está incluído
+    const merged = [...new Set(['veneravel', ...checks])];
+    const extra  = merged.filter(r => !p.padrao.includes(r));
+    localStorage.setItem(p.id, JSON.stringify(extra));
+  });
+  toast('✅ Permissões de relatórios salvas!');
+  // Atualizar REL_PERMISSOES em memória para uso imediato
+  _aplicarPermRelatorios();
+}
+
+function _aplicarPermRelatorios() {
+  // Recarregar REL_PERMISSOES do localStorage para uso em _possoVerRelatorio
+  PERM_REL.forEach(p => {
+    const extra  = JSON.parse(localStorage.getItem(p.id) || '[]');
+    const relId  = p.id.replace('rel_', '');
+    REL_PERMISSOES[relId] = [...new Set([...p.padrao, ...extra])];
+  });
+}
+
 
 function renderConfiguracoes() {
   const el = document.getElementById('configuracoes-content');
@@ -2746,7 +2754,7 @@ function showPanel(id) {
   if (id==='atas') renderAtas();
   if (id==='relatorios') renderRelatorios();
   if (id==='configuracoes') renderConfiguracoes();
-  if (id==='permissoes') setTimeout(renderPermFunc, 50);
+  if (id==='permissoes') { setTimeout(renderPermFunc, 50); setTimeout(renderPermRelatorios, 80); }
 }
 function toggleSidebar() {
   const sidebar  = document.querySelector('.sidebar');
