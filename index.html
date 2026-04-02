@@ -16,7 +16,7 @@
   --gold-rich:  #D4A843;
   --gold-light: #E8C05A;
   --gold-pale:  #F5E6A3;
-  --gold-dark:  #A0752A;
+  --gold-dark:  #7A5510;
   --brown:      #1B3A6B;
   --brown-mid:  #15306A;
   --brown-light:#2A5298;
@@ -254,14 +254,14 @@ body {
   font-family:'Cinzel', serif;
   font-size:11px; font-weight:700;
   letter-spacing:0.18em;
-  color: var(--gold-pale);
+  color: #FFFFFF;
   text-transform:uppercase;
   line-height:1.6;
 }
 
 .s-sub {
   font-size:11px; font-style:italic;
-  color: rgba(245,225,153,0.5);
+  color: rgba(255,255,255,0.65);
   margin-top:2px;
 }
 
@@ -290,9 +290,9 @@ body {
   border:none; background:none; width:100%; text-align:left;
 }
 
-.nav-item:hover { color:var(--gold-pale); background:rgba(255,255,255,0.05); }
+.nav-item:hover { color:#FFFFFF; background:rgba(255,255,255,0.08); }
 
-.nav-item.active { color:var(--gold-pale); background:rgba(201,168,76,0.15); }
+.nav-item.active { color:#FFFFFF; background:rgba(201,168,76,0.18); }
 
 .nav-item.active::before {
   content:'';
@@ -337,14 +337,14 @@ body {
 .user-name-s {
   font-family:'Cinzel', serif;
   font-size:10px; font-weight:700;
-  color: var(--gold-pale);
+  color: #FFFFFF;
   letter-spacing:0.05em;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
 
 .user-role-s {
   font-size:11px; font-style:italic;
-  color: rgba(245,225,153,0.5);
+  color: rgba(255,255,255,0.65);
 }
 
 .role-badge-sidebar {
@@ -357,7 +357,7 @@ body {
   font-family:'Cinzel', serif;
   font-size:8px; font-weight:700;
   letter-spacing:0.15em;
-  color: var(--gold-pale);
+  color: #FFFFFF;
   text-transform:uppercase;
 }
 
@@ -454,7 +454,7 @@ body {
   position: relative;
 }
 .bnav-item.active {
-  color: var(--gold-pale);
+  color: #FFFFFF;
 }
 .bnav-item.active::before {
   content: '';
@@ -837,7 +837,7 @@ tr:hover td { background:rgba(184,134,11,0.03); }
 
 .ev-month {
   font-family:'Cinzel', serif; font-size:8px; font-weight:700;
-  letter-spacing:0.2em; color:var(--gold-pale); text-transform:uppercase;
+  letter-spacing:0.2em; color:#FFFFFF; text-transform:uppercase;
 }
 
 .ev-day {
@@ -1199,7 +1199,7 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
         <div class="demo-btn" data-demo="veneravel" onclick="selecionarDemo(this)"
           style="border:1px solid rgba(212,168,67,0.6);border-radius:6px;padding:10px 8px;cursor:pointer;text-align:center;background:rgba(212,168,67,0.12);transition:all 0.15s">
           <div style="font-size:20px;margin-bottom:4px">👑</div>
-          <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:var(--gold-pale);letter-spacing:0.05em">Venerável Mestre</div>
+          <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:var(--gold-dark);letter-spacing:0.05em">Venerável Mestre</div>
           <div style="font-size:9px;color:rgba(255,255,255,0.35);margin-top:3px;line-height:1.4">Acesso total + aprovação todos os graus</div>
         </div>
 
@@ -2061,7 +2061,7 @@ function selecionarDemo(el) {
   });
   el.style.border     = '1px solid rgba(212,168,67,0.6)';
   el.style.background = 'rgba(212,168,67,0.12)';
-  el.querySelectorAll('div').forEach((d,i) => { if(i===1) d.style.color='var(--gold-pale)'; });
+  el.querySelectorAll('div').forEach((d,i) => { if(i===1) d.style.color='var(--gold-dark)'; });
   _demoSelecionado = el.dataset.demo;
 }
 
@@ -8014,7 +8014,80 @@ function _gestaoHtml(fila, ap) {
       Avaliando como <strong>${cargo}</strong>. Dica: 👁️ Ver · ✅ Aprovar · ⚠️ Pedir Ajuste · 🗑️ Excluir
     </div>
     ${tabelaGrupo(pendentes,'Aguardando Avaliação','#C07000')}
-    ${tabelaGrupo(emAdj,'Em Revisão — Aguardando Correção do Autor','#1B5EA0')}`;
+    ${tabelaGrupo(emAdj,'Em Revisão — Aguardando Correção do Autor','#1B5EA0')}
+    ${ap.isVeneravel ? _gestaoTodosHtml() : ''}`;
+}
+
+// Tabela completa de todos os trabalhos para o Venerável — permite alterar grau a qualquer momento
+function _gestaoTodosHtml() {
+  const todos = DATA.trabalhos.slice().sort((a,b) => {
+    const ordem = {pendente:0, ajuste:1, aprovado:2};
+    return (ordem[a.status]||9) - (ordem[b.status]||9) || (b.data_postagem||'').localeCompare(a.data_postagem||'');
+  });
+  if (!todos.length) return '';
+
+  const thN = (t, extra='') => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--gold-pale);text-align:left;background:var(--navy)${extra}">${t}</th>`;
+  const ST = {aprovado:'#1B6B3A', pendente:'#C07000', ajuste:'#8A1B1B'};
+
+  return `
+    <div style="margin-bottom:24px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <div style="width:10px;height:10px;border-radius:50%;background:var(--navy);flex-shrink:0"></div>
+        <span style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.1em;color:var(--text-muted);text-transform:uppercase">
+          👑 Todos os Trabalhos — Edição de Grau (Venerável Mestre)
+        </span>
+        <span style="font-size:11px;color:var(--text-muted)">(${todos.length} trabalhos)</span>
+      </div>
+      <div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-bottom:10px;padding:8px 14px;background:rgba(27,58,107,0.04);border-radius:4px;border-left:3px solid var(--navy)">
+        Como Venerável Mestre, você pode alterar o grau de acesso de qualquer trabalho a qualquer momento, mesmo após aprovado.
+      </div>
+      <div style="border-radius:6px;overflow:hidden;border:1px solid var(--border-mid)">
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr>
+            ${thN('Autor')}${thN('Título')}${thN('Status')}${thN('Grau Atual')}${thN('Alterar Grau',';text-align:center')}${thN('Ações',';text-align:center')}
+          </tr></thead>
+          <tbody>
+            ${todos.map((t,i) => {
+              const g     = _grauTrab(t);
+              const autor = t.autor_nome || t.membros?.nome_maconico || 'Irmão';
+              const rowBg = i%2===0 ? 'var(--white)' : 'var(--cream)';
+              const stCor = ST[t.status] || 'var(--text-muted)';
+              const stTxt = {aprovado:'✅ Aprovado', pendente:'⏳ Pendente', ajuste:'🔄 Revisão'}[t.status] || t.status;
+              return `
+              <tr style="background:${rowBg};border-bottom:1px solid var(--border)">
+                <td style="padding:10px 14px;font-size:13px;color:var(--text-muted)">Ir. ${autor}</td>
+                <td style="padding:10px 14px;font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:var(--text)">${t.titulo||'—'}</td>
+                <td style="padding:10px 14px">
+                  <span style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:${stCor}">${stTxt}</span>
+                </td>
+                <td style="padding:10px 14px">
+                  <span style="background:${_GB(g)};border:1px solid ${_GC(g)}40;border-radius:20px;padding:2px 10px;font-family:'Cinzel',serif;font-size:8px;font-weight:700;color:${_GC(g)};white-space:nowrap">${_GL(g)}</span>
+                </td>
+                <td style="padding:8px 14px;text-align:center">
+                  <div style="display:flex;align-items:center;gap:6px;justify-content:center">
+                    <select id="grau-edit-${t.id}" style="border:1px solid var(--border-mid);border-radius:3px;padding:5px 8px;font-family:'Cinzel',serif;font-size:11px;background:var(--cream);color:var(--text)">
+                      ${[0,1,2,3].map(v=>`<option value="${v}"${v===g?' selected':''}>${_GL(v)}</option>`).join('')}
+                    </select>
+                    <button onclick="salvarGrauTrabalho('${t.id}')"
+                      style="padding:5px 12px;background:var(--navy);color:#fff;border:none;border-radius:3px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;cursor:pointer;white-space:nowrap">
+                      💾 Salvar
+                    </button>
+                  </div>
+                </td>
+                <td style="padding:8px 14px;text-align:center">
+                  <div style="display:flex;gap:6px;justify-content:center">
+                    ${t.url_arquivo?`<a href="${t.url_arquivo}" target="_blank" rel="noopener"
+                      style="padding:5px 10px;border:1px solid var(--border-mid);border-radius:3px;font-size:13px;text-decoration:none;color:var(--navy)" title="Ver">👁️</a>`:''}
+                    <button onclick="excluirTrabalho('${t.id}','')" title="Excluir"
+                      style="padding:5px 10px;border:1px solid rgba(139,32,32,0.3);border-radius:3px;background:none;cursor:pointer;font-size:13px;color:var(--red)">🗑️</button>
+                  </div>
+                </td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
 }
 
 // Abrir prompt para pedir ajuste (substitui input inline)
@@ -8022,6 +8095,32 @@ function pedirAjusteTrabalho(id) {
   const motivo = prompt('Descreva o que precisa ser corrigido:');
   if (motivo === null) return; // cancelado
   pedirRevisao(id, motivo);
+}
+
+// Venerável altera grau de um trabalho (qualquer status, inclusive aprovado)
+async function salvarGrauTrabalho(id) {
+  if (currentRole !== 'veneravel' && currentRole !== 'admin') {
+    toast('⛔ Apenas o Venerável Mestre pode alterar o grau dos trabalhos'); return;
+  }
+  const sel = document.getElementById(`grau-edit-${id}`);
+  const novoGrau = parseInt(sel?.value);
+  if (isNaN(novoGrau)) { toast('Selecione um grau'); return; }
+
+  const { error } = await sb.from('trabalhos').update({
+    grau_trabalho:    novoGrau,
+    grau_visibilidade: novoGrau
+  }).eq('id', id);
+
+  if (_sbErr('salvarGrauTrabalho', error)) return;
+
+  // Atualizar DATA local
+  const idx = DATA.trabalhos.findIndex(t => t.id === id);
+  if (idx >= 0) {
+    DATA.trabalhos[idx].grau_trabalho    = novoGrau;
+    DATA.trabalhos[idx].grau_visibilidade = novoGrau;
+  }
+  toast(`✅ Grau atualizado para ${_GL(novoGrau)}`);
+  renderTrabalhos(ROLES[currentRole].access['trabalhos']||'full');
 }
 
 
