@@ -715,6 +715,14 @@ th {
   border-bottom:1px solid var(--border);
   background:var(--cream);
 }
+/* Headers de tabela com fundo navy: forçar texto branco e sem uppercase */
+th[style*="var(--navy)"],
+th[style*="#1B3A6B"] {
+  color: #FFFFFF !important;
+  text-transform: none !important;
+  letter-spacing: 0.12em !important;
+}
+
 
 td {
   padding:13px 22px;
@@ -1660,20 +1668,7 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
             <button class="btn btn-solid" onclick="salvarPermRelatorios()" style="margin-top:12px;padding:8px 20px">💾 Salvar Permissões</button>
           </div>
         </div>
-      <!-- Permissões Funcionais — só Admin -->
-      <div class="card" style="margin-top:16px" id="card-perm-funcionais">
-        <div class="card-header">
-          <div class="card-title">⚙️ Permissões Funcionais</div>
-          <span style="font-family:'Cinzel',serif;font-size:8px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);background:rgba(212,168,67,0.08);border:1px solid rgba(212,168,67,0.3);border-radius:20px;padding:3px 12px">VER: Venerável · EDITAR: Admin</span>
-        </div>
-        <div style="padding:14px 22px">
-          <div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-bottom:14px">
-            Configure quais cargos têm acesso a funções especiais do sistema.
-          </div>
-          <div id="perm-func-container"><!-- renderizado por renderPermFunc() --></div>
-          <button class="btn btn-solid" onclick="salvarPermFunc()" style="margin-top:12px;padding:8px 20px">💾 Salvar Permissões</button>
-        </div>
-      </div>
+
       </div><!-- /panel-permissoes -->
 
       <!-- ===== CONFIGURAÇÕES ===== -->
@@ -2497,8 +2492,8 @@ function renderPermModulos() {
   ];
 
   // Cabeçalho da tabela
-  const thS = `padding:9px 12px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;color:#FFFFFF;background:var(--navy);text-align:center`;
-  const thL = `padding:9px 12px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;color:#FFFFFF;background:var(--navy);text-align:left`;
+  const thS = `padding:9px 12px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;color:#FFFFFF!important;background:var(--navy);text-align:center;text-transform:none`;
+  const thL = `padding:9px 12px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;color:#FFFFFF!important;background:var(--navy);text-align:left;text-transform:none`;
 
   const roleIcons = {veneravel:'👑',secretario:'📜',tesoureiro:'⚖️',chanceler:'🗂️',irmao:'🔵',admin:'🏛️'};
   const roleLabel = {veneravel:'Venerável',secretario:'Secretário',tesoureiro:'Tesoureiro',chanceler:'Chanceler',irmao:'Irmão',admin:'Admin'};
@@ -2509,7 +2504,7 @@ function renderPermModulos() {
         <thead>
           <tr>
             <th style="${thL}">Módulo</th>
-            ${rolesVisiveis.map(r => `<th style="${thS}">${roleIcons[r]||''}<br><span style="font-size:8px">${roleLabel[r]||r}</span></th>`).join('')}
+            ${rolesVisiveis.map(r => `<th style="${thS}">${roleIcons[r]||''}<br><span style="font-size:8px;color:#FFFFFF!important;font-family:'Cinzel',serif;letter-spacing:0.06em">${roleLabel[r]||r}</span></th>`).join('')}
           </tr>
         </thead>
         <tbody>
@@ -4363,7 +4358,7 @@ function _permFreqHistorico() {
 function _renderHistoricoFreqLoja(membrosAtivos, sessoes, presencas) {
   if (!membrosAtivos.length || !sessoes.length) return '';
   const totalSessoes = sessoes.length;
-  const th = t => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF;background:var(--navy);text-align:left">${t}</th>`;
+  const th = t => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF!important;background:var(--navy);text-align:left;text-transform:none">${t}</th>`;
 
   // Calcular frequência de cada irmão
   const dados = membrosAtivos.map(m => {
@@ -5415,10 +5410,10 @@ function renderFinancas(access) {
             <table style="width:100%;border-collapse:collapse">
               <thead>
                 <tr>
-                  <th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF;background:var(--navy);text-align:left">Descrição</th>
-                  <th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF;background:var(--navy);text-align:center">Tipo</th>
-                  <th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF;background:var(--navy);text-align:center">Progresso</th>
-                  <th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF;background:var(--navy);text-align:right">Restante</th>
+                  <th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF!important;background:var(--navy);text-align:left;text-transform:none">Descrição</th>
+                  <th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF!important;background:var(--navy);text-transform:none;text-align:center">Tipo</th>
+                  <th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF!important;background:var(--navy);text-transform:none;text-align:center">Progresso</th>
+                  <th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF!important;background:var(--navy);text-transform:none;text-align:right">Restante</th>
                 </tr>
               </thead>
               <tbody>
@@ -7524,7 +7519,7 @@ function _renderInadimplCorpo(filtroId, containerId) {
   if (filtroId) inadimplentes = inadimplentes.filter(i => i.m.id === filtroId);
 
   const canEdit = ROLES[currentRole].access['financas'] === 'full';
-  const thS = `padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF;text-align:left;background:var(--navy)`;
+  const thS = `padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF!important;text-align:left;background:var(--navy);text-transform:none`;
 
   container.innerHTML = inadimplentes.length === 0
     ? `<div style="padding:20px;text-align:center;color:var(--green);font-style:italic">✅ Nenhum inadimplente${filtroId?' para este irmão':''}!</div>`
@@ -8288,7 +8283,7 @@ function _biblio(lista, isAdm) {
 
   const grupos = [0,1,2,3].map(g => ({g, itens:aprovados.filter(t=>_grauTrab(t)===g)})).filter(x=>x.itens.length);
 
-  const thStyle = `padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF;text-align:left;background:var(--navy)`;
+  const thStyle = `padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF!important;text-align:left;background:var(--navy);text-transform:none`;
 
   const nomeGrauLongo = {
     0: '📖 Geral — Acessível a Todos',
@@ -8360,7 +8355,7 @@ function _meusHtml(lista) {
       <div style="font-size:13px;margin-top:6px;font-style:italic">Use o botão "📤 Enviar Meu Trabalho" acima.</div>
     </div>`;
 
-  const th = (t,extra='') => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF;text-align:left;background:var(--navy)${extra}">${t}</th>`;
+  const th = (t,extra='') => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF!important;text-align:left;background:var(--navy);text-transform:none${extra}">${t}</th>`;
 
   // Agrupar: em revisão → pendente → aprovado
   const ordem = ['ajuste','pendente','aprovado'];
@@ -8440,7 +8435,7 @@ function _meusHtml(lista) {
 // ── Gestão (vigilantes / venerável) ────────────────────────────
 function _gestaoHtml(fila, ap) {
   const cargo = ap.isVeneravel?'Venerável Mestre':ap.is1Vig?'1º Vigilante':'2º Vigilante';
-  const th = (t, extra='') => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF;text-align:left;background:var(--navy)${extra}">${t}</th>`;
+  const th = (t, extra='') => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF!important;text-align:left;background:var(--navy);text-transform:none${extra}">${t}</th>`;
 
   if (!fila.length) return `
     <div style="background:rgba(27,58,107,0.04);border:1px solid rgba(27,58,107,0.12);border-radius:6px;padding:14px 18px;font-size:12px;color:var(--text-muted)">
@@ -8521,7 +8516,7 @@ function _gestaoTodosHtml() {
   });
   if (!todos.length) return '';
 
-  const thN = (t, extra='') => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF;text-align:left;background:var(--navy)${extra}">${t}</th>`;
+  const thN = (t, extra='') => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF!important;text-align:left;background:var(--navy);text-transform:none${extra}">${t}</th>`;
   const ST = {aprovado:'#1B6B3A', pendente:'#C07000', ajuste:'#8A1B1B'};
 
   return `
@@ -8894,7 +8889,7 @@ function renderLegislacao(access) {
   const canEdit = access === 'full' || cargoLogado.includes('orador');
   const docs = DATA.legislacao || [];
 
-  const th = t => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF;background:var(--navy);text-align:left">${t}</th>`;
+  const th = t => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF!important;background:var(--navy);text-align:left;text-transform:none">${t}</th>`;
 
   el.innerHTML = `
     <!-- Toolbar -->
@@ -9051,7 +9046,7 @@ function filtrarLegislacao(cat) {
     grid.innerHTML = _legVazio(canEdit);
   } else {
     // Recriar tabela com linhas filtradas
-    const th = t => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF;background:var(--navy);text-align:left">${t}</th>`;
+    const th = t => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF!important;background:var(--navy);text-align:left;text-transform:none">${t}</th>`;
     grid.innerHTML = `<table style="width:100%;border-collapse:collapse">
       <thead><tr>${th('Documento')}${th('Categoria')}${th('Ano')}${th('Acesso')}${canEdit?th('⚙️'):''}</tr></thead>
       <tbody>${filtrados.map((d,i) => _legRow(d, canEdit, i)).join('')}</tbody>
@@ -11090,7 +11085,7 @@ function mostrarRelDebitos() {
   const totalAberto = devedores.reduce((s,m) => s + m.devia, 0);
 
   // Tabela padrão Azul/Dourado
-  const th = t => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF;background:var(--navy);text-align:left">${t}</th>`;
+  const th = t => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF!important;background:var(--navy);text-align:left;text-transform:none">${t}</th>`;
   const linhas = devedores.length
     ? devedores.map((m,i) => `
       <tr style="background:${i%2===0?'var(--white)':'var(--cream)'};border-bottom:1px solid var(--border)">
