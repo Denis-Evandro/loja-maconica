@@ -1204,6 +1204,12 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
           <div style="font-size:9px;color:rgba(255,255,255,0.35);margin-top:3px;line-height:1.4">Acesso total + aprovação todos os graus</div>
         </div>
 
+        <div class="demo-btn" data-demo="admin" onclick="selecionarDemo(this)"
+          style="border:1px solid var(--border-mid);border-radius:6px;padding:12px 10px;cursor:pointer;text-align:center;transition:all 0.2s;background:rgba(58,122,74,0.04)">
+          <div class="pb-icon">🏛️</div>
+          <div class="pb-name" style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.05em;color:var(--gold-dark)">Administrador</div>
+          <div class="pb-desc" style="font-size:10px;color:var(--text-muted);margin-top:3px">Edita permissões do sistema</div>
+        </div>
         <div class="demo-btn" data-demo="secretario" onclick="selecionarDemo(this)"
           style="border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:10px 8px;cursor:pointer;text-align:center;background:rgba(255,255,255,0.03);transition:all 0.15s">
           <div style="font-size:20px;margin-bottom:4px">📜</div>
@@ -1324,6 +1330,7 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
         <select id="demo-select" onchange="trocarPerfilDemo(this.value)"
           style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(212,168,67,0.25);border-radius:3px;color:rgba(255,255,255,0.7);font-family:'Cinzel',serif;font-size:9px;padding:6px 8px;cursor:pointer">
           <option value="veneravel">👑 Venerável Mestre</option>
+          <option value="admin">🏛️ Administrador</option>
           <option value="secretario">📜 Secretário</option>
           <option value="tesoureiro">⚖️ Tesoureiro</option>
           <option value="chanceler">🗂️ Chanceler</option>
@@ -2009,6 +2016,7 @@ function selectProfile(el) {
 // ─── PERFIS DEMO ─────────────────────────────────────────────
 const DEMO_PERFIS = {
   veneravel:  { role:'veneravel',  grau:3, cargo:'Venerável Mestre', nome:'Ir. João da Luz (DEMO)',        id:null },
+  admin:      { role:'admin',      grau:3, cargo:'Administrador',    nome:'Ir. Admin do Sistema (DEMO)',   id:null },
   secretario: { role:'secretario', grau:3, cargo:'Secretário',       nome:'Ir. Luís da Sabedoria (DEMO)',  id:null },
   tesoureiro: { role:'tesoureiro', grau:3, cargo:'Tesoureiro',       nome:'Ir. Rafael da Paz (DEMO)',      id:null },
   chanceler:  { role:'chanceler',  grau:3, cargo:'Chanceler',        nome:'Ir. Fernando da Ordem (DEMO)',  id:null },
@@ -2161,6 +2169,7 @@ function _aplicarRoleNaTela(role, membro) {
 
     renderNav();
   showPanel('dashboard');
+  _aplicarPermRelatorios(); // aplicar permissões ao entrar
   // Registrar no log de acessos
   _registrarAcesso(
     nome,
@@ -2191,6 +2200,7 @@ function trocarPerfilDemo(chave) {
 
   toast(`🧪 Perfil alterado: ${perfil.nome}`);
   renderNav();
+  _aplicarPermRelatorios(); // recarregar permissões ao trocar perfil
   // Recarregar o painel ativo com as novas permissões
   const active = document.querySelector('.panel.active');
   const id     = active ? active.id.replace('panel-','') : 'dashboard';
@@ -2339,6 +2349,7 @@ function salvarPermFunc() {
     localStorage.setItem(p.id, JSON.stringify(extra));
   });
   toast('✅ Permissões funcionais salvas!');
+  renderPermFunc();
 }
 
 
@@ -2386,6 +2397,7 @@ function salvarPermRelatorios() {
   toast('✅ Permissões de relatórios salvas!');
   // Atualizar REL_PERMISSOES em memória para uso imediato
   _aplicarPermRelatorios();
+  renderPermRelatorios(); // atualizar display
 }
 
 function _aplicarPermRelatorios() {
