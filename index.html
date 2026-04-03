@@ -1793,8 +1793,8 @@ let DATA = { membros: [], sessoes: [], presencas: [], financas: [], eventos: [],
 
 // ─── Permissões Funcionais ────────────────────────────────────
 const PERM_FUNC = [
-  { id: 'perm_freq_historico', label: 'Ver Histórico de Frequência da Loja', desc: 'Auditoria geral de presença dos irmãos', padrao: ['veneravel','chanceler'] },
-  { id: 'perm_financas_loja',  label: 'Ver Resumo Financeiro da Loja',       desc: 'Card financeiro no dashboard',          padrao: ['veneravel','tesoureiro'] },
+  { id: 'perm_freq_historico', label: 'Ver Histórico de Frequência da Loja', desc: 'Auditoria geral de presença dos irmãos', padrao: ['veneravel','chanceler','admin'] },
+  { id: 'perm_financas_loja',  label: 'Ver Resumo Financeiro da Loja',       desc: 'Card financeiro no dashboard',          padrao: ['veneravel','tesoureiro','admin'] },
 ];
 const TODOS_ROLES = ['veneravel','secretario','tesoureiro','chanceler','irmao','admin'];
 const ROLE_LABEL  = {veneravel:'👑 Venerável',secretario:'📜 Secretário',tesoureiro:'⚖️ Tesoureiro',chanceler:'🗂️ Chanceler',irmao:'🔵 Irmão',admin:'🏛️ Admin'};
@@ -1802,12 +1802,12 @@ const ROLE_LABEL  = {veneravel:'👑 Venerável',secretario:'📜 Secretário',t
 
 // ─── Permissões de Relatórios (dinâmico, igual às Funcionais) ──
 const PERM_REL = [
-  { id: 'rel_membros',    label: '👥 Relatório de Membros',          desc: 'Lista completa por status, grau e cargo.',              padrao: ['veneravel','secretario','chanceler'] },
-  { id: 'rel_frequencia', label: '📊 Relatório de Frequência',       desc: 'Presenças e percentuais por período.',                  padrao: ['veneravel','chanceler'] },
-  { id: 'rel_financas',   label: '💰 Extrato Financeiro',            desc: 'Receitas, despesas e saldo do período.',                padrao: ['veneravel','tesoureiro'] },
-  { id: 'rel_debitos',    label: '⚠️ Débitos Pendentes',             desc: 'Irmãos com mensalidades e outros débitos em aberto.',   padrao: ['veneravel','tesoureiro'] },
-  { id: 'rel_tronco',     label: '🏺 Tronco de Beneficência',        desc: 'Arrecadações, benefícios e saldo do tronco.',           padrao: ['veneravel','tesoureiro'] },
-  { id: 'rel_comissoes',  label: '🏛️ Comissões da Loja',             desc: 'Membros, responsáveis e situação das comissões.',       padrao: ['veneravel','chanceler'] },
+  { id: 'rel_membros',    label: '👥 Relatório de Membros',          desc: 'Lista completa por status, grau e cargo.',              padrao: ['veneravel','secretario','chanceler','admin'] },
+  { id: 'rel_frequencia', label: '📊 Relatório de Frequência',       desc: 'Presenças e percentuais por período.',                  padrao: ['veneravel','chanceler','admin'] },
+  { id: 'rel_financas',   label: '💰 Extrato Financeiro',            desc: 'Receitas, despesas e saldo do período.',                padrao: ['veneravel','tesoureiro','admin'] },
+  { id: 'rel_debitos',    label: '⚠️ Débitos Pendentes',             desc: 'Irmãos com mensalidades e outros débitos em aberto.',   padrao: ['veneravel','tesoureiro','admin'] },
+  { id: 'rel_tronco',     label: '🏺 Tronco de Beneficência',        desc: 'Arrecadações, benefícios e saldo do tronco.',           padrao: ['veneravel','tesoureiro','admin'] },
+  { id: 'rel_comissoes',  label: '🏛️ Comissões da Loja',             desc: 'Membros, responsáveis e situação das comissões.',       padrao: ['veneravel','chanceler','admin'] },
 ];
 
 
@@ -2318,8 +2318,9 @@ function renderPermFunc() {
   if (!canView) { el.innerHTML = '<div style="padding:16px;font-style:italic;color:var(--text-muted)">Acesso restrito ao Administrador.</div>'; return; }
 
   el.innerHTML = PERM_FUNC.map(p => {
-    const extra   = JSON.parse(localStorage.getItem(p.id) || '[]');
-    const ativos  = [...new Set([...p.padrao, ...extra])];
+    // Ler lista COMPLETA do localStorage; se não salva ainda, usar padrão
+    const salvo  = localStorage.getItem(p.id);
+    const ativos = salvo ? JSON.parse(salvo) : p.padrao;
     return `
       <div style="margin-bottom:14px;padding:12px 14px;background:var(--cream);border:1px solid var(--border-mid);border-radius:6px">
         <div style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:var(--navy);margin-bottom:4px">${p.label}</div>
@@ -2345,8 +2346,8 @@ function salvarPermFunc() {
   }
   PERM_FUNC.forEach(p => {
     const checks = [...document.querySelectorAll(`input[name="${p.id}"]:checked`)].map(c => c.value);
-    const extra  = checks.filter(r => !p.padrao.includes(r));
-    localStorage.setItem(p.id, JSON.stringify(extra));
+    // Salvar lista COMPLETA (permite remover roles do padrão)
+    localStorage.setItem(p.id, JSON.stringify(checks));
   });
   toast('✅ Permissões funcionais salvas!');
   renderPermFunc();
@@ -2361,8 +2362,9 @@ function renderPermRelatorios() {
   if (!canView) { el.innerHTML = '<div style="padding:16px;font-style:italic;color:var(--text-muted)">Acesso restrito ao Administrador.</div>'; return; }
 
   el.innerHTML = PERM_REL.map(p => {
-    const extra  = JSON.parse(localStorage.getItem(p.id) || '[]');
-    const ativos = [...new Set([...p.padrao, ...extra])];
+    // Ler lista COMPLETA do localStorage; se não salva ainda, usar padrão
+    const salvo  = localStorage.getItem(p.id);
+    const ativos = salvo ? JSON.parse(salvo) : p.padrao;
     return `
       <div style="margin-bottom:14px;padding:12px 14px;background:var(--cream);border:1px solid var(--border-mid);border-radius:6px">
         <div style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:var(--navy);margin-bottom:4px">${p.label}</div>
@@ -2389,23 +2391,22 @@ function salvarPermRelatorios() {
   }
   PERM_REL.forEach(p => {
     const checks = [...document.querySelectorAll(`input[name="${p.id}"]:checked`)].map(c => c.value);
-    // Garantir que veneravel sempre está incluído
-    const merged = [...new Set(['veneravel', ...checks])];
-    const extra  = merged.filter(r => !p.padrao.includes(r));
-    localStorage.setItem(p.id, JSON.stringify(extra));
+    // Sempre incluir veneravel + salvar lista COMPLETA (não apenas diff)
+    const completo = [...new Set(['veneravel', ...checks])];
+    localStorage.setItem(p.id, JSON.stringify(completo));
   });
+  _aplicarPermRelatorios(); // atualizar em memória imediatamente
+  renderPermRelatorios();   // re-renderizar os checkboxes
   toast('✅ Permissões de relatórios salvas!');
-  // Atualizar REL_PERMISSOES em memória para uso imediato
-  _aplicarPermRelatorios();
-  renderPermRelatorios(); // atualizar display
 }
 
 function _aplicarPermRelatorios() {
-  // Recarregar REL_PERMISSOES do localStorage para uso em _possoVerRelatorio
+  // Recarregar REL_PERMISSOES do localStorage — usa lista COMPLETA salva
   PERM_REL.forEach(p => {
-    const extra  = JSON.parse(localStorage.getItem(p.id) || '[]');
-    const relId  = p.id.replace('rel_', '');
-    REL_PERMISSOES[relId] = [...new Set([...p.padrao, ...extra])];
+    const salvo = localStorage.getItem(p.id);
+    const relId = p.id.replace('rel_', '');
+    // Se já tem configuração salva, usa ela; senão usa o padrão
+    REL_PERMISSOES[relId] = salvo ? JSON.parse(salvo) : [...p.padrao];
   });
 }
 
@@ -3126,8 +3127,10 @@ async function renderDashboard() {
   const maxGraf = Math.max(...grafMeses.map(g=>Math.max(g.rec,g.desp)), 1);
 
   // — Regras de privacidade financeira
-  const podeVerFinanceiroLoja = ['veneravel','tesoureiro','admin'].includes(currentRole) ||
-    ['venerável mestre','tesoureiro','administrador'].includes((_eu().cargo||'').toLowerCase());
+  // Ler permissão do localStorage (configurável em Permissões)
+  const _finSalvo = localStorage.getItem('perm_financas_loja');
+  const _finPerm  = _finSalvo ? JSON.parse(_finSalvo) : ['veneravel','tesoureiro','admin'];
+  const podeVerFinanceiroLoja = _finPerm.includes(currentRole);
 
   const cardStyle = 'dash-card dash-card-click';
   const hoverIn = ``; // hover gerenciado por CSS
@@ -4205,10 +4208,9 @@ function renderFrequencia(access) {
 
 // Verificar permissão para ver histórico geral de frequência
 function _permFreqHistorico() {
-  // Cargos com acesso por padrão (pode ser alterado em Permissões)
-  const padrao = ['veneravel','chanceler','admin'];
-  const extra   = JSON.parse(localStorage.getItem('perm_freq_historico') || '[]');
-  const permitidos = [...new Set([...padrao, ...extra])];
+  // Ler lista completa salva; se não salva, usar padrão
+  const salvo = localStorage.getItem('perm_freq_historico');
+  const permitidos = salvo ? JSON.parse(salvo) : ['veneravel','chanceler','admin'];
   return permitidos.includes(currentRole);
 }
 
