@@ -1632,6 +1632,20 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
           </div>
         </div>
 
+        <!-- Permissões de Módulos — controla acesso aos painéis -->
+        <div class="card" style="margin-bottom:16px" id="card-perm-modulos">
+          <div class="card-header">
+            <div class="card-title">🗂️ Permissões de Módulos</div>
+            <span style="font-family:'Cinzel',serif;font-size:8px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);background:rgba(212,168,67,0.08);border:1px solid rgba(212,168,67,0.3);border-radius:20px;padding:3px 12px">VER: Venerável · EDITAR: Admin</span>
+          </div>
+          <div style="padding:14px 22px">
+            <div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-bottom:14px">
+              Controla quem pode aceder e editar cada módulo do sistema. O Venerável sempre tem acesso completo.
+            </div>
+            <div id="perm-mod-container"><!-- renderizado por renderPermModulos() --></div>
+          </div>
+        </div>
+
         <!-- Permissões de Relatórios — dinâmico, só Admin -->
         <div class="card" style="margin-bottom:16px" id="card-perm-relatorios">
           <div class="card-header">
@@ -1842,6 +1856,7 @@ async function loadAllData() {
     renderDashboard();
     _aplicarDadosLoja(); // atualizar nome/logo com dados salvos
     _carregarConfiguracoes(); // sincronizar dados da loja do Supabase
+    _aplicarPermModulos();    // aplicar permissões de módulos do localStorage
     _aplicarPermRelatorios();   // aplicar permissões de relatórios do localStorage
   } catch(err) { console.warn('Supabase:', err); }
 }
@@ -1981,7 +1996,7 @@ function reRenderActive() {
   if (id==='atas') renderAtas();
   if (id==='relatorios') renderRelatorios();
   if (id==='configuracoes') renderConfiguracoes();
-  if (id==='permissoes') { setTimeout(renderPermFunc, 50); setTimeout(renderPermRelatorios, 80); }
+  if (id==='permissoes') { setTimeout(renderPermModulos, 30); setTimeout(renderPermFunc, 60); setTimeout(renderPermRelatorios, 90); }
 }
 
 // ===================== HELPERS =====================
@@ -2169,6 +2184,7 @@ function _aplicarRoleNaTela(role, membro) {
 
     renderNav();
   showPanel('dashboard');
+  _aplicarPermModulos();    // aplicar permissões de módulos ao entrar
   _aplicarPermRelatorios(); // aplicar permissões ao entrar
   // Registrar no log de acessos
   _registrarAcesso(
@@ -2200,6 +2216,7 @@ function trocarPerfilDemo(chave) {
 
   toast(`🧪 Perfil alterado: ${perfil.nome}`);
   renderNav();
+  _aplicarPermModulos();    // recarregar permissões de módulos ao trocar perfil
   _aplicarPermRelatorios(); // recarregar permissões ao trocar perfil
   // Recarregar o painel ativo com as novas permissões
   const active = document.querySelector('.panel.active');
@@ -2399,6 +2416,134 @@ function salvarPermRelatorios() {
   renderPermRelatorios();   // re-renderizar os checkboxes
   toast('✅ Permissões de relatórios salvas!');
 }
+
+
+// ─── Sistema de Permissões de Módulos (sobrescreve ROLES.access) ──────────
+// Estrutura salva no localStorage: { role: { modulo: 'full'|'read'|'none' } }
+const MODULOS_PERM = [
+  { id:'membros',    label:'👥 Membros / Irmãos',        desc:'Cadastro e gestão dos membros' },
+  { id:'frequencia', label:'📅 Frequência / Presenças',   desc:'Controlo de presença nas sessões' },
+  { id:'financas',   label:'💰 Finanças / Tesouraria',    desc:'Lançamentos, parcelas e cobranças' },
+  { id:'eventos',    label:'🗓️ Sessão / Convites',        desc:'Gestão de sessões e eventos' },
+  { id:'comissoes',  label:'🏛️ Comissões',               desc:'Gestão das comissões da loja' },
+  { id:'legislacao', label:'📚 Legislação & Decretos',   desc:'Documentos e decretos maçônicos' },
+  { id:'trabalhos',  label:'📖 Biblioteca de Instrução', desc:'Trabalhos e biblioteca de grau' },
+  { id:'atas',       label:'📋 Atas & Eventos',          desc:'Atas de sessões e eventos' },
+  { id:'relatorios', label:'📊 Relatórios',              desc:'Relatórios de impressão' },
+];
+
+const ROLES_PADRAO = {
+  veneravel:  { membros:'full', frequencia:'full', financas:'full',  eventos:'full', comissoes:'full', legislacao:'full', trabalhos:'full', atas:'full', relatorios:'full'  },
+  secretario: { membros:'full', frequencia:'full', financas:'read',  eventos:'full', comissoes:'full', legislacao:'full', trabalhos:'full', atas:'full', relatorios:'full'  },
+  tesoureiro: { membros:'read', frequencia:'read', financas:'full',  eventos:'read', comissoes:'read', legislacao:'read', trabalhos:'read', atas:'full', relatorios:'full'  },
+  chanceler:  { membros:'full', frequencia:'full', financas:'none',  eventos:'read', comissoes:'full', legislacao:'read', trabalhos:'read', atas:'full', relatorios:'full'  },
+  irmao:      { membros:'read', frequencia:'none', financas:'none',  eventos:'read', comissoes:'read', legislacao:'read', trabalhos:'full', atas:'full', relatorios:'none'  },
+  admin:      { membros:'full', frequencia:'full', financas:'full',  eventos:'full', comissoes:'full', legislacao:'full', trabalhos:'full', atas:'full', relatorios:'full'  },
+};
+
+// Aplicar permissões salvas sobre ROLES (chamada no startup e ao trocar perfil)
+function _aplicarPermModulos() {
+  const salvo = localStorage.getItem('perm_modulos');
+  const config = salvo ? JSON.parse(salvo) : null;
+  Object.keys(ROLES).forEach(role => {
+    const padrao  = ROLES_PADRAO[role] || {};
+    const custom  = config?.[role] || {};
+    // Mesclar: custom sobrescreve padrao
+    MODULOS_PERM.forEach(m => {
+      ROLES[role].access[m.id] = custom[m.id] !== undefined ? custom[m.id] : (padrao[m.id] || 'none');
+    });
+  });
+}
+
+function salvarPermModulos() {
+  if (currentRole !== 'admin') {
+    toast('⛔ Apenas o Administrador pode alterar permissões de módulos'); return;
+  }
+  const config = {};
+  Object.keys(ROLES).forEach(role => {
+    config[role] = {};
+    MODULOS_PERM.forEach(m => {
+      const sel = document.getElementById(`pmod-${role}-${m.id}`);
+      if (sel) config[role][m.id] = sel.value;
+    });
+  });
+  localStorage.setItem('perm_modulos', JSON.stringify(config));
+  _aplicarPermModulos(); // aplicar imediatamente
+  toast('✅ Permissões de módulos salvas!');
+  // Recarregar o painel ativo com as novas permissões
+  const active = document.querySelector('.panel.active');
+  const id = active ? active.id.replace('panel-','') : 'dashboard';
+  showPanel(id);
+}
+
+function renderPermModulos() {
+  const el = document.getElementById('perm-mod-container');
+  if (!el) return;
+  const canEdit = currentRole === 'admin';
+  const canView = currentRole === 'veneravel' || currentRole === 'admin';
+  if (!canView) {
+    el.innerHTML = '<div style="padding:16px;font-style:italic;color:var(--text-muted)">Acesso restrito ao Administrador.</div>';
+    return;
+  }
+
+  const salvo  = localStorage.getItem('perm_modulos');
+  const config = salvo ? JSON.parse(salvo) : null;
+
+  const rolesVisiveis = ['veneravel','secretario','tesoureiro','chanceler','irmao','admin'];
+  const niveisOpts = [
+    { v:'full', l:'✅ Completo' },
+    { v:'read', l:'👁️ Só ver' },
+    { v:'none', l:'🚫 Sem acesso' },
+  ];
+
+  // Cabeçalho da tabela
+  const thS = `padding:9px 12px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;color:#FFFFFF;background:var(--navy);text-align:center`;
+  const thL = `padding:9px 12px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;color:#FFFFFF;background:var(--navy);text-align:left`;
+
+  const roleIcons = {veneravel:'👑',secretario:'📜',tesoureiro:'⚖️',chanceler:'🗂️',irmao:'🔵',admin:'🏛️'};
+  const roleLabel = {veneravel:'Venerável',secretario:'Secretário',tesoureiro:'Tesoureiro',chanceler:'Chanceler',irmao:'Irmão',admin:'Admin'};
+
+  el.innerHTML = `
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;min-width:600px">
+        <thead>
+          <tr>
+            <th style="${thL}">Módulo</th>
+            ${rolesVisiveis.map(r => `<th style="${thS}">${roleIcons[r]||''}<br><span style="font-size:8px">${roleLabel[r]||r}</span></th>`).join('')}
+          </tr>
+        </thead>
+        <tbody>
+          ${MODULOS_PERM.map((m, mi) => {
+            const rowBg = mi%2===0 ? 'var(--white)' : 'var(--cream)';
+            return `<tr style="background:${rowBg};border-bottom:1px solid var(--border)">
+              <td style="padding:8px 12px">
+                <div style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:var(--navy)">${m.label}</div>
+                <div style="font-size:11px;color:var(--text-muted);font-style:italic;margin-top:1px">${m.desc}</div>
+              </td>
+              ${rolesVisiveis.map(role => {
+                const isVen = role === 'veneravel'; // sempre full, não editável
+                const padrao  = ROLES_PADRAO[role]?.[m.id] || 'none';
+                const current = config?.[role]?.[m.id] ?? padrao;
+                if (isVen) {
+                  return `<td style="padding:8px 12px;text-align:center">
+                    <span style="font-size:11px;color:var(--green)">✅ Completo</span>
+                  </td>`;
+                }
+                return `<td style="padding:6px 8px;text-align:center">
+                  <select id="pmod-${role}-${m.id}" ${canEdit?'':'disabled'}
+                    style="border:1px solid var(--border-mid);border-radius:3px;padding:4px 6px;font-size:11px;background:var(--cream);color:var(--navy);cursor:${canEdit?'pointer':'default'};width:100%">
+                    ${niveisOpts.map(o => `<option value="${o.v}" ${current===o.v?'selected':''}>${o.l}</option>`).join('')}
+                  </select>
+                </td>`;
+              }).join('')}
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+    ${canEdit ? `<button class="btn btn-solid" onclick="salvarPermModulos()" style="margin-top:14px;padding:8px 22px">💾 Salvar Permissões de Módulos</button>` : '<div style="margin-top:10px;font-size:12px;color:var(--text-muted);font-style:italic">Visualização — apenas o Administrador pode editar.</div>'}`;
+}
+
 
 function _aplicarPermRelatorios() {
   // Recarregar REL_PERMISSOES do localStorage — usa lista COMPLETA salva
@@ -2772,7 +2917,7 @@ function showPanel(id) {
   if (id==='atas') renderAtas();
   if (id==='relatorios') renderRelatorios();
   if (id==='configuracoes') renderConfiguracoes();
-  if (id==='permissoes') { setTimeout(renderPermFunc, 50); setTimeout(renderPermRelatorios, 80); }
+  if (id==='permissoes') { setTimeout(renderPermModulos, 30); setTimeout(renderPermFunc, 60); setTimeout(renderPermRelatorios, 90); }
 }
 function toggleSidebar() {
   const sidebar  = document.querySelector('.sidebar');
