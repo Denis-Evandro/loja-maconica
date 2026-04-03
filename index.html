@@ -8177,12 +8177,22 @@ function _biblio(lista, isAdm) {
               const rowBg = i%2===0 ? 'var(--white)' : 'var(--cream)';
               return `
               <tr style="background:${rowBg};border-bottom:1px solid var(--border)">
-                <td style="padding:11px 14px;font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:var(--text)">${t.titulo||'Sem título'}</td>
-                <td style="padding:11px 14px;font-size:13px;color:var(--text-muted)">Ir. ${autor}</td>
-                <td style="padding:11px 14px;font-size:12px;color:var(--text-muted);white-space:nowrap">${t.data_postagem?new Date(t.data_postagem).toLocaleDateString('pt-BR'):'—'}</td>
-                <td style="padding:11px 14px;text-align:center">
-                  ${t.url_arquivo?`<a href="${t.url_arquivo}" target="_blank" rel="noopener"
-                    style="padding:5px 12px;background:var(--navy);color:#FFFFFF;border-radius:4px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;text-decoration:none;white-space:nowrap">📖 Ler</a>`:'—'}
+                <td style="padding:11px 14px;font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:var(--navy)">${t.titulo||'Sem título'}</td>
+                <td style="padding:11px 14px;font-size:13px;color:var(--navy)">Ir. ${autor}</td>
+                <td style="padding:11px 14px;font-size:12px;color:var(--navy);white-space:nowrap">${t.data_postagem?new Date(t.data_postagem).toLocaleDateString('pt-BR'):'—'}</td>
+                <td style="padding:10px 14px;text-align:center">
+                  <div style="display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap">
+                    ${t.url_arquivo?`<a href="${t.url_arquivo}" target="_blank" rel="noopener"
+                      style="padding:5px 12px;background:var(--navy);color:#FFFFFF;border-radius:4px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;text-decoration:none;white-space:nowrap">📖 Ler</a>`:'—'}
+                    ${isAdm?`<select onchange="salvarGrauTrabalho('${t.id}',this.value)"
+                        title="Alterar grau de visibilidade"
+                        style="border:1px solid var(--border-mid);border-radius:4px;padding:4px 6px;font-family:'Cinzel',serif;font-size:10px;background:var(--cream);color:var(--navy);cursor:pointer">
+                        <option value="0" ${_grauTrab(t)===0?'selected':''}>📖 Geral</option>
+                        <option value="1" ${_grauTrab(t)===1?'selected':''}>🔵 1º</option>
+                        <option value="2" ${_grauTrab(t)===2?'selected':''}>⭕ 2º</option>
+                        <option value="3" ${_grauTrab(t)===3?'selected':''}>🔺 3º</option>
+                      </select>`:''}
+                  </div>
                 </td>
                 ${isAdm?`<td style="padding:11px 14px;text-align:center">
                   <button onclick="excluirTrabalho('${t.id}','')" style="padding:4px 8px;border:1px solid rgba(139,32,32,0.3);border-radius:3px;background:none;cursor:pointer;font-size:13px;color:var(--red)" title="Excluir">🗑️</button>
@@ -8483,12 +8493,14 @@ function _confirmarRevisao(id) {
 }
 
 // Venerável altera grau de um trabalho (qualquer status, inclusive aprovado)
-async function salvarGrauTrabalho(id) {
+async function salvarGrauTrabalho(id, grauDireto) {
   if (currentRole !== 'veneravel' && currentRole !== 'admin') {
     toast('⛔ Apenas o Venerável Mestre pode alterar o grau dos trabalhos'); return;
   }
-  const sel = document.getElementById(`grau-edit-${id}`);
-  const novoGrau = parseInt(sel?.value);
+  // Aceita grau passado diretamente (select inline) ou lê do select com id
+  const novoGrau = grauDireto !== undefined
+    ? parseInt(grauDireto)
+    : parseInt(document.getElementById(`grau-edit-${id}`)?.value);
   if (isNaN(novoGrau)) { toast('Selecione um grau'); return; }
 
   const { error } = await sb.from('trabalhos').update({
