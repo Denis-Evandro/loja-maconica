@@ -1752,6 +1752,7 @@ const ROLES = {
 
 let currentRole = 'veneravel';
 let selectedRole = 'veneravel';
+var _membroLogado = null; // estado do membro logado
 
 const NAV_ITEMS = [
   { id:'dashboard', label:'Painel Geral', icon:`<path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z" stroke-width="1.5"/>` },
@@ -1781,6 +1782,27 @@ const PANEL_TITLES = {
 
 // ===================== DATA CACHE =====================
 let DATA = { membros: [], sessoes: [], presencas: [], financas: [], eventos: [], visitantes: [], atas: [], comissoes: [], legislacao: [], trabalhos: [] };
+
+
+// ─── Permissões Funcionais ────────────────────────────────────
+const PERM_FUNC = [
+  { id: 'perm_freq_historico', label: 'Ver Histórico de Frequência da Loja', desc: 'Auditoria geral de presença dos irmãos', padrao: ['veneravel','chanceler'] },
+  { id: 'perm_financas_loja',  label: 'Ver Resumo Financeiro da Loja',       desc: 'Card financeiro no dashboard',          padrao: ['veneravel','tesoureiro'] },
+];
+const TODOS_ROLES = ['veneravel','secretario','tesoureiro','chanceler','irmao','admin'];
+const ROLE_LABEL  = {veneravel:'👑 Venerável',secretario:'📜 Secretário',tesoureiro:'⚖️ Tesoureiro',chanceler:'🗂️ Chanceler',irmao:'🔵 Irmão',admin:'🏛️ Admin'};
+
+
+// ─── Permissões de Relatórios (dinâmico, igual às Funcionais) ──
+const PERM_REL = [
+  { id: 'rel_membros',    label: '👥 Relatório de Membros',          desc: 'Lista completa por status, grau e cargo.',              padrao: ['veneravel','secretario','chanceler'] },
+  { id: 'rel_frequencia', label: '📊 Relatório de Frequência',       desc: 'Presenças e percentuais por período.',                  padrao: ['veneravel','chanceler'] },
+  { id: 'rel_financas',   label: '💰 Extrato Financeiro',            desc: 'Receitas, despesas e saldo do período.',                padrao: ['veneravel','tesoureiro'] },
+  { id: 'rel_debitos',    label: '⚠️ Débitos Pendentes',             desc: 'Irmãos com mensalidades e outros débitos em aberto.',   padrao: ['veneravel','tesoureiro'] },
+  { id: 'rel_tronco',     label: '🏺 Tronco de Beneficência',        desc: 'Arrecadações, benefícios e saldo do tronco.',           padrao: ['veneravel','tesoureiro'] },
+  { id: 'rel_comissoes',  label: '🏛️ Comissões da Loja',             desc: 'Membros, responsáveis e situação das comissões.',       padrao: ['veneravel','chanceler'] },
+];
+
 
 async function loadAllData() {
   try {
@@ -1813,6 +1835,7 @@ async function loadAllData() {
     renderDashboard();
     _aplicarDadosLoja(); // atualizar nome/logo com dados salvos
     _carregarConfiguracoes(); // sincronizar dados da loja do Supabase
+    _aplicarPermRelatorios();   // aplicar permissões de relatórios do localStorage
   } catch(err) { console.warn('Supabase:', err); }
 }
 
@@ -2136,7 +2159,7 @@ function _aplicarRoleNaTela(role, membro) {
     }
   }
 
-  renderNav();
+    renderNav();
   showPanel('dashboard');
   // Registrar no log de acessos
   _registrarAcesso(
@@ -2206,7 +2229,7 @@ async function verificarSessaoAtiva() {
 
 verificarSessaoAtiva();
 _aplicarDadosLoja();
-_aplicarPermRelatorios(); // aplicar permissões salvas de relatórios
+// _aplicarPermRelatorios é chamada após login (quando PERM_REL já está definida)
 
 // ─── Nome completo da loja para impressão ────────────────────────
 function _nomeImpressao() {
@@ -2276,14 +2299,6 @@ function abrirConfiguracoes() {
 }
 
 
-// ─── Permissões Funcionais ────────────────────────────────────
-const PERM_FUNC = [
-  { id: 'perm_freq_historico', label: 'Ver Histórico de Frequência da Loja', desc: 'Auditoria geral de presença dos irmãos', padrao: ['veneravel','chanceler'] },
-  { id: 'perm_financas_loja',  label: 'Ver Resumo Financeiro da Loja',       desc: 'Card financeiro no dashboard',          padrao: ['veneravel','tesoureiro'] },
-];
-const TODOS_ROLES = ['veneravel','secretario','tesoureiro','chanceler','irmao','admin'];
-const ROLE_LABEL  = {veneravel:'👑 Venerável',secretario:'📜 Secretário',tesoureiro:'⚖️ Tesoureiro',chanceler:'🗂️ Chanceler',irmao:'🔵 Irmão',admin:'🏛️ Admin'};
-
 function renderPermFunc() {
   const el = document.getElementById('perm-func-container');
   if (!el) return;
@@ -2326,16 +2341,6 @@ function salvarPermFunc() {
   toast('✅ Permissões funcionais salvas!');
 }
 
-
-// ─── Permissões de Relatórios (dinâmico, igual às Funcionais) ──
-const PERM_REL = [
-  { id: 'rel_membros',    label: '👥 Relatório de Membros',          desc: 'Lista completa por status, grau e cargo.',              padrao: ['veneravel','secretario','chanceler'] },
-  { id: 'rel_frequencia', label: '📊 Relatório de Frequência',       desc: 'Presenças e percentuais por período.',                  padrao: ['veneravel','chanceler'] },
-  { id: 'rel_financas',   label: '💰 Extrato Financeiro',            desc: 'Receitas, despesas e saldo do período.',                padrao: ['veneravel','tesoureiro'] },
-  { id: 'rel_debitos',    label: '⚠️ Débitos Pendentes',             desc: 'Irmãos com mensalidades e outros débitos em aberto.',   padrao: ['veneravel','tesoureiro'] },
-  { id: 'rel_tronco',     label: '🏺 Tronco de Beneficência',        desc: 'Arrecadações, benefícios e saldo do tronco.',           padrao: ['veneravel','tesoureiro'] },
-  { id: 'rel_comissoes',  label: '🏛️ Comissões da Loja',             desc: 'Membros, responsáveis e situação das comissões.',       padrao: ['veneravel','chanceler'] },
-];
 
 function renderPermRelatorios() {
   const el = document.getElementById('perm-rel-container');
@@ -7824,7 +7829,6 @@ async function salvarPagamentoMembro(membroId) {
 // ═══════════════════════════════════════════════════════════════
 
 // ── Quem está logado agora ─────────────────────────────────────
-let _membroLogado = null; // preenchido no login real
 
 function _eu() {
   // Retorna { id, grau, cargo, nome } sempre consistente
