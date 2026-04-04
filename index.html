@@ -8097,11 +8097,14 @@ async function renderTrabalhos(access) {
                     (t.autor_nome && t.autor_nome.toLowerCase() === eu.nome.toLowerCase());
     const souApr  = ap.pode.includes(g);
 
+    // Venerável e Admin têm visão irrestrita — precisam ver todos para gerir
+    if (ap.isVeneravel) return true;
+
     if (t.status !== 'aprovado') {
       // Pendente/ajuste: só autor e aprovador responsável enxergam
       return ehAutor || souApr;
     }
-    // Aprovado: regra de grau
+    // Aprovado: regra de grau (irmãos comuns)
     if (g === 0 || g === 1) return true;          // "Todos" e 1º grau → todos
     return eu.grau >= g;                           // 2º e 3º → filtrado por grau
   });
