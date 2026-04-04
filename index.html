@@ -551,8 +551,8 @@ body {
 }
 
 /* STATS */
-.stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px; margin-bottom:24px; padding:4px; backface-visibility:hidden; -webkit-font-smoothing:subpixel-antialiased; isolation:isolate; }
-.stats-grid-3 { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; margin-bottom:24px; padding:4px; backface-visibility:hidden; -webkit-font-smoothing:subpixel-antialiased; isolation:isolate; }
+.stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px; margin-bottom:24px; padding:4px; }
+.stats-grid-3 { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; margin-bottom:24px; padding:4px; }
 .stat-card.financeiro-loja { border-left:5px solid var(--gold-rich); background:linear-gradient(135deg,#FFFFFF 0%,var(--cream) 100%); }
 
 /* ── Cards do dashboard ── */
@@ -566,7 +566,7 @@ body {
 }
 .dash-card-click { cursor: pointer; }
 /* Containers de grid */
-.stats-grid, .stats-grid-3 { isolation: isolate; }
+.stats-grid, .stats-grid-3 {  }
 
 .stat-card {
   background: linear-gradient(135deg, #FFFFFF 0%, #EEF4FB 100%);
@@ -1106,17 +1106,13 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
    Evita qualquer conflito com animações/compositing
    ══════════════════════════════════════════════════════ */
 @media (hover: hover) {
-  .dash-card-click,
-  .stat-card,
-  .rel-card {
-    transition: box-shadow 0.2s ease, border-color 0.2s ease;
-  }
+  /* Hover estático: sem transition para evitar piscar ao re-renderizar */
   .dash-card-click:hover {
-    box-shadow: 0 6px 18px rgba(27,58,107,0.18);
+    box-shadow: 0 4px 14px rgba(27,58,107,0.16);
     border-color: var(--gold-rich);
   }
   .stat-card:hover {
-    box-shadow: 0 6px 18px rgba(27,58,107,0.18);
+    box-shadow: 0 4px 14px rgba(27,58,107,0.16);
     border-color: var(--gold-rich);
   }
   .rel-card:hover {
@@ -1535,9 +1531,6 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
             <div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-bottom:14px">
               Controla quem pode aceder e editar cada módulo. O Administrador pode configurar <strong>todos os cargos</strong>, incluindo o Venerável Mestre.
             </div>
-            ${currentRole==='admin'?`<div style="font-size:11px;background:rgba(184,134,11,0.08);border:1px solid rgba(184,134,11,0.3);border-radius:4px;padding:8px 12px;margin-bottom:14px;color:var(--gold-dark)">
-              👑 <strong>Você está como Administrador</strong> — pode alterar as permissões de todos os cargos, incluindo o Venerável Mestre.
-            </div>`:''}
             <div id="perm-mod-container"><!-- renderizado por renderPermModulos() --></div>
           </div>
         </div>
@@ -1625,7 +1618,7 @@ const ROLES = {
   veneravel: {
     label:'Venerável Mestre', icon:'👑', badge:'Venerável',
     initials:'JL', name:'Ir. João da Luz', color:'#B8860B',
-    access:{ dashboard:'full', membros:'full', frequencia:'full', financas:'full', eventos:'full', permissoes:'full', comissoes:'full', legislacao:'full', trabalhos:'full', 'minha-frequencia':'full', 'meu-financeiro':'full', atas:'full', relatorios:'full', configuracoes:'full' }
+    access:{ dashboard:'full', membros:'full', frequencia:'full', financas:'full', eventos:'full', permissoes:'none', comissoes:'full', legislacao:'full', trabalhos:'full', 'minha-frequencia':'full', 'meu-financeiro':'full', atas:'full', relatorios:'full', configuracoes:'full' }
   },
   secretario: {
     label:'Secretário', icon:'📜', badge:'Secretário',
@@ -2370,6 +2363,10 @@ function renderPermModulos() {
     el.innerHTML = '<div style="padding:16px;font-style:italic;color:var(--text-muted)">Acesso restrito ao Administrador.</div>';
     return;
   }
+  // Nota informativa para o Admin
+  const notaAdmin = canEdit
+    ? '<div style="font-size:11px;background:rgba(184,134,11,0.08);border:1px solid rgba(184,134,11,0.3);border-radius:4px;padding:8px 12px;margin-bottom:12px;color:var(--gold-dark)">👑 <strong>Administrador</strong> — pode configurar as permissões de todos os cargos, incluindo o Venerável Mestre.</div>'
+    : '';
 
   const salvo  = localStorage.getItem('perm_modulos');
   const config = salvo ? JSON.parse(salvo) : null;
@@ -2388,7 +2385,7 @@ function renderPermModulos() {
   const roleIcons = {veneravel:'👑',secretario:'📜',tesoureiro:'⚖️',chanceler:'🗂️',irmao:'🔵',admin:'🏛️'};
   const roleLabel = {veneravel:'Venerável',secretario:'Secretário',tesoureiro:'Tesoureiro',chanceler:'Chanceler',irmao:'Irmão',admin:'Admin'};
 
-  el.innerHTML = `
+  el.innerHTML = notaAdmin + `
     <div style="overflow-x:auto">
       <table style="width:100%;border-collapse:collapse;min-width:600px">
         <thead>
@@ -2726,10 +2723,12 @@ function renderLogAcessos() {
         <thead><tr><th>Irmão</th><th>Grau</th><th>Cargo</th><th>Último Acesso</th><th>Status</th></tr></thead>
         <tbody>
           ${membros.filter(m=>m.status==='ativo'||m.status==='iniciado').map(m => {
-            // Buscar o acesso mais recente (com timestamp ISO quando disponível)
-            const acessosMembro = log.filter(r =>
-              (r.nome||'').toLowerCase().trim() === (m.nome_maconico||'').toLowerCase().trim()
-            );
+            // Buscar o acesso mais recente — comparação flexível (sem DEMO, sem "Ir.")
+            const nomeM = (m.nome_maconico||'').replace(/^Ir\.\s*/i,'').replace(/\s*\(DEMO\)\s*/i,'').toLowerCase().trim();
+            const acessosMembro = log.filter(r => {
+              const nomeLog = (r.nome||'').replace(/^Ir\.\s*/i,'').replace(/\s*\(DEMO\)\s*/i,'').toLowerCase().trim();
+              return nomeLog === nomeM || nomeLog.includes(nomeM) || nomeM.includes(nomeLog);
+            });
             const ultimo = acessosMembro.length
               ? acessosMembro.sort((a,b) => (b.iso||b.data||'').localeCompare(a.iso||a.data||'')).at(0)
               : null;
@@ -2763,8 +2762,10 @@ function _registrarAcesso(nome, cargo, perfil, tipo) {
     const cincoMinAtras = new Date(agora - 5*60*1000).toISOString();
     const recente = log.findIndex(r => r.nome === nome && r.iso && r.iso > cincoMinAtras);
     if (recente >= 0) log.splice(recente, 1); // remove o anterior
+    // Salvar nome limpo (sem sufixo DEMO) para lookup correto
+    const nomeLimpo = (nome||'').replace(/\s*\(DEMO\)\s*/i,'').trim();
     log.push({
-      nome, cargo, perfil, tipo,
+      nome: nomeLimpo, cargo, perfil, tipo,
       iso:  agora.toISOString(),
       data: agora.toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})
     });
@@ -7910,7 +7911,7 @@ function _euPossoAprovar() {
 const _GL = g => g===0?'Todos os Graus':g===1?'1º Grau — Aprendiz':g===2?'2º Grau — Companheiro':'3º Grau — Mestre';
 const _GC = g => ({0:'#1B3A8A',1:'#1B6B3A',2:'#7A3A8A',3:'#6B1B3A'})[g]||'#444';
 const _GB = g => ({0:'rgba(27,58,138,0.08)',1:'rgba(27,107,58,0.08)',2:'rgba(122,58,138,0.08)',3:'rgba(107,27,58,0.08)'})[g]||'rgba(0,0,0,0.04)';
-const _grauTrab = t => t.grau_trabalho ?? t.grau_autor ?? 1;
+const _grauTrab = t => t.grau_trabalho ?? t.grau_visibilidade ?? t.grau_autor ?? 0;
 
 const _ST = {
   pendente:{ txt:'⏳ Aguardando aprovação', cor:'#7A6010', bg:'rgba(122,96,16,0.10)', bd:'rgba(122,96,16,0.30)' },
@@ -8539,9 +8540,11 @@ async function salvarGrauTrabalho(id, grauDireto) {
     : parseInt(document.getElementById(`grau-edit-${id}`)?.value);
   if (isNaN(novoGrau)) { toast('Selecione um grau'); return; }
 
+  // grau_visibilidade no banco aceita 1,2,3 ou NULL (NULL = Geral/todos)
+  const grauVisDb = novoGrau === 0 ? null : novoGrau;
   const { error } = await sb.from('trabalhos').update({
     grau_trabalho:    novoGrau,
-    grau_visibilidade: novoGrau
+    grau_visibilidade: grauVisDb
   }).eq('id', id);
 
   if (_sbErr('salvarGrauTrabalho', error)) return;
