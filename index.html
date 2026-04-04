@@ -1533,8 +1533,11 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
           </div>
           <div style="padding:14px 22px">
             <div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-bottom:14px">
-              Controla quem pode aceder e editar cada módulo do sistema. O Venerável sempre tem acesso completo.
+              Controla quem pode aceder e editar cada módulo. O Administrador pode configurar <strong>todos os cargos</strong>, incluindo o Venerável Mestre.
             </div>
+            ${currentRole==='admin'?`<div style="font-size:11px;background:rgba(184,134,11,0.08);border:1px solid rgba(184,134,11,0.3);border-radius:4px;padding:8px 12px;margin-bottom:14px;color:var(--gold-dark)">
+              👑 <strong>Você está como Administrador</strong> — pode alterar as permissões de todos os cargos, incluindo o Venerável Mestre.
+            </div>`:''}
             <div id="perm-mod-container"><!-- renderizado por renderPermModulos() --></div>
           </div>
         </div>
@@ -2270,10 +2273,12 @@ function renderPermRelatorios() {
           ${TODOS_ROLES.map(role => {
             const ativo    = ativos.includes(role);
             const isPadrao = p.padrao.includes(role);
-            const isVen    = role === 'veneravel'; // venerável sempre tem acesso
-            return `<label style="display:flex;align-items:center;gap:6px;cursor:${canEdit&&!isVen?'pointer':'default'};padding:4px 10px;border:1px solid ${ativo?'var(--navy)':'var(--border-mid)'};border-radius:20px;background:${ativo?'rgba(27,58,107,0.08)':'transparent'}">
-              <input type="checkbox" name="${p.id}" value="${role}" ${ativo?'checked':''} ${canEdit&&!isVen?'':'disabled'}
-                style="accent-color:var(--navy);cursor:${canEdit&&!isVen?'pointer':'default'}">
+            // Venerável: Admin pode editar; Venerável não edita a si próprio
+            const isVen    = role === 'veneravel';
+            const editavel = canEdit && !(isVen && currentRole === 'veneravel');
+            return `<label style="display:flex;align-items:center;gap:6px;cursor:${editavel?'pointer':'default'};padding:4px 10px;border:1px solid ${ativo?'var(--navy)':'var(--border-mid)'};border-radius:20px;background:${ativo?'rgba(27,58,107,0.08)':'transparent'}">
+              <input type="checkbox" name="${p.id}" value="${role}" ${ativo?'checked':''} ${editavel?'':'disabled'}
+                style="accent-color:var(--navy);cursor:${editavel?'pointer':'default'}">
               <span style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:${ativo?'var(--navy)':'var(--text-muted)'}">${ROLE_LABEL[role]||role}${isVen?' 👑':isPadrao?' 🔒':''}</span>
             </label>`;
           }).join('')}
@@ -2401,17 +2406,20 @@ function renderPermModulos() {
                 <div style="font-size:11px;color:var(--text-muted);font-style:italic;margin-top:1px">${m.desc}</div>
               </td>
               ${rolesVisiveis.map(role => {
-                const isVen = role === 'veneravel'; // sempre full, não editável
                 const padrao  = ROLES_PADRAO[role]?.[m.id] || 'none';
                 const current = config?.[role]?.[m.id] ?? padrao;
-                if (isVen) {
+                // Venerável: editável SOMENTE pelo Admin; Venerável não edita a si próprio
+                const isVenSelf = role === 'veneravel' && currentRole === 'veneravel';
+                const disabled  = !canEdit || isVenSelf;
+                // Badge especial para Venerável quando não está como Admin editando
+                if (role === 'veneravel' && !canEdit) {
                   return `<td style="padding:8px 12px;text-align:center">
                     <span style="font-size:11px;color:var(--green)">✅ Completo</span>
                   </td>`;
                 }
                 return `<td style="padding:6px 8px;text-align:center">
-                  <select id="pmod-${role}-${m.id}" ${canEdit?'':'disabled'}
-                    style="border:1px solid var(--border-mid);border-radius:3px;padding:4px 6px;font-size:11px;background:var(--cream);color:var(--navy);cursor:${canEdit?'pointer':'default'};width:100%">
+                  <select id="pmod-${role}-${m.id}" ${disabled?'disabled':''}
+                    style="border:1px solid var(--border-mid);border-radius:3px;padding:4px 6px;font-size:11px;background:${role==='veneravel'?'rgba(184,134,11,0.08)':'var(--cream)'};color:var(--navy);cursor:${disabled?'default':'pointer'};width:100%">
                     ${niveisOpts.map(o => `<option value="${o.v}" ${current===o.v?'selected':''}>${o.l}</option>`).join('')}
                   </select>
                 </td>`;
