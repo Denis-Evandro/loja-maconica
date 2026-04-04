@@ -1912,7 +1912,7 @@ const DEMO_PERFIS = {
   tesoureiro: { role:'tesoureiro', grau:3, cargo:'Tesoureiro',       nome:'Ir. Rafael da Paz (DEMO)',      id:null },
   chanceler:  { role:'chanceler',  grau:3, cargo:'Chanceler',        nome:'Ir. Fernando da Ordem (DEMO)',  id:null },
   vigilante1: { role:'irmao',      grau:3, cargo:'1º Vigilante',     nome:'Ir. Pedro da Verdade (DEMO)',   id:null },
-  vigilante2: { role:'irmao',      grau:2, cargo:'2º Vigilante',     nome:'Ir. Marcos da Força (DEMO)',    id:null },
+  vigilante2: { role:'irmao',      grau:3, cargo:'2º Vigilante',     nome:'Ir. Marcos da Força (DEMO)',    id:null },
   irmao3:     { role:'irmao',      grau:3, cargo:'Membro',           nome:'Ir. Carlos Mestre (DEMO)',      id:null },
   irmao2:     { role:'irmao',      grau:2, cargo:'Membro',           nome:'Ir. André Companheiro (DEMO)',  id:null },
   irmao1:     { role:'irmao',      grau:1, cargo:'Membro',           nome:'Ir. Bruno Aprendiz (DEMO)',     id:null },
@@ -8105,9 +8105,12 @@ async function renderTrabalhos(access) {
       // Pendente/ajuste: só autor e aprovador responsável enxergam
       return ehAutor || souApr;
     }
-    // Aprovado: regra de grau (irmãos comuns)
-    if (g === 0 || g === 1) return true;          // "Todos" e 1º grau → todos
-    return eu.grau >= g;                           // 2º e 3º → filtrado por grau
+    // Aprovado: regra de grau
+    if (g === 0 || g === 1) return true;          // Geral e 1º grau → todos
+    // Aprovadores (vigilantes) veem os graus que aprovam e os inferiores;
+    // mas também veem materiais de grau até seu grau de aprovação+1 para estudo
+    if (ap.podeAlgum) return true;                // aprovadores veem todos os materiais
+    return eu.grau >= g;                           // demais irmãos: filtrado por seu grau
   });
 
   // Fila do aprovador: pendentes + ajuste do grau responsável
@@ -8219,8 +8222,7 @@ function _biblio(lista, isAdm) {
                 <td style="padding:11px 14px;font-size:12px;color:var(--navy);white-space:nowrap">${t.data_postagem?new Date(t.data_postagem).toLocaleDateString('pt-BR'):'—'}</td>
                 <td style="padding:10px 14px;text-align:center">
                   <div style="display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap">
-                    ${t.url_arquivo?`<a href="${t.url_arquivo}" target="_blank" rel="noopener"
-                      style="padding:5px 12px;background:#1B3A6B;color:#FFFFFF;border-radius:4px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;text-decoration:none;white-space:nowrap">📖 Ler</a>`:'—'}
+                    ${t.url_arquivo?(()=>{const isImg=/\.(jpe?g|png|webp|gif)$/i.test(t.url_arquivo||'');return `<a href="${t.url_arquivo}" target="_blank" rel="noopener" style="padding:5px 12px;background:#1B3A6B;color:#FFFFFF;border-radius:4px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;text-decoration:none;white-space:nowrap">${isImg?'🖼️ Ver':'📖 Ler'}</a>`})():'—'}
                     ${isAdm?`<select onchange="salvarGrauTrabalho('${t.id}',this.value)"
                         title="Alterar grau de visibilidade"
                         style="border:1px solid var(--border-mid);border-radius:4px;padding:4px 6px;font-family:'Cinzel',serif;font-size:10px;background:var(--cream);color:var(--navy);cursor:pointer">
@@ -8307,7 +8309,7 @@ function _meusHtml(lista) {
                              </div>`
                         : ajuste
                           ? `<div style="display:flex;flex-direction:column;gap:4px;min-width:160px">
-                               <input type="file" id="reenvio-${t.id}" accept=".pdf,.doc,.docx"
+                               <input type="file" id="reenvio-${t.id}" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp"
                                  style="font-size:10px;border:1px solid var(--border-mid);border-radius:3px;padding:4px;background:var(--white);cursor:pointer">
                                <button onclick="reenviarTrabalho('${t.id}')"
                                  style="padding:5px 10px;background:var(--gold-dark);color:var(--white);border:none;border-radius:3px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;cursor:pointer">
@@ -8561,6 +8563,27 @@ async function salvarGrauTrabalho(id, grauDireto) {
 
 
 // ── Modal enviar trabalho ──────────────────────────────────────
+
+// Preview de imagem no modal de envio de trabalho
+function previewTrabFileModal(input) {
+  const file = input.files?.[0];
+  const previewDiv = document.getElementById('trab-img-preview');
+  const previewImg = document.getElementById('trab-img-preview-img');
+  if (!previewDiv || !previewImg) return;
+
+  if (file && file.type.startsWith('image/')) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      previewImg.src = e.target.result;
+      previewDiv.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+  } else {
+    previewDiv.style.display = 'none';
+    previewImg.src = '';
+  }
+}
+
 function abrirModalEnviarTrabalho() {
   const eu  = _eu();
   const ap  = _euPossoAprovar();
@@ -8591,9 +8614,16 @@ function abrirModalEnviarTrabalho() {
                 <select id="trab-grau" ${inp} ${!ap.isVeneravel?'disabled style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:9px 12px;font-family:\'Cormorant Garamond\',serif;font-size:14px;background:var(--cream);color:var(--text);opacity:0.7"':''}>${opts}</select>
                 ${!ap.isVeneravel?`<div style="font-size:10px;color:var(--text-muted);margin-top:4px;font-style:italic">Classificação definida pelo seu grau (${_GL(eu.grau)})</div>`:''}
               </div>
-              <div>${lb('Arquivo PDF','*')}
-                <input type="file" id="trab-file" accept=".pdf,.doc,.docx"
-                  style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:9px;font-size:13px;background:var(--cream);cursor:pointer">
+              <div>${lb('Arquivo (PDF, Word ou Imagem)','*')}
+                <input type="file" id="trab-file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp"
+                  style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:9px;font-size:13px;background:var(--cream);cursor:pointer"
+                  onchange="previewTrabFileModal(this)">
+              <div style="font-size:11px;color:var(--text-muted);margin-top:5px;font-style:italic">
+                Formatos aceitos: PDF, Word (.docx), Imagem (JPG, PNG)
+              </div>
+              <div id="trab-img-preview" style="display:none;margin-top:8px;text-align:center">
+                <img id="trab-img-preview-img" style="max-width:100%;max-height:200px;border-radius:4px;border:1px solid var(--border-mid);object-fit:contain">
+              </div>
               </div>
             </div>
           </div>
