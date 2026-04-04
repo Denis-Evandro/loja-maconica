@@ -17,6 +17,7 @@
   --gold-light: #E8C05A;
   --gold-pale:  #F5E6A3;
   --gold-dark:  #7A5510;
+  --navy:       #1B3A6B;  /* alias de --brown */
   --brown:      #1B3A6B;
   --brown-mid:  #15306A;
   --brown-light:#2A5298;
@@ -717,10 +718,19 @@ th {
 }
 /* Headers de tabela com fundo navy: forçar texto branco e sem uppercase */
 th[style*="var(--navy)"],
-th[style*="#1B3A6B"] {
+th[style*="#1B3A6B"],
+th[style*="navy"] {
   color: #FFFFFF !important;
   text-transform: none !important;
-  letter-spacing: 0.12em !important;
+  letter-spacing: 0.10em !important;
+  font-size: 9px !important;
+  background: #1B3A6B !important;
+  padding: 10px 14px !important;
+}
+/* Células de dados: respeitar cor inline */
+td[style*="color:var(--navy)"],
+td[style*="color: var(--navy)"] {
+  color: #1B3A6B !important;
 }
 
 
@@ -1077,7 +1087,7 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
   .print-rel-titulo { font-size:15px; font-weight:700; color:#333; margin:16px 0 4px; }
   .print-periodo { font-size:11px; color:#888; font-style:italic; margin-bottom:16px; }
   .print-table { width:100%; border-collapse:collapse; font-size:12px; }
-  .print-table th { background:#f5f0e8; border:1px solid #d4b896; padding:7px 10px; text-align:left; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:#5C3D14; }
+  .print-table th, .print-area table th { background:#f5f0e8; border:1px solid #d4b896; padding:7px 10px; text-align:left; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:#5C3D14; }
   .print-table td { border:1px solid #e8dcc8; padding:6px 10px; vertical-align:middle; }
   .print-table tr:nth-child(even) td { background:#faf7f2; }
   .print-rodape { margin-top:30px; border-top:1px solid #d4b896; padding-top:12px; display:flex; justify-content:space-between; font-size:10px; color:#888; }
@@ -2367,8 +2377,8 @@ function renderPermModulos() {
   ];
 
   // Cabeçalho da tabela
-  const thS = `padding:9px 12px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;color:#FFFFFF!important;background:var(--navy);text-align:center;text-transform:none`;
-  const thL = `padding:9px 12px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;color:#FFFFFF!important;background:var(--navy);text-align:left;text-transform:none`;
+  const thS = `padding:9px 12px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;color:#FFFFFF;background:#1B3A6B;text-align:center;text-transform:none`;
+  const thL = `padding:9px 12px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;color:#FFFFFF;background:#1B3A6B;text-align:left;text-transform:none`;
 
   const roleIcons = {veneravel:'👑',secretario:'📜',tesoureiro:'⚖️',chanceler:'🗂️',irmao:'🔵',admin:'🏛️'};
   const roleLabel = {veneravel:'Venerável',secretario:'Secretário',tesoureiro:'Tesoureiro',chanceler:'Chanceler',irmao:'Irmão',admin:'Admin'};
@@ -2379,7 +2389,7 @@ function renderPermModulos() {
         <thead>
           <tr>
             <th style="${thL}">Módulo</th>
-            ${rolesVisiveis.map(r => `<th style="${thS}">${roleIcons[r]||''}<br><span style="font-size:8px;color:#FFFFFF!important;font-family:'Cinzel',serif;letter-spacing:0.06em">${roleLabel[r]||r}</span></th>`).join('')}
+            ${rolesVisiveis.map(r => `<th style="${thS}">${roleIcons[r]||''}<br><span style="font-size:8px;color:#FFFFFF;font-family:'Cinzel',serif;letter-spacing:0.06em">${roleLabel[r]||r}</span></th>`).join('')}
           </tr>
         </thead>
         <tbody>
@@ -2909,7 +2919,7 @@ async function renderDashboardIrmao(el) {
 
     <!-- SAUDAÇÃO -->
     <div style="display:flex;align-items:center;gap:16px;background:linear-gradient(135deg,rgba(27,58,107,0.08),rgba(27,58,107,0.02));border:1px solid rgba(27,58,107,0.15);border-radius:6px;padding:18px 24px;margin-bottom:16px">
-      <div style="width:56px;height:56px;border-radius:50%;background:var(--navy);display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-size:22px;color:#fff;font-weight:700;flex-shrink:0">${(membro?.nome_maconico||'?').charAt(0)}</div>
+      <div style="width:56px;height:56px;border-radius:50%;background:#1B3A6B;display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-size:22px;color:#fff;font-weight:700;flex-shrink:0">${(membro?.nome_maconico||'?').charAt(0)}</div>
       <div style="flex:1">
         <div style="font-family:'Cinzel',serif;font-size:17px;font-weight:700;color:var(--navy)">Bem-vindo, ${membro?.nome_maconico||name}!</div>
         <div style="font-size:14px;color:var(--text-muted);font-style:italic;margin-top:2px">${membro?.cargo||'Membro da Loja'} · ${degreeBadge(membro?.grau||3)} · ${meses[hoje.getMonth()]} de ${anoAtual}</div>
@@ -4233,7 +4243,7 @@ function _permFreqHistorico() {
 function _renderHistoricoFreqLoja(membrosAtivos, sessoes, presencas) {
   if (!membrosAtivos.length || !sessoes.length) return '';
   const totalSessoes = sessoes.length;
-  const th = t => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF!important;background:var(--navy);text-align:left;text-transform:none">${t}</th>`;
+  const th = t => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF;background:#1B3A6B;text-align:left;text-transform:none">${t}</th>`;
 
   // Calcular frequência de cada irmão
   const dados = membrosAtivos.map(m => {
@@ -5285,10 +5295,10 @@ function renderFinancas(access) {
             <table style="width:100%;border-collapse:collapse">
               <thead>
                 <tr>
-                  <th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF!important;background:var(--navy);text-align:left;text-transform:none">Descrição</th>
-                  <th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF!important;background:var(--navy);text-transform:none;text-align:center">Tipo</th>
-                  <th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF!important;background:var(--navy);text-transform:none;text-align:center">Progresso</th>
-                  <th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF!important;background:var(--navy);text-transform:none;text-align:right">Restante</th>
+                  <th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF;background:#1B3A6B;text-align:left;text-transform:none">Descrição</th>
+                  <th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF;background:#1B3A6B;text-transform:none;text-align:center">Tipo</th>
+                  <th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF;background:#1B3A6B;text-transform:none;text-align:center">Progresso</th>
+                  <th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF;background:#1B3A6B;text-transform:none;text-align:right">Restante</th>
                 </tr>
               </thead>
               <tbody>
@@ -7394,7 +7404,7 @@ function _renderInadimplCorpo(filtroId, containerId) {
   if (filtroId) inadimplentes = inadimplentes.filter(i => i.m.id === filtroId);
 
   const canEdit = ROLES[currentRole].access['financas'] === 'full';
-  const thS = `padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF!important;text-align:left;background:var(--navy);text-transform:none`;
+  const thS = `padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF;text-align:left;background:#1B3A6B;text-transform:none`;
 
   container.innerHTML = inadimplentes.length === 0
     ? `<div style="padding:20px;text-align:center;color:var(--green);font-style:italic">✅ Nenhum inadimplente${filtroId?' para este irmão':''}!</div>`
@@ -7557,7 +7567,7 @@ async function renderMinhaFrequencia() {
   el.innerHTML = `
     <!-- Banner do irmão -->
     <div style="background:linear-gradient(135deg,rgba(27,58,107,0.06),rgba(27,58,107,0.02));border:1px solid rgba(27,58,107,0.15);border-radius:6px;padding:18px 24px;margin-bottom:16px;display:flex;align-items:center;gap:20px">
-      <div style="width:56px;height:56px;border-radius:50%;background:var(--navy);display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-size:22px;color:#fff;font-weight:700;flex-shrink:0">${membro.nome_maconico.charAt(0)}</div>
+      <div style="width:56px;height:56px;border-radius:50%;background:#1B3A6B;display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-size:22px;color:#fff;font-weight:700;flex-shrink:0">${membro.nome_maconico.charAt(0)}</div>
       <div>
         <div style="font-family:'Cinzel',serif;font-size:16px;font-weight:700;color:var(--navy)">${membro.nome_maconico}</div>
         <div style="font-size:13px;color:var(--text-muted);font-style:italic">${membro.cargo||'Membro da Loja'} · ${degreeBadge(membro.grau||3)}</div>
@@ -8158,7 +8168,7 @@ function _biblio(lista, isAdm) {
 
   const grupos = [0,1,2,3].map(g => ({g, itens:aprovados.filter(t=>_grauTrab(t)===g)})).filter(x=>x.itens.length);
 
-  const thStyle = `padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF!important;text-align:left;background:var(--navy);text-transform:none`;
+  const thStyle = `padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF;text-align:left;background:#1B3A6B;text-transform:none`;
 
   const nomeGrauLongo = {
     0: '📖 Geral — Acessível a Todos',
@@ -8198,7 +8208,7 @@ function _biblio(lista, isAdm) {
                 <td style="padding:10px 14px;text-align:center">
                   <div style="display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap">
                     ${t.url_arquivo?`<a href="${t.url_arquivo}" target="_blank" rel="noopener"
-                      style="padding:5px 12px;background:var(--navy);color:#FFFFFF;border-radius:4px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;text-decoration:none;white-space:nowrap">📖 Ler</a>`:'—'}
+                      style="padding:5px 12px;background:#1B3A6B;color:#FFFFFF;border-radius:4px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;text-decoration:none;white-space:nowrap">📖 Ler</a>`:'—'}
                     ${isAdm?`<select onchange="salvarGrauTrabalho('${t.id}',this.value)"
                         title="Alterar grau de visibilidade"
                         style="border:1px solid var(--border-mid);border-radius:4px;padding:4px 6px;font-family:'Cinzel',serif;font-size:10px;background:var(--cream);color:var(--navy);cursor:pointer">
@@ -8230,7 +8240,7 @@ function _meusHtml(lista) {
       <div style="font-size:13px;margin-top:6px;font-style:italic">Use o botão "📤 Enviar Meu Trabalho" acima.</div>
     </div>`;
 
-  const th = (t,extra='') => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF!important;text-align:left;background:var(--navy);text-transform:none${extra}">${t}</th>`;
+  const th = (t,extra='') => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF;text-align:left;background:#1B3A6B;text-transform:none${extra}">${t}</th>`;
 
   // Agrupar: em revisão → pendente → aprovado
   const ordem = ['ajuste','pendente','aprovado'];
@@ -8310,7 +8320,7 @@ function _meusHtml(lista) {
 // ── Gestão (vigilantes / venerável) ────────────────────────────
 function _gestaoHtml(fila, ap) {
   const cargo = ap.isVeneravel?'Venerável Mestre':ap.is1Vig?'1º Vigilante':'2º Vigilante';
-  const th = (t, extra='') => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF!important;text-align:left;background:var(--navy);text-transform:none${extra}">${t}</th>`;
+  const th = (t, extra='') => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF;text-align:left;background:#1B3A6B;text-transform:none${extra}">${t}</th>`;
 
   if (!fila.length) return `
     <div style="background:rgba(27,58,107,0.04);border:1px solid rgba(27,58,107,0.12);border-radius:6px;padding:14px 18px;font-size:12px;color:var(--text-muted)">
@@ -8391,7 +8401,7 @@ function _gestaoTodosHtml() {
   });
   if (!todos.length) return '';
 
-  const thN = (t, extra='') => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF!important;text-align:left;background:var(--navy);text-transform:none${extra}">${t}</th>`;
+  const thN = (t, extra='') => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF;text-align:left;background:#1B3A6B;text-transform:none${extra}">${t}</th>`;
   const ST = {aprovado:'#1B6B3A', pendente:'#C07000', ajuste:'#8A1B1B'};
 
   return `
@@ -8434,7 +8444,7 @@ function _gestaoTodosHtml() {
                       ${[0,1,2,3].map(v=>`<option value="${v}"${v===g?' selected':''}>${_GL(v)}</option>`).join('')}
                     </select>
                     <button onclick="salvarGrauTrabalho('${t.id}')"
-                      style="padding:5px 12px;background:var(--navy);color:#fff;border:none;border-radius:3px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;cursor:pointer;white-space:nowrap">
+                      style="padding:5px 12px;background:#1B3A6B;color:#fff;border:none;border-radius:3px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;cursor:pointer;white-space:nowrap">
                       💾 Salvar
                     </button>
                   </div>
@@ -8764,7 +8774,7 @@ function renderLegislacao(access) {
   const canEdit = access === 'full' || cargoLogado.includes('orador');
   const docs = DATA.legislacao || [];
 
-  const th = t => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF!important;background:var(--navy);text-align:left;text-transform:none">${t}</th>`;
+  const th = t => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF;background:#1B3A6B;text-align:left;text-transform:none">${t}</th>`;
 
   el.innerHTML = `
     <!-- Toolbar -->
@@ -8829,7 +8839,7 @@ function _legRow(d, canEdit, idx) {
       <td style="padding:11px 14px;font-family:'Cormorant Garamond',serif;font-size:14px;color:var(--text-muted)">${d.ano||'—'}</td>
       <td style="padding:11px 14px;text-align:center">
         <a href="${url}" target="_blank" rel="noopener"
-          style="padding:5px 12px;background:var(--navy);color:#FFFFFF;border-radius:4px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;text-decoration:none;white-space:nowrap">
+          style="padding:5px 12px;background:#1B3A6B;color:#FFFFFF;border-radius:4px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;text-decoration:none;white-space:nowrap">
           ${isExt?'🌐 Link':'📥 Abrir'}
         </a>
       </td>
@@ -8880,7 +8890,7 @@ function _legCard(d, canEdit) {
     <!-- Rodapé com ações -->
     <div style="padding:10px 18px;display:flex;gap:8px;align-items:center;margin-top:auto">
       <a href="${url}" target="_blank" rel="noopener"
-        style="flex:1;text-align:center;padding:7px;background:var(--navy);color:#FFFFFF;border-radius:4px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.08em;text-decoration:none;transition:opacity 0.15s"
+        style="flex:1;text-align:center;padding:7px;background:#1B3A6B;color:#FFFFFF;border-radius:4px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.08em;text-decoration:none;transition:opacity 0.15s"
         onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
         ${isExterno ? '🌐 ACESSAR LINK' : '📥 ABRIR DOCUMENTO'}
       </a>
@@ -8921,7 +8931,7 @@ function filtrarLegislacao(cat) {
     grid.innerHTML = _legVazio(canEdit);
   } else {
     // Recriar tabela com linhas filtradas
-    const th = t => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF!important;background:var(--navy);text-align:left;text-transform:none">${t}</th>`;
+    const th = t => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF;background:#1B3A6B;text-align:left;text-transform:none">${t}</th>`;
     grid.innerHTML = `<table style="width:100%;border-collapse:collapse">
       <thead><tr>${th('Documento')}${th('Categoria')}${th('Ano')}${th('Acesso')}${canEdit?th('⚙️'):''}</tr></thead>
       <tbody>${filtrados.map((d,i) => _legRow(d, canEdit, i)).join('')}</tbody>
@@ -10960,7 +10970,7 @@ function mostrarRelDebitos() {
   const totalAberto = devedores.reduce((s,m) => s + m.devia, 0);
 
   // Tabela padrão Azul/Dourado
-  const th = t => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF!important;background:var(--navy);text-align:left;text-transform:none">${t}</th>`;
+  const th = t => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF;background:#1B3A6B;text-align:left;text-transform:none">${t}</th>`;
   const linhas = devedores.length
     ? devedores.map((m,i) => `
       <tr style="background:${i%2===0?'var(--white)':'var(--cream)'};border-bottom:1px solid var(--border)">
