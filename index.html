@@ -4220,7 +4220,6 @@ function renderFrequencia(access) {
             <button class="btn" style="padding:3px 9px;font-size:8px" onclick="abrirModalVisitante('${s.id}')">+ Visit.</button>`:''}
             <button class="btn" style="padding:3px 9px;font-size:8px" onclick="verListaPresenca('${s.id}','${s.data}','${s.tipo}')">👁️ Ver</button>
             <button class="btn" style="padding:3px 9px;font-size:8px" onclick="imprimirListaPresenca('${s.id}','${s.data}','${s.tipo}','${s.descricao_local||'Templo'}')">🖨️</button>
-            ${canEdit?`<button class="btn" style="padding:3px 9px;font-size:8px;background:rgba(27,58,107,0.08);border-color:rgba(27,58,107,0.3);color:var(--navy)" onclick="abrirModalCertificados('${s.id}','${s.data}','${s.tipo}')" title="Emitir Certificados de Visita">🎖️</button>`:''}
           </td>
         </tr>`;
       }).join('');
@@ -4301,239 +4300,6 @@ function _renderHistoricoFreqLoja(membrosAtivos, sessoes, presencas) {
     </div>`;
 }
 
-
-// ══════════════════════════════════════════════════════════════
-// CERTIFICADO DE VISITA — gerado automaticamente por sessão
-// ══════════════════════════════════════════════════════════════
-
-// Extrai dados estruturados de um visitante a partir da justificativa salva
-function _parsearVisitante(v) {
-  const j = v.justificativa || '';
-  const parts = j.replace('VISITANTE | ','').split(' | ')
-    .reduce((acc, p) => { const [k, ...vv] = p.split(': '); acc[k?.trim()] = vv.join(': ')?.trim(); return acc; }, {});
-  return {
-    nome:    parts['Nome']   || j.replace('VISITANTE | ','') || 'Visitante',
-    loja:    parts['Loja']   || '',
-    cim:     parts['CIM']    || '',
-    cargo:   parts['Cargo']  || '',
-    potencia:parts['Potência']|| parts['Potencia'] || '',
-    grau:    parts['Grau']   || '',
-  };
-}
-
-// Gera o HTML de um certificado individual
-function _htmlCertificado(vis, sessao) {
-  const d      = _getDadosLoja();
-  const nome   = d.nome   || 'A.R.L.S. Fraternidade Acadêmica de Peruíbe';
-  const numero = d.numero ? ` Nº ${d.numero}` : '';
-  const orient = d.oriente|| 'Peruíbe — SP';
-  const pot    = d.potencia|| 'G.O.B.';
-  const logoUrl= d.logo_url|| '';
-  const dataSessao = sessao.data ? new Date(sessao.data + 'T12:00:00').toLocaleDateString('pt-BR', {day:'2-digit',month:'long',year:'numeric'}) : '—';
-  const tipoMap= { ordinaria:'Sessão Ordinária', extraordinaria:'Sessão Extraordinária', magna:'Sessão Magna', instrucao:'Sessão de Instrução', solene:'Sessão Solene' };
-  const tipoSess = tipoMap[sessao.tipo] || sessao.tipo || 'Sessão';
-  const grauTxt= sessao.grau ? `${sessao.grau}º Grau` : '';
-  // Assinaturas
-  const sigVen = localStorage.getItem('assinatura_veneravel') || '';
-  const sigSec = localStorage.getItem('assinatura_secretario')|| '';
-  // Número de série
-  const serie = `${(sessao.data||'').replace(/-/g,'')}-${Math.random().toString(36).substr(2,6).toUpperCase()}`;
-
-  return `
-<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
-<title>Certificado de Visita — ${vis.nome}</title>
-<style>
-  @page { size: A4; margin: 18mm 20mm; }
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family:'Times New Roman',serif; color:#1a1a1a; background:#fff; }
-  .cert-wrap { width:100%; min-height:240mm; display:flex; flex-direction:column; border:2.5px solid #1B3A6B; padding:14mm 16mm; position:relative; }
-  .cert-wrap::before { content:''; position:absolute; inset:5mm; border:1px solid rgba(27,58,107,0.25); pointer-events:none; }
-  .header { display:flex; align-items:center; justify-content:space-between; border-bottom:2px solid #1B3A6B; padding-bottom:8mm; margin-bottom:8mm; }
-  .header-logo { width:60px; height:60px; object-fit:contain; }
-  .header-lodge { text-align:center; flex:1; padding:0 10mm; }
-  .lodge-name { font-size:16pt; font-weight:bold; color:#1B3A6B; letter-spacing:0.05em; }
-  .lodge-sub { font-size:9pt; color:#555; margin-top:3px; }
-  .ornament { font-size:22pt; color:#D4A843; text-align:center; margin:4mm 0; }
-  .cert-title { font-size:20pt; font-weight:bold; color:#1B3A6B; text-align:center; letter-spacing:0.12em; text-transform:uppercase; margin:4mm 0 2mm; }
-  .cert-subtitle { font-size:11pt; color:#555; text-align:center; font-style:italic; margin-bottom:8mm; }
-  .body-text { font-size:12pt; line-height:1.9; text-align:justify; margin:0 6mm; }
-  .body-text strong { color:#1B3A6B; }
-  .highlight-box { margin:8mm 6mm; padding:6mm 8mm; border:1px solid #D4A843; background:#FFFBF0; border-radius:4px; }
-  .highlight-row { display:flex; gap:4mm; margin-bottom:3mm; font-size:11pt; }
-  .highlight-label { font-weight:bold; color:#1B3A6B; min-width:80px; }
-  .footer-sigs { display:flex; justify-content:space-around; margin-top:14mm; padding-top:6mm; border-top:1px solid #ddd; }
-  .sig-block { text-align:center; width:120px; }
-  .sig-img { height:50px; display:flex; align-items:flex-end; justify-content:center; margin-bottom:4px; }
-  .sig-img img { max-height:48px; max-width:110px; object-fit:contain; }
-  .sig-line { border-top:1px solid #333; padding-top:4px; font-size:9pt; color:#333; }
-  .sig-cargo { font-size:8pt; color:#666; margin-top:2px; }
-  .serie { position:absolute; bottom:8mm; right:12mm; font-size:7pt; color:#aaa; }
-  .triangle { display:inline-block; margin:0 3px; color:#D4A843; }
-  @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
-</style></head><body>
-<div class="cert-wrap">
-  <div class="header">
-    ${logoUrl ? `<img src="${logoUrl}" class="header-logo" alt="Logo">` : '<div style="width:60px"></div>'}
-    <div class="header-lodge">
-      <div class="lodge-name">${nome}${numero}</div>
-      <div class="lodge-sub">${pot} &nbsp;·&nbsp; Oriente de ${orient}</div>
-    </div>
-    <div style="width:60px;text-align:right;font-size:9pt;color:#888">&#9651;<br>&#9651;</div>
-  </div>
-
-  <div class="ornament">&#9651; &nbsp;&#9651; &nbsp;&#9651;</div>
-
-  <div class="cert-title">Certificado de Visita</div>
-  <div class="cert-subtitle">Emitido pela Secretaria da Loja</div>
-
-  <div class="body-text">
-    A <strong>${nome}${numero}</strong>, reunida em
-    <strong>${tipoSess}${grauTxt ? ' de ' + grauTxt : ''}</strong>, no Oriente de
-    <strong>${orient}</strong>, em <strong>${dataSessao}</strong>,
-    certifica que o Querido Irmão a seguir identificado nos honrou com sua visita
-    fraterna, participando dos nossos trabalhos em Paz, Amor e Harmonia.
-  </div>
-
-  <div class="highlight-box">
-    <div class="highlight-row">
-      <span class="highlight-label">Irmão:</span>
-      <span><strong>${vis.nome}</strong></span>
-    </div>
-    ${vis.cargo ? `<div class="highlight-row"><span class="highlight-label">Cargo:</span><span>${vis.cargo}</span></div>` : ''}
-    ${vis.loja ? `<div class="highlight-row"><span class="highlight-label">Loja de Origem:</span><span>${vis.loja}${vis.cim ? ' &nbsp;·&nbsp; CIM: ' + vis.cim : ''}</span></div>` : ''}
-    ${vis.potencia ? `<div class="highlight-row"><span class="highlight-label">Potência:</span><span>${vis.potencia}</span></div>` : ''}
-    ${vis.grau ? `<div class="highlight-row"><span class="highlight-label">Grau:</span><span>${vis.grau}º Grau</span></div>` : ''}
-  </div>
-
-  <div class="body-text" style="margin-top:4mm">
-    Declaramos que o referido Irmão apresentou os sinais e palavras de reconhecimento
-    maçônico, sendo recebido com as honras correspondentes ao seu grau.
-    <br><br>
-    Que a <strong>Fraternidade Universal</strong> <span class="triangle">▲</span> continue
-    a unir todos os verdadeiros maçons na busca do
-    <strong>Bem</strong>, da <strong>Verdade</strong> e da <strong>Justiça</strong>.
-  </div>
-
-  <div class="footer-sigs">
-    <div class="sig-block">
-      <div class="sig-img">
-        ${sigVen ? `<img src="${sigVen}" alt="Assinatura">` : ''}
-      </div>
-      <div class="sig-line">Venerável Mestre</div>
-      <div class="sig-cargo">${nome}${numero}</div>
-    </div>
-    <div class="sig-block" style="text-align:center;width:100px">
-      <div style="font-size:28pt;color:#D4A843;line-height:1">&#9651;</div>
-      <div style="font-size:8pt;color:#888;margin-top:4px">Oriente de ${orient}</div>
-    </div>
-    <div class="sig-block">
-      <div class="sig-img">
-        ${sigSec ? `<img src="${sigSec}" alt="Assinatura">` : ''}
-      </div>
-      <div class="sig-line">Secretário</div>
-      <div class="sig-cargo">${nome}${numero}</div>
-    </div>
-  </div>
-
-  <div class="serie">Nº de Série: ${serie}</div>
-</div>
-</body></html>`;
-}
-
-// Emitir certificado individual (abre janela de impressão)
-function emitirCertificadoVisita(visObj, sessaoObj) {
-  const html = _htmlCertificado(visObj, sessaoObj);
-  const win  = window.open('', '_blank', 'width=900,height=700');
-  if (!win) { toast('⚠️ Permitir pop-ups para imprimir certificados'); return; }
-  win.document.write(html);
-  win.document.close();
-  win.onload = () => { win.focus(); win.print(); };
-}
-
-// Emitir todos os certificados da sessão (um por página, mesma janela)
-function emitirCertificadosSessao(sessaoId, dataSessao, tipoSessao) {
-  const presencas = DATA.presencas.filter(p => p.sessao_id === sessaoId);
-  const visitantes = presencas.filter(p => !p.membro_id && (p.presente || p.situacao === 'presente'));
-  if (!visitantes.length) { toast('Nenhum visitante nesta sessão'); return; }
-
-  const sessao = DATA.sessoes.find(s => s.id === sessaoId) || { data: dataSessao, tipo: tipoSessao };
-  const htmls  = visitantes.map(v => _htmlCertificado(_parsearVisitante(v), sessao));
-
-  // Juntar todos em um único documento com @page breaks
-  const win = window.open('', '_blank', 'width=900,height=700');
-  if (!win) { toast('⚠️ Permitir pop-ups para imprimir certificados'); return; }
-
-  const doc = `<!DOCTYPE html><html><head><meta charset="UTF-8">
-<style>
-  @page { size:A4; margin:0; }
-  body { margin:0; }
-  .pagina { page-break-after: always; }
-  .pagina:last-child { page-break-after: avoid; }
-</style></head><body>
-${htmls.map((h, i) => {
-  // Extrair só o <body> de cada certificado
-  const bodyM = h.match(/<body>([\s\S]*?)<\/body>/);
-  const bodyS = h.match(/<style>([\s\S]*?)<\/style>/);
-  return `${i===0 ? `<style>${bodyS?.[1]||''}</style>` : ''}
-<div class="pagina">${bodyM?.[1]||h}</div>`;
-}).join('\n')}
-</body></html>`;
-
-  win.document.write(doc);
-  win.document.close();
-  win.onload = () => { win.focus(); win.print(); };
-  toast(`🎖️ Gerando ${visitantes.length} certificado(s)...`);
-}
-
-// Modal de seleção de visitante para certificado individual
-function abrirModalCertificados(sessaoId, dataSessao, tipoSessao) {
-  const presencas  = DATA.presencas.filter(p => p.sessao_id === sessaoId);
-  const visitantes = presencas.filter(p => !p.membro_id && (p.presente || p.situacao === 'presente'));
-  if (!visitantes.length) { toast('Nenhum visitante registrado nesta sessão'); return; }
-
-  const sessao = DATA.sessoes.find(s => s.id === sessaoId) || { data: dataSessao, tipo: tipoSessao };
-  const tipoMap = { ordinaria:'Sessão Ordinária', extraordinaria:'Sessão Extraordinária', magna:'Sessão Magna', instrucao:'Sessão de Instrução', solene:'Sessão Solene' };
-  const dataTxt = dataSessao ? new Date(dataSessao + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
-
-  document.body.insertAdjacentHTML('beforeend', `
-    <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px">
-      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:8px;width:520px;max-height:90vh;overflow-y:auto;position:relative">
-        <div style="height:3px;background:linear-gradient(90deg,#1B3A6B,#D4A843);border-radius:8px 8px 0 0"></div>
-        <div style="padding:24px 28px">
-          <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;letter-spacing:0.08em;color:var(--navy);margin-bottom:4px">🎖️ Certificados de Visita</div>
-          <div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-bottom:18px">
-            ${tipoMap[tipoSessao]||tipoSessao||'Sessão'} — ${dataTxt} &nbsp;·&nbsp; ${visitantes.length} visitante(s)
-          </div>
-          <div style="margin-bottom:16px">
-            <button class="btn btn-solid" onclick="emitirCertificadosSessao('${sessaoId}','${dataSessao}','${tipoSessao}');fecharModal()"
-              style="width:100%;padding:10px;margin-bottom:8px;background:linear-gradient(135deg,#1B3A6B,#2A5298)">
-              🖨️ Imprimir Todos (${visitantes.length}) de uma vez
-            </button>
-          </div>
-          <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--text-muted);text-transform:uppercase;margin-bottom:10px">Ou imprimir individualmente:</div>
-          <div style="display:flex;flex-direction:column;gap:8px">
-            ${visitantes.map(v => {
-              const vis = _parsearVisitante(v);
-              return `
-              <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--cream);border:1px solid var(--border-mid);border-radius:6px">
-                <div>
-                  <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:var(--navy)">${vis.nome}</div>
-                  <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${[vis.cargo, vis.loja, vis.potencia].filter(Boolean).join(' · ')}</div>
-                </div>
-                <button onclick="emitirCertificadoVisita(${JSON.stringify(vis).replace(/"/g,'&quot;')},${JSON.stringify(sessao).replace(/"/g,'&quot;')})"
-                  class="btn" style="padding:5px 12px;font-size:10px;white-space:nowrap">🎖️ Imprimir</button>
-              </div>`;
-            }).join('')}
-          </div>
-        </div>
-        <div style="padding:12px 28px;border-top:1px solid var(--border);display:flex;justify-content:flex-end">
-          <button class="btn" onclick="fecharModal()" style="padding:8px 20px">Fechar</button>
-        </div>
-      </div>
-    </div>`);
-}
-
-
 function verListaPresenca(sessaoId, data, tipo) {
   const membros = DATA.membros.filter(m=>m.status==='ativo'||m.status==='iniciado');
   const presencas = DATA.presencas.filter(p=>p.sessao_id===sessaoId);
@@ -4601,10 +4367,6 @@ function verListaPresenca(sessaoId, data, tipo) {
           </table>
         </div>
         <div style="padding:14px 28px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px">
-                    <button class="btn" onclick="fecharModal();setTimeout(()=>abrirModalCertificados(sessaoId,data,tipo),150)"
-            style="padding:8px 18px;background:rgba(27,58,107,0.08);border-color:rgba(27,58,107,0.3);color:var(--navy)">
-            🎖️ Certificados
-          </button>
           <button class="btn" onclick="fecharModal()" style="padding:8px 20px">Fechar</button>
           <button class="btn btn-solid" onclick="fecharModal();imprimirListaPresenca('${sessaoId}','${data}','${tipo}','')" style="padding:8px 20px">🖨️ Imprimir</button>
         </div>
@@ -4902,45 +4664,6 @@ function preencherDadosVisitante() {
   if (cargoEl) cargoEl.value = '';
 }
 
-async 
-// Oferta automática de certificado após registrar visitante
-function _ofertaCertificadoAuto(visData, sessaoData, sessaoId) {
-  // Mini-banner no canto inferior (não bloqueia a tela)
-  const bannerId = 'cert-auto-banner';
-  document.getElementById(bannerId)?.remove();
-
-  const banner = document.createElement('div');
-  banner.id = bannerId;
-  banner.style.cssText = 'position:fixed;bottom:80px;right:24px;z-index:998;background:var(--navy);color:#fff;border-radius:8px;padding:14px 18px;box-shadow:0 8px 24px rgba(0,0,0,0.3);max-width:320px;animation:fadeInUp 0.3s ease';
-  banner.innerHTML = `
-    <div style="display:flex;align-items:flex-start;gap:12px">
-      <div style="font-size:24px;flex-shrink:0">🎖️</div>
-      <div style="flex:1">
-        <div style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.1em;margin-bottom:4px">CERTIFICADO DE VISITA</div>
-        <div style="font-size:12px;opacity:0.85;margin-bottom:10px">Ir. <strong>${visData.nome}</strong> foi registrado. Emitir certificado agora?</div>
-        <div style="display:flex;gap:8px">
-          <button onclick="emitirCertificadoVisita(window._certAutoVis,window._certAutoSessao);document.getElementById('cert-auto-banner').remove()"
-            style="padding:6px 14px;background:#D4A843;color:#1B3A6B;border:none;border-radius:4px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;cursor:pointer;white-space:nowrap">
-            🖨️ Emitir Agora
-          </button>
-          <button onclick="abrirModalCertificados(window._certAutoSessao.id,window._certAutoSessao.data,window._certAutoSessao.tipo);document.getElementById('cert-auto-banner').remove()"
-            style="padding:6px 14px;background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.3);border-radius:4px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;cursor:pointer">
-            Ver Todos
-          </button>
-          <button onclick="document.getElementById('${bannerId}').remove()"
-            style="padding:6px 10px;background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.6);border:1px solid rgba(255,255,255,0.2);border-radius:4px;font-size:11px;cursor:pointer">
-            ✕
-          </button>
-        </div>
-      </div>
-    </div>`;
-
-  document.body.appendChild(banner);
-  // Auto-fechar após 20 segundos
-  setTimeout(() => banner.remove(), 20000);
-}
-
-
 async function salvarVisitante(sessaoId) {
   const nome  = document.getElementById('vis-nome')?.value.trim();
   const loja  = document.getElementById('vis-loja')?.value.trim();
@@ -4963,11 +4686,6 @@ async function salvarVisitante(sessaoId) {
   toast('Visitante registrado ✦');
   fecharModal();
   await loadAllData();
-  // Modo automático: oferecer emissão de certificado imediatamente
-  // Guardar referência global temporária para evitar problemas com aspas no JSON inline
-  window._certAutoVis    = { nome, loja, cim: cim||'', cargo: cargo||'', potencia:'', grau:'' };
-  window._certAutoSessao = DATA.sessoes.find(s => s.id === sessaoId) || { id: sessaoId, data: '', tipo: '' };
-  _ofertaCertificadoAuto(window._certAutoVis, window._certAutoSessao, sessaoId);
 }
 
 // ===================== FINANÇAS =====================
