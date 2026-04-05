@@ -4358,37 +4358,37 @@ function _htmlCertificado(vis, sessao) {
   * { margin:0; padding:0; box-sizing:border-box; }
   body { font-family:'Times New Roman',serif; color:#1a1a1a; background:#fff; }
 
-  /* Meia folha A4 — 185x128mm — elegante */
-  .cert-wrap { width:185mm; height:128mm; position:relative; display:flex; flex-direction:column; padding:5.5mm 7mm 4mm; overflow:hidden; }
-  .header { display:flex; align-items:center; gap:4mm; padding-bottom:2.5mm; margin-bottom:0; border-bottom:1.5px solid #1B3A6B; position:relative; z-index:1; }
-  .header-logo { width:32px; height:32px; object-fit:contain; flex-shrink:0; }
-  .lodge-name { font-size:9pt; font-weight:bold; color:#1B3A6B; letter-spacing:0.03em; }
-  .lodge-sub  { font-size:6.5pt; color:#666; margin-top:1px; }
-  .ornament   { font-size:10pt; color:#D4A843; letter-spacing:3mm; white-space:nowrap; flex-shrink:0; }
-  .cert-title { font-size:13pt; font-weight:bold; color:#1B3A6B; letter-spacing:0.12em; text-transform:uppercase; }
-  .cert-subtitle { font-size:7pt; color:#888; margin-top:1mm; font-style:italic; }
-  .body-text { font-size:8pt; line-height:1.65; text-align:justify; margin:0 6mm; }
-  .highlight-box { margin:2mm 6mm; padding:2.5mm 5mm; background:rgba(212,168,67,0.07); border-left:3px solid #D4A843; border-radius:0 3px 3px 0; font-size:7.5pt; line-height:1.7; }
-  .footer-sigs { display:flex; justify-content:space-around; align-items:flex-end; margin-top:auto; padding-top:2mm; border-top:0.5px solid #ddd; position:relative; z-index:1; }
-  .sig-block { text-align:center; width:72px; }
-  .sig-img   { height:22px; display:flex; align-items:flex-end; justify-content:center; margin-bottom:1.5px; }
-  .sig-img img { max-height:20px; max-width:68px; object-fit:contain; }
-  .sig-line  { border-top:0.5px solid #333; padding-top:1.5px; font-size:6pt; font-weight:bold; }
-  .sig-sub   { font-size:5.5pt; color:#888; margin-top:1px; }
-  .serie { position:absolute; bottom:5mm; right:6mm; font-size:5pt; color:#ccc; z-index:1; }
+  /* Folha A4 completa — elegante, preenchida, letra grande */
+  .cert-wrap { width:181mm; min-height:268mm; position:relative; display:flex; flex-direction:column; padding:12mm 14mm 10mm; overflow:hidden; }
+  .header { display:flex; align-items:center; gap:7mm; padding-bottom:5mm; margin-bottom:0; border-bottom:2.5px solid #1B3A6B; position:relative; z-index:1; }
+  .header-logo { width:60px; height:60px; object-fit:contain; flex-shrink:0; }
+  .lodge-name { font-size:15pt; font-weight:bold; color:#1B3A6B; letter-spacing:0.04em; line-height:1.3; }
+  .lodge-sub  { font-size:10pt; color:#555; margin-top:3px; letter-spacing:0.02em; }
+  .ornament   { font-size:16pt; color:#D4A843; letter-spacing:5mm; white-space:nowrap; flex-shrink:0; }
+  .cert-title { font-size:24pt; font-weight:bold; color:#1B3A6B; letter-spacing:0.14em; text-transform:uppercase; }
+  .cert-subtitle { font-size:11pt; color:#777; margin-top:2mm; font-style:italic; }
+  .body-text { font-size:12.5pt; line-height:1.9; text-align:justify; margin:0 4mm; }
+  .highlight-box { margin:6mm 4mm; padding:5mm 7mm; background:rgba(212,168,67,0.07); border-left:5px solid #D4A843; border-radius:0 5px 5px 0; font-size:12pt; line-height:2.1; }
+  .footer-sigs { display:flex; justify-content:space-around; align-items:flex-end; margin-top:auto; padding-top:6mm; border-top:1px solid #ddd; position:relative; z-index:1; }
+  .sig-block { text-align:center; width:110px; }
+  .sig-img   { height:46px; display:flex; align-items:flex-end; justify-content:center; margin-bottom:3px; }
+  .sig-img img { max-height:44px; max-width:106px; object-fit:contain; }
+  .sig-line  { border-top:1px solid #333; padding-top:3px; font-size:10pt; font-weight:bold; }
+  .sig-sub   { font-size:8.5pt; color:#888; margin-top:2px; }
+  .serie { position:absolute; bottom:7mm; right:9mm; font-size:7pt; color:#ccc; z-index:1; }
   @media print { body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
 </style></head><body>
 <div class="cert-wrap">
 
   <!-- Borda dupla: externa navy + interna dourada -->
-  <div style="position:absolute;inset:0;border:2.5px solid #1B3A6B;pointer-events:none;z-index:2"></div>
-  <div style="position:absolute;inset:3.5mm;border:0.8px solid #D4A843;pointer-events:none;z-index:2"></div>
+  <div style="position:absolute;inset:0;border:3px solid #1B3A6B;pointer-events:none;z-index:2"></div>
+  <div style="position:absolute;inset:5mm;border:1px solid #D4A843;pointer-events:none;z-index:2"></div>
 
   <!-- Cantos ornamentais -->
-  <div style="position:absolute;top:5mm;left:5.5mm;font-size:10pt;color:#D4A843;z-index:3;line-height:1">✦</div>
-  <div style="position:absolute;top:5mm;right:5.5mm;font-size:10pt;color:#D4A843;z-index:3;line-height:1">✦</div>
-  <div style="position:absolute;bottom:5mm;left:5.5mm;font-size:10pt;color:#D4A843;z-index:3;line-height:1">✦</div>
-  <div style="position:absolute;bottom:5mm;right:5.5mm;font-size:10pt;color:#D4A843;z-index:3;line-height:1">✦</div>
+  <div style="position:absolute;top:6.5mm;left:7mm;font-size:14pt;color:#D4A843;z-index:3;line-height:1">✦</div>
+  <div style="position:absolute;top:6.5mm;right:7mm;font-size:14pt;color:#D4A843;z-index:3;line-height:1">✦</div>
+  <div style="position:absolute;bottom:6.5mm;left:7mm;font-size:14pt;color:#D4A843;z-index:3;line-height:1">✦</div>
+  <div style="position:absolute;bottom:6.5mm;right:7mm;font-size:14pt;color:#D4A843;z-index:3;line-height:1">✦</div>
 
   <!-- Cabeçalho -->
   <div class="header">
@@ -4403,43 +4403,52 @@ function _htmlCertificado(vis, sessao) {
   </div>
 
   <!-- Título -->
-  <div style="text-align:center;margin:1.5mm 0 0;position:relative;z-index:1">
+  <div style="text-align:center;margin:7mm 0 0;position:relative;z-index:1">
     <div class="cert-title">Certificado de Visita</div>
-    <div class="cert-subtitle">Emitido pela Secretaria &nbsp;·&nbsp; ${dataSessao}</div>
+    <div class="cert-subtitle">Emitido pela Secretaria da Loja &nbsp;·&nbsp; ${dataSessao}</div>
   </div>
 
   <!-- Divisor dourado -->
-  <div style="display:flex;align-items:center;gap:2mm;margin:1.5mm 8mm;position:relative;z-index:1">
-    <div style="flex:1;height:0.5px;background:#D4A843"></div>
-    <div style="color:#D4A843;font-size:8pt">✦</div>
-    <div style="flex:1;height:0.5px;background:#D4A843"></div>
+  <div style="display:flex;align-items:center;gap:4mm;margin:5mm 6mm;position:relative;z-index:1">
+    <div style="flex:1;height:1.5px;background:linear-gradient(90deg,transparent,#D4A843)"></div>
+    <div style="color:#D4A843;font-size:14pt;letter-spacing:4mm">✦ ✦ ✦</div>
+    <div style="flex:1;height:1.5px;background:linear-gradient(90deg,#D4A843,transparent)"></div>
   </div>
 
   <!-- Corpo -->
-  <div class="body-text" style="position:relative;z-index:1">
+  <div class="body-text" style="position:relative;z-index:1;margin-top:3mm">
     A <strong>${nome}${numero}</strong>, reunida em <strong>${tipoSess}${grauTxt}</strong>
     no Oriente de <strong>${orient}</strong>, em <strong>${dataSessao}</strong>,
-    certifica que o Querido Irmão
-    <span style="font-size:10.5pt;font-weight:bold;color:#1B3A6B;font-style:italic">${vis.nome}</span>
-    nos honrou com sua visita fraterna, apresentando os devidos sinais de reconhecimento
-    maçônico e sendo recebido com as honras correspondentes ao seu grau.
+    certifica que o Querido e Ilustre Irmão
+  </div>
+
+  <!-- Nome em destaque -->
+  <div style="text-align:center;margin:7mm 0 4mm;position:relative;z-index:1;padding:4mm 0;border-top:0.5px solid rgba(212,168,67,0.3);border-bottom:0.5px solid rgba(212,168,67,0.3)">
+    <div style="font-size:22pt;font-weight:bold;color:#1B3A6B;font-style:italic;letter-spacing:0.04em">${vis.nome}</div>
+    ${vis.cargo?`<div style="font-size:11pt;color:#D4A843;margin-top:3mm;font-family:'Georgia',serif;letter-spacing:0.08em">${vis.cargo}</div>`:''}
+  </div>
+
+  <div class="body-text" style="position:relative;z-index:1;margin-top:3mm">
+    honrou esta Respeitável Loja com sua visita fraterna, apresentando os devidos sinais
+    e palavras de reconhecimento maçônico, sendo recebido com as honras correspondentes
+    ao seu grau e gozando das regalias de Irmão visitante.
   </div>
 
   <!-- Dados do visitante -->
-  <div class="highlight-box" style="position:relative;z-index:1">
+  <div class="highlight-box" style="position:relative;z-index:1;margin-top:6mm">
     ${[
-      vis.loja     ? `<b>Loja:</b> ${vis.loja}${vis.cim?' &nbsp;·&nbsp; CIM: '+vis.cim:''}` : '',
-      vis.potencia ? `<b>Potência:</b> ${vis.potencia}` : '',
-      vis.cargo    ? `<b>Cargo:</b> ${vis.cargo}` : '',
-      vis.grau     ? `<b>Grau:</b> ${vis.grau}º` : '',
-    ].filter(Boolean).join(' &nbsp;&nbsp;·&nbsp;&nbsp; ')}
+      vis.loja     ? `<div><b>Loja de Origem:</b> &nbsp;${vis.loja}${vis.cim?' &nbsp;·&nbsp; CIM: '+vis.cim:''}</div>` : '',
+      vis.potencia ? `<div><b>Potência:</b> &nbsp;${vis.potencia}</div>` : '',
+      vis.grau     ? `<div><b>Grau:</b> &nbsp;${vis.grau}º Grau</div>` : '',
+    ].filter(Boolean).join('')}
   </div>
 
   <!-- Fecho -->
-  <div style="font-size:7.5pt;text-align:center;color:#555;font-style:italic;margin:1.5mm 8mm 0;position:relative;z-index:1">
-    Que a <strong>Fraternidade Universal</strong> continue unindo todos os verdadeiros Maçons
-    na busca do <strong>Bem</strong>, da <strong>Verdade</strong> e da <strong>Justiça</strong>. &nbsp; ▲ ▲ ▲
+  <div style="font-size:12.5pt;text-align:center;color:#444;font-style:italic;margin:8mm 6mm 0;position:relative;z-index:1;line-height:1.8">
+    Que a <strong style="color:#1B3A6B">Fraternidade Universal</strong> continue unindo todos os verdadeiros Maçons<br>
+    na busca do <strong>Bem</strong>, da <strong>Verdade</strong> e da <strong>Justiça</strong>.
   </div>
+  <div style="text-align:center;margin:6mm 0 2mm;font-size:18pt;color:#D4A843;letter-spacing:7mm;position:relative;z-index:1">▲ ▲ ▲</div>
 
   <!-- Assinaturas -->
   <div class="footer-sigs">
@@ -4448,9 +4457,9 @@ function _htmlCertificado(vis, sessao) {
       <div class="sig-line">Venerável Mestre</div>
       <div class="sig-sub">${nome}${numero}</div>
     </div>
-    <div style="text-align:center;padding-bottom:3px">
-      <div style="font-size:18pt;color:#D4A843;line-height:1">▲</div>
-      <div style="font-size:5.5pt;color:#aaa;margin-top:1px">${orient}</div>
+    <div style="text-align:center;padding-bottom:4px">
+      <div style="font-size:26pt;color:#D4A843;line-height:1">▲</div>
+      <div style="font-size:7.5pt;color:#888;margin-top:3px;font-style:italic">${orient}</div>
     </div>
     <div class="sig-block">
       <div class="sig-img">${sigSec ? `<img src="${sigSec}" alt="">` : ''}</div>
@@ -4526,6 +4535,38 @@ function downloadCertificado(vis, sessao) {
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 5000);
   toast('📥 Baixado! Abra o arquivo → Ctrl+P → "Salvar como PDF"');
+}
+
+// Baixar todos os certificados da sessão em um único arquivo HTML
+function downloadTodosCertificados(visores, sessao) {
+  if (!visores || !visores.length) { toast('Nenhum visitante'); return; }
+  const htmls = visores.map(v => {
+    const h = _htmlCertificado(v, sessao);
+    // Extrair só o <body> e <style>
+    const styleM = h.match(/<style>([\s\S]*?)<\/style>/);
+    const bodyM  = h.match(/<body>([\s\S]*?)<\/body>/);
+    return { style: styleM?.[1]||'', body: bodyM?.[1]||h };
+  });
+  const doc = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+<title>Certificados — ${(sessao.data||'').replace(/-/g,'')}</title>
+<style>
+${htmls[0].style}
+@page { size:A4; margin:10mm 12mm; }
+.pagina { page-break-after:always; }
+.pagina:last-child { page-break-after:avoid; }
+</style></head><body>
+${htmls.map(h => '<div class="pagina">' + h.body + '</div>').join('')}
+</body></html>`;
+
+  const blob = new Blob([doc], { type:'text/html;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const data = (sessao.data||'').replace(/-/g,'');
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `Certificados_${data}_${visores.length}visitantes.html`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  toast(`📥 ${visores.length} certificado(s) baixados! Abra e use Ctrl+P → "Salvar como PDF"`);
 }
 
 function compartilharCertWhatsapp(vis, sessao) {
@@ -4688,10 +4729,16 @@ function abrirModalCertificados(sessaoId, dataSessao, tipoSessao) {
             ${tipoMap[tipoSessao]||tipoSessao||'Sessão'} — ${dataTxt} &nbsp;·&nbsp; ${visitantes.length} visitante(s)
           </div>
           <div style="margin-bottom:16px">
-            <button class="btn btn-solid" onclick="emitirCertificadosSessao('${sessaoId}','${dataSessao}','${tipoSessao}');fecharModal()"
-              style="width:100%;padding:10px;margin-bottom:8px;background:linear-gradient(135deg,#1B3A6B,#2A5298)">
-              🖨️ Imprimir Todos (${visitantes.length}) de uma vez
-            </button>
+            <div style="display:flex;gap:8px;margin-bottom:8px">
+              <button class="btn btn-solid" onclick="emitirCertificadosSessao('${sessaoId}','${dataSessao}','${tipoSessao}');fecharModal()"
+                style="flex:1;padding:10px;background:linear-gradient(135deg,#1B3A6B,#2A5298)">
+                🖨️ Imprimir Todos (${visitantes.length})
+              </button>
+              <button class="btn" onclick="downloadTodosCertificados(window._certVisores,window._certSessaoAtual)"
+                style="padding:10px 16px;white-space:nowrap;border-color:rgba(27,58,107,0.3);color:var(--navy)">
+                📥 Baixar Todos
+              </button>
+            </div>
           </div>
           <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--text-muted);text-transform:uppercase;margin-bottom:10px">Ou imprimir individualmente:</div>
           <div style="display:flex;flex-direction:column;gap:8px">
@@ -4706,6 +4753,8 @@ function abrirModalCertificados(sessaoId, dataSessao, tipoSessao) {
                 <div style="display:flex;gap:6px;flex-wrap:wrap">
                   <button onclick="emitirCertificadoVisita(window._certVisores[${visitantes.indexOf(v)}],window._certSessaoAtual)"
                     class="btn" style="padding:5px 10px;font-size:10px;white-space:nowrap">🖨️ Imprimir</button>
+                  <button onclick="downloadCertificado(window._certVisores[${visitantes.indexOf(v)}],window._certSessaoAtual)"
+                    class="btn" style="padding:5px 10px;font-size:10px;white-space:nowrap">📥 Baixar</button>
                   <button onclick="compartilharCertWhatsapp(window._certVisores[${visitantes.indexOf(v)}],window._certSessaoAtual)"
                     style="padding:5px 10px;border:none;border-radius:3px;background:linear-gradient(135deg,#25D366,#128C7E);color:#fff;font-family:'Cinzel',serif;font-size:9px;font-weight:700;cursor:pointer;white-space:nowrap">
                     📱 WhatsApp
@@ -5099,10 +5148,22 @@ function preencherDadosVisitante() {
   const lojaEl  = document.getElementById('vis-loja');
   const cimEl   = document.getElementById('vis-cim');
   const cargoEl = document.getElementById('vis-cargo');
+  const telEl   = document.getElementById('vis-tel');
+  const emailEl = document.getElementById('vis-email');
   if (nomeEl)  nomeEl.value  = nome || '';
   if (lojaEl)  lojaEl.value  = loja || '';
   if (cimEl)   cimEl.value   = cim  || '';
   if (cargoEl) cargoEl.value = '';
+  // Buscar telefone e email do membro cadastrado
+  const nomeLimpo = (nome||'').toLowerCase().trim();
+  const membro = DATA.membros.find(m =>
+    (m.nome_maconico||'').toLowerCase().trim() === nomeLimpo ||
+    (m.nome_civil||'').toLowerCase().trim() === nomeLimpo
+  );
+  if (membro) {
+    if (telEl   && membro.telefone) telEl.value   = membro.telefone;
+    if (emailEl && membro.email)    emailEl.value = membro.email;
+  }
 }
 
 // Oferta automática de certificado após registrar visitante
@@ -5123,7 +5184,11 @@ function _ofertaCertificadoAuto(visData, sessaoData, sessaoId) {
         <div style="display:flex;gap:8px">
           <button onclick="emitirCertificadoVisita(window._certAutoVis,window._certAutoSessao);document.getElementById('cert-auto-banner').remove()"
             style="padding:6px 14px;background:#D4A843;color:#1B3A6B;border:none;border-radius:4px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;cursor:pointer;white-space:nowrap">
-            🖨️ Emitir Agora
+            🖨️ Imprimir
+          </button>
+          <button onclick="downloadCertificado(window._certAutoVis,window._certAutoSessao);document.getElementById('cert-auto-banner').remove()"
+            style="padding:6px 14px;background:rgba(255,255,255,0.2);color:#fff;border:1px solid rgba(255,255,255,0.4);border-radius:4px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;cursor:pointer;white-space:nowrap">
+            📥 Baixar
           </button>
           <button onclick="abrirModalCertificados(window._certAutoSessao.id,window._certAutoSessao.data,window._certAutoSessao.tipo);document.getElementById('cert-auto-banner').remove()"
             style="padding:6px 14px;background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.3);border-radius:4px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;cursor:pointer">
