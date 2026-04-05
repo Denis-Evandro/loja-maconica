@@ -2165,11 +2165,12 @@ async function doLogin() {
   // 2. Verificar se é Admin do sistema (conta separada, não é membro)
   const adminEmails = JSON.parse(localStorage.getItem('admin_emails') || '[]');
   const userId = authData.user.id;
-  // Verificar pela tabela usuarios se há role=admin vinculado
+  // Verificar pela tabela usuarios — por auth_user_id ou email
   const { data: usuarioAdmin } = await sb.from('usuarios')
-    .select('role').eq('auth_user_id', userId).maybeSingle();
+    .select('role,email').or(`auth_user_id.eq.${userId},email.eq.${email}`)
+    .eq('role','admin').maybeSingle();
 
-  if (usuarioAdmin?.role === 'admin' || adminEmails.includes(email.toLowerCase())) {
+  if (usuarioAdmin || adminEmails.includes(email.toLowerCase())) {
     _modoDemo = false;
     _membroLogado = { id: null, grau: 3, cargo: 'Administrador', nome_maconico: 'Administrador do Sistema' };
     currentRole = 'admin';
