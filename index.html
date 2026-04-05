@@ -4230,7 +4230,7 @@ function renderFrequencia(access) {
             <button class="btn" style="padding:3px 9px;font-size:8px" onclick="abrirModalVisitante('${s.id}')">+ Visit.</button>`:''}
             <button class="btn" style="padding:3px 9px;font-size:8px" onclick="verListaPresenca('${s.id}','${s.data}','${s.tipo}')">👁️ Ver</button>
             <button class="btn" style="padding:3px 9px;font-size:8px" onclick="imprimirListaPresenca('${s.id}','${s.data}','${s.tipo}','${s.descricao_local||'Templo'}')">🖨️</button>
-            <button class="btn" style="padding:3px 9px;font-size:8px;background:rgba(27,58,107,0.08);border-color:rgba(27,58,107,0.3);color:var(--navy)" onclick="abrirModalCertificados('${s.id}','${s.data}','${s.tipo}')" title="Certificados de Visita">🎖️ Cert.</button>
+            ${canEdit?`<button class="btn" style="padding:3px 9px;font-size:8px;background:rgba(27,58,107,0.08);border-color:rgba(27,58,107,0.3);color:var(--navy)" onclick="abrirModalCertificados('${s.id}','${s.data}','${s.tipo}')" title="Certificados de Visita">🎖️ Cert.</button>`:''}
           </td>
         </tr>`;
       }).join('');
@@ -4358,37 +4358,38 @@ function _htmlCertificado(vis, sessao) {
   * { margin:0; padding:0; box-sizing:border-box; }
   body { font-family:'Times New Roman',serif; color:#1a1a1a; background:#fff; }
 
-  /* Folha A4 completa — elegante, preenchida, letra grande */
-  .cert-wrap { width:181mm; min-height:268mm; position:relative; display:flex; flex-direction:column; padding:12mm 14mm 10mm; overflow:hidden; }
-  .header { display:flex; align-items:center; gap:7mm; padding-bottom:5mm; margin-bottom:0; border-bottom:2.5px solid #1B3A6B; position:relative; z-index:1; }
-  .header-logo { width:60px; height:60px; object-fit:contain; flex-shrink:0; }
-  .lodge-name { font-size:15pt; font-weight:bold; color:#1B3A6B; letter-spacing:0.04em; line-height:1.3; }
-  .lodge-sub  { font-size:10pt; color:#555; margin-top:3px; letter-spacing:0.02em; }
-  .ornament   { font-size:16pt; color:#D4A843; letter-spacing:5mm; white-space:nowrap; flex-shrink:0; }
-  .cert-title { font-size:24pt; font-weight:bold; color:#1B3A6B; letter-spacing:0.14em; text-transform:uppercase; }
-  .cert-subtitle { font-size:11pt; color:#777; margin-top:2mm; font-style:italic; }
-  .body-text { font-size:12.5pt; line-height:1.9; text-align:justify; margin:0 4mm; }
-  .highlight-box { margin:6mm 4mm; padding:5mm 7mm; background:rgba(212,168,67,0.07); border-left:5px solid #D4A843; border-radius:0 5px 5px 0; font-size:12pt; line-height:2.1; }
-  .footer-sigs { display:flex; justify-content:space-around; align-items:flex-end; margin-top:auto; padding-top:6mm; border-top:1px solid #ddd; position:relative; z-index:1; }
-  .sig-block { text-align:center; width:110px; }
-  .sig-img   { height:46px; display:flex; align-items:flex-end; justify-content:center; margin-bottom:3px; }
-  .sig-img img { max-height:44px; max-width:106px; object-fit:contain; }
-  .sig-line  { border-top:1px solid #333; padding-top:3px; font-size:10pt; font-weight:bold; }
-  .sig-sub   { font-size:8.5pt; color:#888; margin-top:2px; }
-  .serie { position:absolute; bottom:7mm; right:9mm; font-size:7pt; color:#ccc; z-index:1; }
+  /* MEIA FOLHA A4 — 185x128mm — preenchida por completo, letras grandes */
+  @page { size: A4; margin: 10mm 12mm; }
+  .cert-wrap { width:183mm; height:124mm; position:relative; display:flex; flex-direction:column; padding:5mm 7mm 4mm; overflow:hidden; }
+  .header { display:flex; align-items:center; gap:4mm; padding-bottom:2.5mm; border-bottom:2px solid #1B3A6B; position:relative; z-index:1; }
+  .header-logo { width:38px; height:38px; object-fit:contain; flex-shrink:0; }
+  .lodge-name { font-size:10.5pt; font-weight:bold; color:#1B3A6B; letter-spacing:0.03em; line-height:1.2; }
+  .lodge-sub  { font-size:7.5pt; color:#555; margin-top:2px; }
+  .ornament   { font-size:12pt; color:#D4A843; letter-spacing:3mm; white-space:nowrap; flex-shrink:0; }
+  .cert-title { font-size:15pt; font-weight:bold; color:#1B3A6B; letter-spacing:0.12em; text-transform:uppercase; }
+  .cert-subtitle { font-size:7.5pt; color:#777; margin-top:1mm; font-style:italic; }
+  .body-text { font-size:9pt; line-height:1.6; text-align:justify; margin:0 2mm; }
+  .highlight-box { margin:2mm 2mm; padding:2mm 4mm; background:rgba(212,168,67,0.07); border-left:4px solid #D4A843; border-radius:0 4px 4px 0; font-size:8.5pt; line-height:1.7; }
+  .footer-sigs { display:flex; justify-content:space-around; align-items:flex-end; margin-top:auto; padding-top:2mm; border-top:0.8px solid #ddd; position:relative; z-index:1; }
+  .sig-block { text-align:center; width:80px; }
+  .sig-img   { height:26px; display:flex; align-items:flex-end; justify-content:center; margin-bottom:2px; }
+  .sig-img img { max-height:24px; max-width:76px; object-fit:contain; }
+  .sig-line  { border-top:0.8px solid #333; padding-top:2px; font-size:7pt; font-weight:bold; }
+  .sig-sub   { font-size:6pt; color:#888; margin-top:1px; }
+  .serie { position:absolute; bottom:4mm; right:6mm; font-size:5.5pt; color:#ccc; z-index:1; }
   @media print { body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
 </style></head><body>
 <div class="cert-wrap">
 
   <!-- Borda dupla: externa navy + interna dourada -->
-  <div style="position:absolute;inset:0;border:3px solid #1B3A6B;pointer-events:none;z-index:2"></div>
-  <div style="position:absolute;inset:5mm;border:1px solid #D4A843;pointer-events:none;z-index:2"></div>
+  <div style="position:absolute;inset:0;border:2px solid #1B3A6B;pointer-events:none;z-index:2"></div>
+  <div style="position:absolute;inset:3mm;border:0.8px solid #D4A843;pointer-events:none;z-index:2"></div>
 
   <!-- Cantos ornamentais -->
-  <div style="position:absolute;top:6.5mm;left:7mm;font-size:14pt;color:#D4A843;z-index:3;line-height:1">✦</div>
-  <div style="position:absolute;top:6.5mm;right:7mm;font-size:14pt;color:#D4A843;z-index:3;line-height:1">✦</div>
-  <div style="position:absolute;bottom:6.5mm;left:7mm;font-size:14pt;color:#D4A843;z-index:3;line-height:1">✦</div>
-  <div style="position:absolute;bottom:6.5mm;right:7mm;font-size:14pt;color:#D4A843;z-index:3;line-height:1">✦</div>
+  <div style="position:absolute;top:4mm;left:4.5mm;font-size:10pt;color:#D4A843;z-index:3;line-height:1">✦</div>
+  <div style="position:absolute;top:4mm;right:4.5mm;font-size:10pt;color:#D4A843;z-index:3;line-height:1">✦</div>
+  <div style="position:absolute;bottom:4mm;left:4.5mm;font-size:10pt;color:#D4A843;z-index:3;line-height:1">✦</div>
+  <div style="position:absolute;bottom:4mm;right:4.5mm;font-size:10pt;color:#D4A843;z-index:3;line-height:1">✦</div>
 
   <!-- Cabeçalho -->
   <div class="header">
@@ -4403,52 +4404,52 @@ function _htmlCertificado(vis, sessao) {
   </div>
 
   <!-- Título -->
-  <div style="text-align:center;margin:7mm 0 0;position:relative;z-index:1">
+  <div style="text-align:center;margin:2mm 0 0;position:relative;z-index:1">
     <div class="cert-title">Certificado de Visita</div>
-    <div class="cert-subtitle">Emitido pela Secretaria da Loja &nbsp;·&nbsp; ${dataSessao}</div>
+    <div class="cert-subtitle">Emitido pela Secretaria &nbsp;·&nbsp; ${dataSessao}</div>
   </div>
 
   <!-- Divisor dourado -->
-  <div style="display:flex;align-items:center;gap:4mm;margin:5mm 6mm;position:relative;z-index:1">
-    <div style="flex:1;height:1.5px;background:linear-gradient(90deg,transparent,#D4A843)"></div>
-    <div style="color:#D4A843;font-size:14pt;letter-spacing:4mm">✦ ✦ ✦</div>
-    <div style="flex:1;height:1.5px;background:linear-gradient(90deg,#D4A843,transparent)"></div>
+  <div style="display:flex;align-items:center;gap:2mm;margin:2mm 4mm;position:relative;z-index:1">
+    <div style="flex:1;height:1px;background:linear-gradient(90deg,transparent,#D4A843)"></div>
+    <div style="color:#D4A843;font-size:10pt;letter-spacing:2mm">✦ ✦ ✦</div>
+    <div style="flex:1;height:1px;background:linear-gradient(90deg,#D4A843,transparent)"></div>
   </div>
 
   <!-- Corpo -->
-  <div class="body-text" style="position:relative;z-index:1;margin-top:3mm">
+  <div class="body-text" style="position:relative;z-index:1">
     A <strong>${nome}${numero}</strong>, reunida em <strong>${tipoSess}${grauTxt}</strong>
     no Oriente de <strong>${orient}</strong>, em <strong>${dataSessao}</strong>,
     certifica que o Querido e Ilustre Irmão
   </div>
 
   <!-- Nome em destaque -->
-  <div style="text-align:center;margin:7mm 0 4mm;position:relative;z-index:1;padding:4mm 0;border-top:0.5px solid rgba(212,168,67,0.3);border-bottom:0.5px solid rgba(212,168,67,0.3)">
-    <div style="font-size:22pt;font-weight:bold;color:#1B3A6B;font-style:italic;letter-spacing:0.04em">${vis.nome}</div>
-    ${vis.cargo?`<div style="font-size:11pt;color:#D4A843;margin-top:3mm;font-family:'Georgia',serif;letter-spacing:0.08em">${vis.cargo}</div>`:''}
+  <div style="text-align:center;margin:2.5mm 0;position:relative;z-index:1;padding:2mm 0;border-top:0.5px solid rgba(212,168,67,0.35);border-bottom:0.5px solid rgba(212,168,67,0.35)">
+    <div style="font-size:14.5pt;font-weight:bold;color:#1B3A6B;font-style:italic;letter-spacing:0.04em">${vis.nome}</div>
+    ${vis.cargo?`<div style="font-size:8pt;color:#D4A843;margin-top:1mm;letter-spacing:0.08em">${vis.cargo}</div>`:''}
   </div>
 
-  <div class="body-text" style="position:relative;z-index:1;margin-top:3mm">
+  <div class="body-text" style="position:relative;z-index:1">
     honrou esta Respeitável Loja com sua visita fraterna, apresentando os devidos sinais
     e palavras de reconhecimento maçônico, sendo recebido com as honras correspondentes
     ao seu grau e gozando das regalias de Irmão visitante.
   </div>
 
   <!-- Dados do visitante -->
-  <div class="highlight-box" style="position:relative;z-index:1;margin-top:6mm">
+  <div class="highlight-box" style="position:relative;z-index:1">
     ${[
-      vis.loja     ? `<div><b>Loja de Origem:</b> &nbsp;${vis.loja}${vis.cim?' &nbsp;·&nbsp; CIM: '+vis.cim:''}</div>` : '',
-      vis.potencia ? `<div><b>Potência:</b> &nbsp;${vis.potencia}</div>` : '',
-      vis.grau     ? `<div><b>Grau:</b> &nbsp;${vis.grau}º Grau</div>` : '',
+      vis.loja     ? `<div><b>Loja:</b> ${vis.loja}${vis.cim?' · CIM: '+vis.cim:''}</div>` : '',
+      vis.potencia ? `<div><b>Potência:</b> ${vis.potencia}</div>` : '',
+      vis.grau     ? `<div><b>Grau:</b> ${vis.grau}º Grau</div>` : '',
     ].filter(Boolean).join('')}
   </div>
 
   <!-- Fecho -->
-  <div style="font-size:12.5pt;text-align:center;color:#444;font-style:italic;margin:8mm 6mm 0;position:relative;z-index:1;line-height:1.8">
-    Que a <strong style="color:#1B3A6B">Fraternidade Universal</strong> continue unindo todos os verdadeiros Maçons<br>
+  <div style="font-size:8.5pt;text-align:center;color:#444;font-style:italic;margin:2mm 4mm 0;position:relative;z-index:1;line-height:1.6">
+    Que a <strong style="color:#1B3A6B">Fraternidade Universal</strong> continue unindo todos os verdadeiros Maçons
     na busca do <strong>Bem</strong>, da <strong>Verdade</strong> e da <strong>Justiça</strong>.
   </div>
-  <div style="text-align:center;margin:6mm 0 2mm;font-size:18pt;color:#D4A843;letter-spacing:7mm;position:relative;z-index:1">▲ ▲ ▲</div>
+  <div style="text-align:center;margin:2mm 0 1mm;font-size:12pt;color:#D4A843;letter-spacing:5mm;position:relative;z-index:1">▲ ▲ ▲</div>
 
   <!-- Assinaturas -->
   <div class="footer-sigs">
@@ -4457,9 +4458,9 @@ function _htmlCertificado(vis, sessao) {
       <div class="sig-line">Venerável Mestre</div>
       <div class="sig-sub">${nome}${numero}</div>
     </div>
-    <div style="text-align:center;padding-bottom:4px">
-      <div style="font-size:26pt;color:#D4A843;line-height:1">▲</div>
-      <div style="font-size:7.5pt;color:#888;margin-top:3px;font-style:italic">${orient}</div>
+    <div style="text-align:center;padding-bottom:2px">
+      <div style="font-size:16pt;color:#D4A843;line-height:1">▲</div>
+      <div style="font-size:6pt;color:#888;margin-top:2px;font-style:italic">${orient}</div>
     </div>
     <div class="sig-block">
       <div class="sig-img">${sigSec ? `<img src="${sigSec}" alt="">` : ''}</div>
@@ -4707,6 +4708,9 @@ Oriente de ${orient}`;
 
 
 function abrirModalCertificados(sessaoId, dataSessao, tipoSessao) {
+  // Verificar permissão: só quem pode editar frequência
+  const accessFreq = ROLES[currentRole]?.access['frequencia'] || 'none';
+  if (accessFreq === 'none') { toast('⛔ Sem permissão para emitir certificados'); return; }
   const presencas  = DATA.presencas.filter(p => p.sessao_id === sessaoId);
   const visitantes = presencas.filter(p => !p.membro_id && (p.presente || p.situacao === 'presente'));
   if (!visitantes.length) { toast('Nenhum visitante registrado nesta sessão'); return; }
@@ -5168,6 +5172,9 @@ function preencherDadosVisitante() {
 
 // Oferta automática de certificado após registrar visitante
 function _ofertaCertificadoAuto(visData, sessaoData, sessaoId) {
+  // Só mostrar banner para quem tem permissão de frequência
+  const accessFreq = ROLES[currentRole]?.access['frequencia'] || 'none';
+  if (accessFreq === 'none') return;
   // Mini-banner no canto inferior (não bloqueia a tela)
   const bannerId = 'cert-auto-banner';
   document.getElementById(bannerId)?.remove();
