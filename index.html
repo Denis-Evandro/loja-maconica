@@ -1200,7 +1200,43 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
 
       <button class="btn-login" id="btn-login" onclick="doLogin()">Entrar na Loja ✦</button>
 
-      <div class="login-hint">Esqueceu a senha? Fale com o Secretário da Loja</div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button onclick="abrirPainelCadastro()" style="flex:1;padding:8px;background:rgba(212,168,67,0.12);border:1px solid rgba(212,168,67,0.4);border-radius:4px;color:var(--gold-light);font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.08em;cursor:pointer">
+          ✨ Criar minha conta
+        </button>
+        <button onclick="abrirPainelRecuperarSenha()" style="flex:1;padding:8px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.15);border-radius:4px;color:rgba(245,225,153,0.6);font-family:'Cinzel',serif;font-size:10px;cursor:pointer">
+          🔑 Esqueci a senha
+        </button>
+      </div>
+    </div>
+
+    <!-- PAINEL CADASTRO -->
+    <div id="painel-cadastro" style="display:none">
+      <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;letter-spacing:0.1em;color:var(--gold-light);margin-bottom:14px;text-align:center">✨ CRIAR MINHA CONTA</div>
+      <label class="field-label">Nome Maçônico</label>
+      <input class="field-input" id="cad-nome" type="text" placeholder="Ex: Ir. João da Luz" autocomplete="off">
+      <label class="field-label">E-mail</label>
+      <input class="field-input" id="cad-email" type="email" placeholder="seu@email.com">
+      <label class="field-label">Telefone / WhatsApp</label>
+      <input class="field-input" id="cad-tel" type="tel" placeholder="Ex: 13999998888">
+      <label class="field-label">Senha</label>
+      <input class="field-input" id="cad-senha" type="password" placeholder="Mínimo 6 caracteres">
+      <label class="field-label">Confirmar Senha</label>
+      <input class="field-input" id="cad-senha2" type="password" placeholder="Repita a senha">
+      <div id="cad-erro" style="display:none;background:rgba(139,32,32,0.1);border:1px solid rgba(139,32,32,0.3);border-radius:4px;padding:10px 14px;font-size:12px;color:#8B2020;font-style:italic;margin-bottom:4px"></div>
+      <div id="cad-ok" style="display:none;background:rgba(34,100,34,0.1);border:1px solid rgba(34,100,34,0.3);border-radius:4px;padding:10px 14px;font-size:12px;color:#1a6b1a;font-style:italic;margin-bottom:4px"></div>
+      <button class="btn-login" id="btn-cadastrar" onclick="doCadastro()">Criar Conta ✦</button>
+      <button onclick="abrirPainelLogin()" style="width:100%;margin-top:8px;padding:8px;background:transparent;border:none;color:rgba(245,225,153,0.5);font-family:'Cinzel',serif;font-size:10px;cursor:pointer">← Voltar ao login</button>
+    </div>
+
+    <!-- PAINEL RECUPERAR SENHA -->
+    <div id="painel-recuperar" style="display:none">
+      <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;letter-spacing:0.1em;color:var(--gold-light);margin-bottom:14px;text-align:center">🔑 RECUPERAR SENHA</div>
+      <label class="field-label">E-mail cadastrado</label>
+      <input class="field-input" id="rec-email" type="email" placeholder="seu@email.com">
+      <div id="rec-ok" style="display:none;background:rgba(34,100,34,0.1);border:1px solid rgba(34,100,34,0.3);border-radius:4px;padding:10px 14px;font-size:12px;color:#1a6b1a;font-style:italic;margin-bottom:8px"></div>
+      <button class="btn-login" onclick="doRecuperarSenha()">Enviar link de recuperação ✦</button>
+      <button onclick="abrirPainelLogin()" style="width:100%;margin-top:8px;padding:8px;background:transparent;border:none;color:rgba(245,225,153,0.5);font-family:'Cinzel',serif;font-size:10px;cursor:pointer">← Voltar ao login</button>
     </div>
 
     <!-- PAINEL DEMO -->
@@ -1966,6 +2002,119 @@ function doLoginDemo() {
 }
 
 // ─── LOGIN REAL (Supabase Auth) ───────────────────────────────
+
+
+// ══════════════════════════════════════════════════════════════
+// SISTEMA DE CADASTRO / LOGIN / VINCULAÇÃO
+// ══════════════════════════════════════════════════════════════
+
+function abrirPainelLogin() {
+  document.getElementById('painel-real').style.display = '';
+  document.getElementById('painel-cadastro').style.display = 'none';
+  document.getElementById('painel-recuperar').style.display = 'none';
+}
+function abrirPainelCadastro() {
+  document.getElementById('painel-real').style.display = 'none';
+  document.getElementById('painel-cadastro').style.display = '';
+  document.getElementById('painel-recuperar').style.display = 'none';
+}
+function abrirPainelRecuperarSenha() {
+  document.getElementById('painel-real').style.display = 'none';
+  document.getElementById('painel-cadastro').style.display = 'none';
+  document.getElementById('painel-recuperar').style.display = '';
+}
+
+// Recuperar senha
+async function doRecuperarSenha() {
+  const email = document.getElementById('rec-email')?.value.trim();
+  const okEl  = document.getElementById('rec-ok');
+  if (!email) { toast('Preencha o e-mail'); return; }
+  const { error } = await sb.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.href
+  });
+  if (error) { toast('❌ ' + error.message); return; }
+  if (okEl) {
+    okEl.textContent = '✅ Link de recuperação enviado! Verifique seu e-mail.';
+    okEl.style.display = 'block';
+  }
+}
+
+// Auto-cadastro
+async function doCadastro() {
+  const nome   = document.getElementById('cad-nome')?.value.trim();
+  const email  = document.getElementById('cad-email')?.value.trim();
+  const tel    = document.getElementById('cad-tel')?.value.trim();
+  const senha  = document.getElementById('cad-senha')?.value;
+  const senha2 = document.getElementById('cad-senha2')?.value;
+  const erroEl = document.getElementById('cad-erro');
+  const okEl   = document.getElementById('cad-ok');
+  const btn    = document.getElementById('btn-cadastrar');
+
+  const mostrarErro = msg => { if(erroEl){erroEl.textContent='⚠️ '+msg;erroEl.style.display='block';} };
+  const mostrarOk   = msg => { if(okEl){okEl.textContent=msg;okEl.style.display='block';} };
+  if(erroEl) erroEl.style.display='none';
+  if(okEl)   okEl.style.display='none';
+
+  if (!nome || !email || !senha) { mostrarErro('Preencha nome, e-mail e senha.'); return; }
+  if (senha !== senha2)          { mostrarErro('As senhas não coincidem.'); return; }
+  if (senha.length < 6)          { mostrarErro('A senha deve ter pelo menos 6 caracteres.'); return; }
+
+  if (btn) { btn.textContent = '⏳ Criando conta...'; btn.disabled = true; }
+
+  try {
+    // 1. Criar conta no Supabase Auth
+    const { data: authData, error: authErr } = await sb.auth.signUp({ email, password: senha });
+    if (authErr) { mostrarErro(authErr.message); if(btn){btn.textContent='Criar Conta ✦';btn.disabled=false;} return; }
+
+    const userId = authData?.user?.id;
+
+    // 2. Buscar membro correspondente (por nome, email ou telefone)
+    const nomeLower = nome.toLowerCase().replace(/^ir\.\s*/i,'').trim();
+    const { data: membros } = await sb.from('membros').select('id,nome_maconico,email,telefone,auth_user_id');
+
+    let membroEncontrado = null;
+
+    // Tentar match por email
+    if (email) membroEncontrado = membros?.find(m => (m.email||'').toLowerCase() === email.toLowerCase());
+    // Tentar match por telefone
+    if (!membroEncontrado && tel) {
+      const telNum = tel.replace(/\D/g,'');
+      membroEncontrado = membros?.find(m => (m.telefone||'').replace(/\D/g,'') === telNum);
+    }
+    // Tentar match por nome
+    if (!membroEncontrado) {
+      membroEncontrado = membros?.find(m => {
+        const nm = (m.nome_maconico||'').toLowerCase().replace(/^ir\.\s*/i,'').trim();
+        return nm === nomeLower || nm.includes(nomeLower) || nomeLower.includes(nm);
+      });
+    }
+
+    if (membroEncontrado) {
+      // 3a. Membro encontrado — vincular automaticamente
+      await sb.from('membros').update({
+        auth_user_id: userId,
+        login_status: 'ativo',
+        login_vinculado_em: new Date().toISOString(),
+        email: email // atualizar email se diferente
+      }).eq('id', membroEncontrado.id);
+
+      mostrarOk('✅ Conta criada e vinculada ao seu cadastro! Verifique seu e-mail e faça login.');
+    } else {
+      // 3b. Membro não encontrado — criar pendência para aprovação
+      await sb.from('solicitacoes_edicao').insert({
+        membro_id: null,
+        dados_novos: { nome_maconico: nome, email, telefone: tel, auth_user_id: userId },
+        status: 'pendente',
+        observacao: 'Auto-cadastro: membro não encontrado — aguardando vinculação pelo Secretário'
+      });
+      mostrarOk('✅ Conta criada! Seu cadastro será analisado pelo Secretário da Loja. Você receberá acesso em breve.');
+    }
+  } catch(e) {
+    mostrarErro('Erro inesperado: ' + e.message);
+  }
+  if (btn) { btn.textContent = 'Criar Conta ✦'; btn.disabled = false; }
+}
+
 
 async function doLogin() {
   try {
@@ -2804,7 +2953,26 @@ function showPanel(id) {
   // Fechar sidebar no mobile ao navegar
   if (window.innerWidth <= 768) closeSidebar();
   if (id==='dashboard') renderDashboard();
-  if (id==='membros') renderMembros(access);
+  if (id==='membros') {
+    renderMembros(access);
+    setTimeout(() => {
+      const el = document.getElementById('membros-content');
+      if (!el) return;
+      if (!document.getElementById('sol-edicao-container')) {
+        const solDiv = document.createElement('div');
+        solDiv.id = 'sol-edicao-container';
+        el.prepend(solDiv);
+        renderSolicitacoesEdicao(solDiv);
+      }
+      if (_membroLogado?.id && !_modoDemo && !document.getElementById('btn-self-edit')) {
+        const btnDiv = document.createElement('div');
+        btnDiv.id = 'btn-self-edit';
+        btnDiv.style.cssText = 'margin-bottom:10px;display:flex;justify-content:flex-end';
+        btnDiv.innerHTML = `<button class="btn" onclick="abrirModalEdicaoPropriaConta()" style="padding:7px 16px;font-size:11px;border-color:var(--gold-dark);color:var(--gold-dark)">✏️ Editar meu cadastro</button>`;
+        el.prepend(btnDiv);
+      }
+    }, 100);
+  }
   if (id==='frequencia') renderFrequencia(access);
   if (id==="financas") { verificarAgendadosVencidos().then(()=>renderFinancas(access)); return; }
   if (id==='eventos') renderEventos(access);
@@ -3902,7 +4070,8 @@ function renderMembros(access) {
           <td style="display:flex;gap:4px">
             <button class="btn" style="padding:3px 9px;font-size:8px" title="Visualizar" onclick='abrirFichaMembro(${JSON.stringify(m).replace(/'/g,"&#39;")})'>👁️</button>
             ${canEdit?`<button class="btn" style="padding:3px 9px;font-size:8px" onclick='abrirModalMembro(${JSON.stringify(m).replace(/'/g,"&#39;")})'>✏️</button>
-            <button class="btn" style="padding:3px 9px;font-size:8px;color:var(--red)" onclick="excluirMembro('${m.id}','${m.nome_maconico}')">✕</button>`:''}
+            <button class="btn" style="padding:3px 9px;font-size:8px;color:var(--red)" onclick="excluirMembro('${m.id}','${m.nome_maconico}')">✕</button>
+            <button class="btn" title="Vincular Login" style="padding:3px 9px;font-size:8px;color:var(--navy)" onclick="abrirModalVincularLogin('${m.id}')">🔗</button>`:''}
           </td>
         </tr>`;
       }).join('');
@@ -5067,6 +5236,262 @@ async function confirmarPresencas(sessaoId) {
     toast("❌ Erro inesperado. Tente novamente.");
   }
 }
+
+
+// ══════════════════════════════════════════════════════════════
+// VINCULAÇÃO DE LOGIN E APROVAÇÃO DE EDIÇÕES
+// ══════════════════════════════════════════════════════════════
+
+// Abre modal para vincular um email/auth a um membro
+async function abrirModalVincularLogin(membroId) {
+  const canEdit = ROLES[currentRole]?.access['membros'] === 'full';
+  if (!canEdit) { toast('⛔ Sem permissão'); return; }
+
+  const membro = DATA.membros.find(m => m.id === membroId);
+  if (!membro) return;
+
+  document.body.insertAdjacentHTML('beforeend', `
+    <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px">
+      <div style="background:var(--white);border-radius:8px;width:480px;max-height:90vh;overflow-y:auto">
+        <div style="height:3px;background:linear-gradient(90deg,var(--navy),var(--gold-dark));border-radius:8px 8px 0 0"></div>
+        <div style="padding:24px 28px">
+          <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;color:var(--navy);margin-bottom:4px">🔗 Vincular Login</div>
+          <div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-bottom:18px">${membro.nome_maconico}</div>
+
+          <div style="margin-bottom:14px">
+            <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">E-mail do novo login</label>
+            <input id="vincular-email" type="email" value="${membro.email||''}" placeholder="email@exemplo.com"
+              style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-size:14px;background:var(--cream);color:var(--text)">
+          </div>
+
+          <div style="font-size:11px;color:var(--text-muted);font-style:italic;margin-bottom:16px;padding:10px 14px;background:rgba(212,168,67,0.06);border-radius:4px;border-left:3px solid var(--gold-dark)">
+            💡 Se o irmão já criou uma conta com este e-mail, ela será vinculada automaticamente.
+            Caso contrário, o e-mail será salvo no cadastro para quando ele criar a conta.
+          </div>
+
+          <div style="display:flex;gap:8px;justify-content:flex-end">
+            <button class="btn" onclick="fecharModal()" style="padding:8px 20px">Cancelar</button>
+            <button class="btn btn-solid" onclick="salvarVinculacaoLogin('${membroId}')" style="padding:8px 20px">🔗 Vincular</button>
+          </div>
+        </div>
+      </div>
+    </div>`);
+}
+
+async function salvarVinculacaoLogin(membroId) {
+  const email = document.getElementById('vincular-email')?.value.trim();
+  if (!email) { toast('Preencha o e-mail'); return; }
+
+  // Verificar se já existe usuário Auth com esse email
+  const { data: usuariosAuth } = await sb.from('membros').select('id,auth_user_id').eq('email', email);
+
+  // Atualizar o membro com o email e status
+  const { error } = await sb.from('membros').update({
+    email,
+    login_status: 'ativo',
+    login_vinculado_em: new Date().toISOString()
+  }).eq('id', membroId);
+
+  if (error) { toast('❌ Erro: ' + error.message); return; }
+
+  toast('✅ E-mail de login atualizado! Quando o irmão criar a conta com este e-mail, será vinculado automaticamente.');
+  fecharModal();
+  await loadAllData();
+}
+
+// ── Irmão editar o PRÓPRIO cadastro ─────────────────────────
+async function abrirModalEdicaoPropriaConta() {
+  if (!_membroLogado?.id) { toast('Faça login com sua conta real para editar.'); return; }
+
+  const membro = DATA.membros.find(m => m.id === _membroLogado.id);
+  if (!membro) { toast('Cadastro não encontrado.'); return; }
+
+  // Verificar se já há edição pendente
+  const { data: pendentes } = await sb.from('solicitacoes_edicao')
+    .select('id,status,criado_em').eq('membro_id', membro.id).eq('status','pendente');
+  
+  if (pendentes?.length > 0) {
+    toast('⏳ Você já tem uma solicitação de edição pendente de aprovação.');
+    return;
+  }
+
+  const fmtDate = d => d ? new Date(d).toLocaleDateString('pt-BR') : '';
+  
+  document.body.insertAdjacentHTML('beforeend', `
+    <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px">
+      <div style="background:var(--white);border-radius:8px;width:600px;max-height:90vh;overflow-y:auto">
+        <div style="height:3px;background:linear-gradient(90deg,var(--navy),var(--gold-dark));border-radius:8px 8px 0 0"></div>
+        <div style="padding:24px 28px">
+          <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;color:var(--navy);margin-bottom:4px">✏️ Editar Meu Cadastro</div>
+          <div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-bottom:6px">${membro.nome_maconico}</div>
+          <div style="font-size:11px;color:var(--gold-dark);background:rgba(212,168,67,0.07);border:1px solid rgba(212,168,67,0.25);border-radius:4px;padding:8px 12px;margin-bottom:18px">
+            ⚠️ As alterações ficam pendentes até aprovação do Secretário.
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            ${_campoEdicao('Nome Maçônico','ed-nome','text',membro.nome_maconico)}
+            ${_campoEdicao('Nome Civil','ed-nome-civil','text',membro.nome_civil)}
+            ${_campoEdicao('E-mail','ed-email','email',membro.email)}
+            ${_campoEdicao('Telefone / WhatsApp','ed-tel','tel',membro.telefone)}
+            ${_campoEdicao('Data de Nascimento','ed-nasc','date',membro.data_nascimento)}
+            ${_campoEdicao('CPF','ed-cpf','text',membro.cpf)}
+            ${_campoEdicao('Endereço','ed-end','text',membro.endereco)}
+            ${_campoEdicao('Cidade','ed-cidade','text',membro.cidade)}
+            ${_campoEdicao('Profissão','ed-profissao','text',membro.profissao)}
+            ${_campoEdicao('Empresa / Local de Trabalho','ed-empresa','text',membro.empresa)}
+          </div>
+          <div style="margin-top:12px">
+            ${_campoEdicao('Observações pessoais','ed-obs','text',membro.observacoes,'2/-1')}
+          </div>
+          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px">
+            <button class="btn" onclick="fecharModal()" style="padding:8px 20px">Cancelar</button>
+            <button class="btn btn-solid" onclick="enviarSolicitacaoEdicao('${membro.id}')" style="padding:8px 20px">📨 Enviar para Aprovação</button>
+          </div>
+        </div>
+      </div>
+    </div>`);
+}
+
+function _campoEdicao(label, id, type, value, gridCol) {
+  const gs = gridCol ? `grid-column:${gridCol};` : '';
+  return `<div style="${gs}">
+    <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">${label}</label>
+    <input id="${id}" type="${type}" value="${(value||'').replace(/"/g,'&quot;')}"
+      style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-size:13px;background:var(--cream);color:var(--text)">
+  </div>`;
+}
+
+async function enviarSolicitacaoEdicao(membroId) {
+  const membro = DATA.membros.find(m => m.id === membroId);
+  if (!membro) return;
+
+  const get = id => document.getElementById(id)?.value.trim() || '';
+
+  const dados_novos = {
+    nome_maconico: get('ed-nome'),
+    nome_civil:    get('ed-nome-civil'),
+    email:         get('ed-email'),
+    telefone:      get('ed-tel'),
+    data_nascimento: get('ed-nasc'),
+    cpf:           get('ed-cpf'),
+    endereco:      get('ed-end'),
+    cidade:        get('ed-cidade'),
+    profissao:     get('ed-profissao'),
+    empresa:       get('ed-empresa'),
+    observacoes:   get('ed-obs'),
+  };
+
+  // Remover campos sem alteração
+  const dados_anteriores = {};
+  Object.keys(dados_novos).forEach(k => {
+    if ((dados_novos[k]||'') === (membro[k]||'')) {
+      delete dados_novos[k];
+    } else {
+      dados_anteriores[k] = membro[k] || '';
+    }
+  });
+
+  if (!Object.keys(dados_novos).length) {
+    toast('Nenhuma alteração detectada.'); return;
+  }
+
+  const { error } = await sb.from('solicitacoes_edicao').insert({
+    membro_id: membroId,
+    dados_novos,
+    dados_anteriores,
+    status: 'pendente'
+  });
+
+  if (error) { toast('❌ Erro: ' + error.message); return; }
+  toast('📨 Solicitação enviada! Aguarde aprovação do Secretário.');
+  fecharModal();
+}
+
+// ── Painel de aprovação de edições (em Membros, para quem tem full) ──
+async function renderSolicitacoesEdicao(el) {
+  if (!el) return;
+  const canApprove = ROLES[currentRole]?.access['membros'] === 'full';
+  if (!canApprove) { el.innerHTML = ''; return; }
+
+  const { data: sols } = await sb.from('solicitacoes_edicao')
+    .select('*,membros(nome_maconico)').eq('status','pendente').order('criado_em',{ascending:false});
+
+  if (!sols?.length) { el.innerHTML = ''; return; }
+
+  el.innerHTML = `
+    <div class="card" style="border-left:4px solid var(--gold-dark);margin-bottom:16px">
+      <div class="card-header">
+        <div class="card-title">📋 Solicitações de Edição Pendentes (${sols.length})</div>
+      </div>
+      <div style="padding:0 22px 16px">
+        ${sols.map(s => {
+          const dataFmt = new Date(s.criado_em).toLocaleDateString('pt-BR');
+          const nome = s.membros?.nome_maconico || (s.dados_novos?.nome_maconico || 'Não vinculado');
+          const campos = Object.entries(s.dados_novos||{})
+            .map(([k,v]) => `<div style="font-size:11px;margin:2px 0"><b>${k}:</b> "${s.dados_anteriores?.[k]||'—'}" → "<span style="color:var(--navy)">${v}</span>"</div>`).join('');
+          return `
+          <div style="border:1px solid var(--border-mid);border-radius:6px;padding:14px 16px;margin-bottom:10px;background:var(--cream)">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+              <div>
+                <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:var(--navy)">${nome}</div>
+                <div style="font-size:10px;color:var(--text-muted)">${dataFmt} · ${s.observacao||'Edição do próprio cadastro'}</div>
+              </div>
+              <div style="display:flex;gap:6px">
+                <button class="btn btn-solid" onclick="aprovarEdicao('${s.id}')" style="padding:5px 12px;font-size:10px;background:var(--green)">✅ Aprovar</button>
+                <button class="btn" onclick="rejeitarEdicao('${s.id}')" style="padding:5px 12px;font-size:10px;color:var(--red);border-color:var(--red)">❌ Rejeitar</button>
+              </div>
+            </div>
+            <div style="border-top:1px solid var(--border);padding-top:8px">${campos}</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+}
+
+async function aprovarEdicao(solId) {
+  const { data: sol } = await sb.from('solicitacoes_edicao').select('*').eq('id', solId).single();
+  if (!sol) return;
+
+  const eu = _eu();
+
+  if (sol.membro_id) {
+    // Aplicar as alterações no membro
+    const { error } = await sb.from('membros').update(sol.dados_novos).eq('id', sol.membro_id);
+    if (error) { toast('❌ Erro: ' + error.message); return; }
+  } else {
+    // Auto-cadastro sem vínculo — criar ou associar
+    toast('⚠️ Este cadastro não tem membro vinculado. Vincule manualmente.');
+    return;
+  }
+
+  await sb.from('solicitacoes_edicao').update({
+    status: 'aprovado',
+    resolvido_em: new Date().toISOString(),
+    resolvido_por: eu.nome
+  }).eq('id', solId);
+
+  toast('✅ Alterações aprovadas e aplicadas!');
+  await loadAllData();
+  const el = document.getElementById('sol-edicao-container');
+  if (el) renderSolicitacoesEdicao(el);
+}
+
+async function rejeitarEdicao(solId) {
+  const motivo = prompt('Motivo da rejeição (opcional):') ?? '';
+  const eu = _eu();
+
+  await sb.from('solicitacoes_edicao').update({
+    status: 'rejeitado',
+    resolvido_em: new Date().toISOString(),
+    resolvido_por: eu.nome,
+    observacao: motivo || 'Rejeitado pelo administrador'
+  }).eq('id', solId);
+
+  toast('❌ Solicitação rejeitada.');
+  await loadAllData();
+  const el = document.getElementById('sol-edicao-container');
+  if (el) renderSolicitacoesEdicao(el);
+}
+
 
 async function abrirModalVisitante(sessaoId) {
   const { data: lojasSalvas } = await sb.from('lojas_visitantes').select('nome').order('nome');
