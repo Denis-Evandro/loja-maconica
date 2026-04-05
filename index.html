@@ -1204,7 +1204,7 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
         <button onclick="abrirPainelCadastro()" style="flex:1;padding:8px;background:rgba(212,168,67,0.12);border:1px solid rgba(212,168,67,0.4);border-radius:4px;color:var(--gold-light);font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.08em;cursor:pointer">
           ✨ Criar minha conta
         </button>
-        <button onclick="abrirPainelRecuperarSenha()" style="flex:1;padding:8px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.15);border-radius:4px;color:rgba(245,225,153,0.6);font-family:'Cinzel',serif;font-size:10px;cursor:pointer">
+        <button onclick="abrirPainelRecuperarSenha()" style="flex:1;padding:8px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.35);border-radius:4px;color:rgba(245,225,153,0.95);font-family:'Cinzel',serif;font-size:10px;cursor:pointer;letter-spacing:0.05em">
           🔑 Esqueci a senha
         </button>
       </div>
@@ -2116,6 +2116,21 @@ async function doCadastro() {
 }
 
 
+
+// ── Configurar conta de Admin (salvar no localStorage como fallback) ──
+function configurarEmailAdmin() {
+  const canConfig = currentRole === 'admin';
+  if (!canConfig) { toast('⛔ Apenas o Administrador pode configurar contas admin'); return; }
+  const email = prompt('E-mail da conta de Administrador do sistema:');
+  if (!email) return;
+  const admins = JSON.parse(localStorage.getItem('admin_emails') || '[]');
+  if (!admins.includes(email.toLowerCase())) {
+    admins.push(email.toLowerCase());
+    localStorage.setItem('admin_emails', JSON.stringify(admins));
+  }
+  toast(`✅ ${email} registrado como Administrador`);
+}
+
 async function doLogin() {
   try {
   const email = document.getElementById('loginUser')?.value.trim();
@@ -2147,17 +2162,47 @@ async function doLogin() {
     return;
   }
 
-  // 2. Buscar membro pelo email
-  const { data: membro, error: memErr } = await sb.from('membros').select('*').eq('email', email).maybeSingle();
+  // 2. Verificar se é Admin do sistema (conta separada, não é membro)
+  const adminEmails = JSON.parse(localStorage.getItem('admin_emails') || '[]');
+  const userId = authData.user.id;
+  // Verificar pela tabela usuarios se há role=admin vinculado
+  const { data: usuarioAdmin } = await sb.from('usuarios')
+    .select('role').eq('auth_user_id', userId).maybeSingle();
+
+  if (usuarioAdmin?.role === 'admin' || adminEmails.includes(email.toLowerCase())) {
+    _modoDemo = false;
+    _membroLogado = { id: null, grau: 3, cargo: 'Administrador', nome_maconico: 'Administrador do Sistema' };
+    currentRole = 'admin';
+    _aplicarRoleNaTela('admin', _membroLogado);
+    _registrarAcesso('Administrador', 'Administrador', 'admin', 'login');
+    await loadAllData();
+    if (btn) { btn.textContent = 'Entrar na Loja ✦'; btn.disabled = false; }
+    return;
+  }
+
+  // 3. Buscar membro pelo email ou auth_user_id
+  let membro = null;
+  const { data: m1 } = await sb.from('membros').select('*').eq('email', email).maybeSingle();
+  if (m1) {
+    membro = m1;
+    // Atualizar auth_user_id se ainda não estiver vinculado
+    if (!m1.auth_user_id) {
+      await sb.from('membros').update({ auth_user_id: userId, login_status: 'ativo' }).eq('id', m1.id);
+    }
+  } else {
+    // Tentar por auth_user_id
+    const { data: m2 } = await sb.from('membros').select('*').eq('auth_user_id', userId).maybeSingle();
+    membro = m2;
+  }
 
   if (!membro) {
-    if (erro) { erro.textContent = '⚠️ Seu cadastro não foi encontrado na loja. Fale com o Secretário.'; erro.style.display = 'block'; }
+    if (erro) { erro.textContent = '⚠️ Cadastro não encontrado. Fale com o Secretário para vincular seu login.'; erro.style.display = 'block'; }
     await sb.auth.signOut();
     if (btn) { btn.textContent = 'Entrar na Loja ✦'; btn.disabled = false; }
     return;
   }
 
-  // 3. Determinar role pelo cargo real
+  // 4. Determinar role pelo cargo real
   _modoDemo = false;
   _aplicarPorMembro(membro);
   if (btn) { btn.textContent = 'Entrar na Loja ✦'; btn.disabled = false; }
