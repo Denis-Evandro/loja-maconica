@@ -1700,6 +1700,16 @@ const PERM_REL = [
   { id: 'rel_comissoes',  label: '🏛️ Comissões da Loja',             desc: 'Membros, responsáveis e situação das comissões.',       padrao: ['veneravel','chanceler','admin'] },
 ];
 
+const REL_PERMISSOES = {
+  // id do relatório → cargos que podem ver
+  membros:    ['veneravel','secretario','chanceler','admin'],
+  frequencia: ['veneravel','chanceler','admin'],
+  financas:   ['veneravel','tesoureiro','admin'],
+  debitos:    ['veneravel','tesoureiro','admin'],
+  tronco:     ['veneravel','tesoureiro','admin'],
+  comissoes:  ['veneravel','chanceler','admin'],
+};
+
 
 async function loadAllData() {
   try {
@@ -4220,7 +4230,7 @@ function renderFrequencia(access) {
             <button class="btn" style="padding:3px 9px;font-size:8px" onclick="abrirModalVisitante('${s.id}')">+ Visit.</button>`:''}
             <button class="btn" style="padding:3px 9px;font-size:8px" onclick="verListaPresenca('${s.id}','${s.data}','${s.tipo}')">👁️ Ver</button>
             <button class="btn" style="padding:3px 9px;font-size:8px" onclick="imprimirListaPresenca('${s.id}','${s.data}','${s.tipo}','${s.descricao_local||'Templo'}')">🖨️</button>
-            ${canEdit?`<button class="btn" style="padding:3px 9px;font-size:8px;background:rgba(27,58,107,0.08);border-color:rgba(27,58,107,0.3);color:var(--navy)" onclick="abrirModalCertificados('${s.id}','${s.data}','${s.tipo}')" title="Emitir Certificados de Visita">🎖️</button>`:''}
+            <button class="btn" style="padding:3px 9px;font-size:8px;background:rgba(27,58,107,0.08);border-color:rgba(27,58,107,0.3);color:var(--navy)" onclick="abrirModalCertificados('${s.id}','${s.data}','${s.tipo}')" title="Certificados de Visita">🎖️ Cert.</button>
           </td>
         </tr>`;
       }).join('');
@@ -4902,7 +4912,6 @@ function preencherDadosVisitante() {
   if (cargoEl) cargoEl.value = '';
 }
 
-async 
 // Oferta automática de certificado após registrar visitante
 function _ofertaCertificadoAuto(visData, sessaoData, sessaoId) {
   // Mini-banner no canto inferior (não bloqueia a tela)
@@ -4961,13 +4970,13 @@ async function salvarVisitante(sessaoId) {
   });
   if (res.error) { toast('Erro: ' + res.error.message); return; }
   toast('Visitante registrado ✦');
-  fecharModal();
-  await loadAllData();
-  // Modo automático: oferecer emissão de certificado imediatamente
-  // Guardar referência global temporária para evitar problemas com aspas no JSON inline
+  // Guardar dados ANTES de fechar modal e recarregar
   window._certAutoVis    = { nome, loja, cim: cim||'', cargo: cargo||'', potencia:'', grau:'' };
   window._certAutoSessao = DATA.sessoes.find(s => s.id === sessaoId) || { id: sessaoId, data: '', tipo: '' };
-  _ofertaCertificadoAuto(window._certAutoVis, window._certAutoSessao, sessaoId);
+  fecharModal();
+  await loadAllData();
+  // Mostrar banner automático APÓS o carregamento (500ms para o DOM estabilizar)
+  setTimeout(() => _ofertaCertificadoAuto(window._certAutoVis, window._certAutoSessao, sessaoId), 500);
 }
 
 // ===================== FINANÇAS =====================
@@ -9903,15 +9912,7 @@ function _fazerDownloadExcel(dados, nomeArquivo, nomeAba) {
 
 // ── Permissões de relatórios por cargo ────────────────────────
 // Regra fixa de negócio — não configurável no painel
-const REL_PERMISSOES = {
-  // id do relatório → cargos que podem ver
-  membros:    ['veneravel','secretario','chanceler','admin'],
-  frequencia: ['veneravel','chanceler','admin'],
-  financas:   ['veneravel','tesoureiro','admin'],
-  debitos:    ['veneravel','tesoureiro','admin'],
-  tronco:     ['veneravel','tesoureiro','admin'],
-  comissoes:  ['veneravel','chanceler','admin'],
-};
+
 
 function _possoVerRelatorio(id) {
   const permitidos = REL_PERMISSOES[id] || ['veneravel','admin'];
