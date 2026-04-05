@@ -4322,16 +4322,18 @@ function _parsearVisitante(v) {
   const parts = j.replace('VISITANTE | ','').split(' | ')
     .reduce((acc, p) => { const [k, ...vv] = p.split(': '); acc[k?.trim()] = vv.join(': ')?.trim(); return acc; }, {});
   return {
-    nome:    parts['Nome']   || j.replace('VISITANTE | ','') || 'Visitante',
-    loja:    parts['Loja']   || '',
-    cim:     parts['CIM']    || '',
-    cargo:   parts['Cargo']  || '',
-    potencia:parts['Potência']|| parts['Potencia'] || '',
-    grau:    parts['Grau']   || '',
+    nome:     parts['Nome']   || j.replace('VISITANTE | ','') || 'Visitante',
+    loja:     parts['Loja']   || '',
+    cim:      parts['CIM']    || '',
+    cargo:    parts['Cargo']  || '',
+    potencia: parts['Potência']|| parts['Potencia'] || '',
+    grau:     parts['Grau']   || '',
+    telefone: parts['Tel']    || '',
+    email:    parts['Email']  || '',
   };
 }
 
-// Gera o HTML de um certificado individual
+// Gera o HTML de um certificado individual (cabe em meia folha A4 — 2 por página)
 function _htmlCertificado(vis, sessao) {
   const d      = _getDadosLoja();
   const nome   = d.nome   || 'A.R.L.S. Fraternidade Acadêmica de Peruíbe';
@@ -4339,116 +4341,118 @@ function _htmlCertificado(vis, sessao) {
   const orient = d.oriente|| 'Peruíbe — SP';
   const pot    = d.potencia|| 'G.O.B.';
   const logoUrl= d.logo_url|| '';
-  const dataSessao = sessao.data ? new Date(sessao.data + 'T12:00:00').toLocaleDateString('pt-BR', {day:'2-digit',month:'long',year:'numeric'}) : '—';
-  const tipoMap= { ordinaria:'Sessão Ordinária', extraordinaria:'Sessão Extraordinária', magna:'Sessão Magna', instrucao:'Sessão de Instrução', solene:'Sessão Solene' };
+  const dataSessao = sessao.data
+    ? new Date(sessao.data + 'T12:00:00').toLocaleDateString('pt-BR', {day:'2-digit',month:'long',year:'numeric'})
+    : '—';
+  const tipoMap = { ordinaria:'Sessão Ordinária', extraordinaria:'Sessão Extraordinária', magna:'Sessão Magna', instrucao:'Sessão de Instrução', solene:'Sessão Solene' };
   const tipoSess = tipoMap[sessao.tipo] || sessao.tipo || 'Sessão';
-  const grauTxt= sessao.grau ? `${sessao.grau}º Grau` : '';
-  // Assinaturas
-  const sigVen = localStorage.getItem('assinatura_veneravel') || '';
-  const sigSec = localStorage.getItem('assinatura_secretario')|| '';
-  // Número de série
-  const serie = `${(sessao.data||'').replace(/-/g,'')}-${Math.random().toString(36).substr(2,6).toUpperCase()}`;
+  const grauTxt  = sessao.grau ? ` de ${sessao.grau}º Grau` : '';
+  const sigVen   = localStorage.getItem('assinatura_veneravel') || '';
+  const sigSec   = localStorage.getItem('assinatura_secretario')|| '';
+  const serie    = `${(sessao.data||'').replace(/-/g,'')}-${Math.random().toString(36).substr(2,6).toUpperCase()}`;
 
-  return `
-<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
-<title>Certificado de Visita — ${vis.nome}</title>
+  return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+<title>Certificado — ${vis.nome}</title>
 <style>
-  @page { size: A4; margin: 18mm 20mm; }
+  @page { size: A4; margin: 10mm 12mm; }
   * { margin:0; padding:0; box-sizing:border-box; }
   body { font-family:'Times New Roman',serif; color:#1a1a1a; background:#fff; }
-  .cert-wrap { width:100%; min-height:240mm; display:flex; flex-direction:column; border:2.5px solid #1B3A6B; padding:14mm 16mm; position:relative; }
-  .cert-wrap::before { content:''; position:absolute; inset:5mm; border:1px solid rgba(27,58,107,0.25); pointer-events:none; }
-  .header { display:flex; align-items:center; justify-content:space-between; border-bottom:2px solid #1B3A6B; padding-bottom:8mm; margin-bottom:8mm; }
-  .header-logo { width:60px; height:60px; object-fit:contain; }
-  .header-lodge { text-align:center; flex:1; padding:0 10mm; }
-  .lodge-name { font-size:16pt; font-weight:bold; color:#1B3A6B; letter-spacing:0.05em; }
-  .lodge-sub { font-size:9pt; color:#555; margin-top:3px; }
-  .ornament { font-size:22pt; color:#D4A843; text-align:center; margin:4mm 0; }
-  .cert-title { font-size:20pt; font-weight:bold; color:#1B3A6B; text-align:center; letter-spacing:0.12em; text-transform:uppercase; margin:4mm 0 2mm; }
-  .cert-subtitle { font-size:11pt; color:#555; text-align:center; font-style:italic; margin-bottom:8mm; }
-  .body-text { font-size:12pt; line-height:1.9; text-align:justify; margin:0 6mm; }
-  .body-text strong { color:#1B3A6B; }
-  .highlight-box { margin:8mm 6mm; padding:6mm 8mm; border:1px solid #D4A843; background:#FFFBF0; border-radius:4px; }
-  .highlight-row { display:flex; gap:4mm; margin-bottom:3mm; font-size:11pt; }
-  .highlight-label { font-weight:bold; color:#1B3A6B; min-width:80px; }
-  .footer-sigs { display:flex; justify-content:space-around; margin-top:14mm; padding-top:6mm; border-top:1px solid #ddd; }
-  .sig-block { text-align:center; width:120px; }
-  .sig-img { height:50px; display:flex; align-items:flex-end; justify-content:center; margin-bottom:4px; }
-  .sig-img img { max-height:48px; max-width:110px; object-fit:contain; }
-  .sig-line { border-top:1px solid #333; padding-top:4px; font-size:9pt; color:#333; }
-  .sig-cargo { font-size:8pt; color:#666; margin-top:2px; }
-  .serie { position:absolute; bottom:8mm; right:12mm; font-size:7pt; color:#aaa; }
-  .triangle { display:inline-block; margin:0 3px; color:#D4A843; }
-  @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+
+  /* DOIS certificados por folha A4 */
+  .cert-wrap {
+    width: 185mm;
+    height: 128mm;
+    border: 2px solid #1B3A6B;
+    padding: 6mm 8mm;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    page-break-inside: avoid;
+    overflow: hidden;
+  }
+  .cert-wrap::before {
+    content:''; position:absolute; inset:3mm;
+    border:0.5px solid rgba(27,58,107,0.2); pointer-events:none;
+  }
+  .header {
+    display:flex; align-items:center; gap:6mm;
+    border-bottom:1.5px solid #1B3A6B; padding-bottom:3mm; margin-bottom:3mm;
+  }
+  .header-logo { width:36px; height:36px; object-fit:contain; flex-shrink:0; }
+  .lodge-name { font-size:10pt; font-weight:bold; color:#1B3A6B; letter-spacing:0.04em; }
+  .lodge-sub  { font-size:7pt; color:#555; margin-top:1px; }
+  .ornament   { font-size:11pt; color:#D4A843; text-align:center; letter-spacing:4mm; }
+  .cert-title { font-size:13pt; font-weight:bold; color:#1B3A6B; text-align:center; letter-spacing:0.1em; text-transform:uppercase; margin:2mm 0 1mm; }
+  .cert-subtitle { font-size:7.5pt; color:#666; text-align:center; font-style:italic; margin-bottom:3mm; }
+  .body-text { font-size:8pt; line-height:1.6; text-align:justify; margin:0 2mm; }
+  .highlight-box {
+    margin:3mm 2mm; padding:2mm 4mm;
+    border:0.5px solid #D4A843; background:#FFFBF0;
+    border-radius:3px; display:flex; flex-wrap:wrap; gap:1mm 6mm;
+  }
+  .hl-item { font-size:7.5pt; display:flex; gap:2mm; align-items:baseline; }
+  .hl-label { font-weight:bold; color:#1B3A6B; white-space:nowrap; }
+  .footer-sigs {
+    display:flex; justify-content:space-around; align-items:flex-end;
+    margin-top:auto; padding-top:3mm; border-top:0.5px solid #ddd;
+  }
+  .sig-block { text-align:center; width:80px; }
+  .sig-img   { height:28px; display:flex; align-items:flex-end; justify-content:center; margin-bottom:2px; }
+  .sig-img img { max-height:26px; max-width:75px; object-fit:contain; }
+  .sig-line  { border-top:0.5px solid #333; padding-top:2px; font-size:6.5pt; }
+  .serie     { position:absolute; bottom:3mm; right:5mm; font-size:5.5pt; color:#bbb; }
+  @media print {
+    body { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    /* Corte visual entre os dois certificados */
+    .cert-separator { border-top:1px dashed #ccc; margin:5mm 0; text-align:center; font-size:7pt; color:#aaa; }
+  }
 </style></head><body>
 <div class="cert-wrap">
   <div class="header">
-    ${logoUrl ? `<img src="${logoUrl}" class="header-logo" alt="Logo">` : '<div style="width:60px"></div>'}
-    <div class="header-lodge">
+    ${logoUrl ? `<img src="${logoUrl}" class="header-logo" alt="Logo">` : '<div style="width:36px;text-align:center;font-size:16pt;color:#D4A843">▲</div>'}
+    <div style="flex:1">
       <div class="lodge-name">${nome}${numero}</div>
       <div class="lodge-sub">${pot} &nbsp;·&nbsp; Oriente de ${orient}</div>
     </div>
-    <div style="width:60px;text-align:right;font-size:9pt;color:#888">&#9651;<br>&#9651;</div>
+    <div class="ornament">▲ ▲ ▲</div>
   </div>
 
-  <div class="ornament">&#9651; &nbsp;&#9651; &nbsp;&#9651;</div>
-
   <div class="cert-title">Certificado de Visita</div>
-  <div class="cert-subtitle">Emitido pela Secretaria da Loja</div>
+  <div class="cert-subtitle">Secretaria da Loja &nbsp;·&nbsp; ${dataSessao}</div>
 
   <div class="body-text">
-    A <strong>${nome}${numero}</strong>, reunida em
-    <strong>${tipoSess}${grauTxt ? ' de ' + grauTxt : ''}</strong>, no Oriente de
-    <strong>${orient}</strong>, em <strong>${dataSessao}</strong>,
-    certifica que o Querido Irmão a seguir identificado nos honrou com sua visita
-    fraterna, participando dos nossos trabalhos em Paz, Amor e Harmonia.
+    Certificamos que o Q.·.I.·. abaixo identificado honrou esta Resp.·.Loja com sua visita fraterna
+    durante a <strong>${tipoSess}${grauTxt}</strong>, realizada em <strong>${dataSessao}</strong>,
+    no Oriente de <strong>${orient}</strong>, tendo apresentado os devidos sinais de reconhecimento.
   </div>
 
   <div class="highlight-box">
-    <div class="highlight-row">
-      <span class="highlight-label">Irmão:</span>
-      <span><strong>${vis.nome}</strong></span>
-    </div>
-    ${vis.cargo ? `<div class="highlight-row"><span class="highlight-label">Cargo:</span><span>${vis.cargo}</span></div>` : ''}
-    ${vis.loja ? `<div class="highlight-row"><span class="highlight-label">Loja de Origem:</span><span>${vis.loja}${vis.cim ? ' &nbsp;·&nbsp; CIM: ' + vis.cim : ''}</span></div>` : ''}
-    ${vis.potencia ? `<div class="highlight-row"><span class="highlight-label">Potência:</span><span>${vis.potencia}</span></div>` : ''}
-    ${vis.grau ? `<div class="highlight-row"><span class="highlight-label">Grau:</span><span>${vis.grau}º Grau</span></div>` : ''}
-  </div>
-
-  <div class="body-text" style="margin-top:4mm">
-    Declaramos que o referido Irmão apresentou os sinais e palavras de reconhecimento
-    maçônico, sendo recebido com as honras correspondentes ao seu grau.
-    <br><br>
-    Que a <strong>Fraternidade Universal</strong> <span class="triangle">▲</span> continue
-    a unir todos os verdadeiros maçons na busca do
-    <strong>Bem</strong>, da <strong>Verdade</strong> e da <strong>Justiça</strong>.
+    <div class="hl-item"><span class="hl-label">Irmão:</span><span><strong>${vis.nome}</strong></span></div>
+    ${vis.cargo    ? `<div class="hl-item"><span class="hl-label">Cargo:</span><span>${vis.cargo}</span></div>` : ''}
+    ${vis.loja     ? `<div class="hl-item"><span class="hl-label">Loja:</span><span>${vis.loja}${vis.cim ? ' · CIM ' + vis.cim : ''}</span></div>` : ''}
+    ${vis.potencia ? `<div class="hl-item"><span class="hl-label">Potência:</span><span>${vis.potencia}</span></div>` : ''}
+    ${vis.grau     ? `<div class="hl-item"><span class="hl-label">Grau:</span><span>${vis.grau}º Grau</span></div>` : ''}
   </div>
 
   <div class="footer-sigs">
     <div class="sig-block">
-      <div class="sig-img">
-        ${sigVen ? `<img src="${sigVen}" alt="Assinatura">` : ''}
-      </div>
+      <div class="sig-img">${sigVen ? `<img src="${sigVen}" alt="">` : ''}</div>
       <div class="sig-line">Venerável Mestre</div>
-      <div class="sig-cargo">${nome}${numero}</div>
     </div>
-    <div class="sig-block" style="text-align:center;width:100px">
-      <div style="font-size:28pt;color:#D4A843;line-height:1">&#9651;</div>
-      <div style="font-size:8pt;color:#888;margin-top:4px">Oriente de ${orient}</div>
+    <div style="text-align:center;padding-bottom:4px">
+      <div style="font-size:16pt;color:#D4A843;line-height:1">▲</div>
+      <div style="font-size:6pt;color:#888;margin-top:1px">${orient}</div>
     </div>
     <div class="sig-block">
-      <div class="sig-img">
-        ${sigSec ? `<img src="${sigSec}" alt="Assinatura">` : ''}
-      </div>
+      <div class="sig-img">${sigSec ? `<img src="${sigSec}" alt="">` : ''}</div>
       <div class="sig-line">Secretário</div>
-      <div class="sig-cargo">${nome}${numero}</div>
     </div>
   </div>
-
-  <div class="serie">Nº de Série: ${serie}</div>
+  <div class="serie">Nº ${serie}</div>
 </div>
 </body></html>`;
 }
+
 
 // Emitir certificado individual (abre janela de impressão)
 function emitirCertificadoVisita(visObj, sessaoObj) {
@@ -4496,6 +4500,143 @@ ${htmls.map((h, i) => {
 }
 
 // Modal de seleção de visitante para certificado individual
+
+// ── Compartilhar Certificado por WhatsApp ───────────────────
+function compartilharCertWhatsapp(vis, sessao) {
+  const d        = _getDadosLoja();
+  const nomeLoja = d.nome   || 'A.R.L.S. Fraternidade Acadêmica de Peruíbe';
+  const numero   = d.numero ? ` Nº ${d.numero}` : '';
+  const orient   = d.oriente|| 'Peruíbe — SP';
+  const dataSessao = sessao.data
+    ? new Date(sessao.data + 'T12:00:00').toLocaleDateString('pt-BR', {day:'2-digit',month:'long',year:'numeric'})
+    : '—';
+  const tipoMap  = { ordinaria:'Sessão Ordinária', extraordinaria:'Sessão Extraordinária', magna:'Sessão Magna', instrucao:'Sessão de Instrução', solene:'Sessão Solene' };
+  const tipoSess = tipoMap[sessao.tipo] || sessao.tipo || 'Sessão';
+
+  const msg = `🏛️ *CERTIFICADO DE VISITA*
+*${nomeLoja}${numero}*
+Oriente de ${orient}
+
+Querido Ir. *${vis.nome}*,
+
+É com grande satisfação que certificamos sua visita fraterna à nossa Respeitável Loja durante a *${tipoSess}* realizada em *${dataSessao}*.
+
+${vis.loja    ? `🏛️ Loja: ${vis.loja}${vis.cim ? ' · CIM ' + vis.cim : ''}` : ''}
+${vis.cargo   ? `📋 Cargo: ${vis.cargo}` : ''}
+${vis.potencia? `⚜️ Potência: ${vis.potencia}` : ''}
+
+Que a Fraternidade Universal continue unindo todos os Maçons na busca do Bem, da Verdade e da Justiça. ▲▲▲
+
+*Fraternalmente,*
+*Secretaria — ${nomeLoja}${numero}*`;
+
+  // Tentar pegar telefone do visitante nos dados salvos
+  const tel = (vis.telefone || '').replace(/\D/g,'');
+  const urlWA = tel
+    ? `https://wa.me/55${tel}?text=${encodeURIComponent(msg)}`
+    : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+
+  // Abrir modal com opção de editar telefone e copiar
+  document.body.insertAdjacentHTML('beforeend', `
+    <div id="modal-overlay-cert-wa" style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px">
+      <div style="background:var(--white);border-radius:8px;width:500px;max-height:90vh;overflow-y:auto;position:relative">
+        <div style="height:3px;background:linear-gradient(90deg,#25D366,#128C7E);border-radius:8px 8px 0 0"></div>
+        <div style="padding:22px 26px">
+          <div style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;color:#128C7E;margin-bottom:4px">📱 Enviar Certificado por WhatsApp</div>
+          <div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-bottom:14px">Ir. ${vis.nome}</div>
+          <div style="margin-bottom:12px">
+            <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">Telefone do Visitante (com DDD)</label>
+            <input id="cert-wa-tel" type="tel" value="${tel}" placeholder="Ex: 13999998888"
+              style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)">
+          </div>
+          <textarea rows="10" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:10px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--cream);line-height:1.6;resize:vertical">${msg}</textarea>
+          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap">
+            <button onclick="document.getElementById('modal-overlay-cert-wa').remove()" class="btn" style="padding:8px 18px">Fechar</button>
+            <button onclick="navigator.clipboard.writeText(document.querySelector('#modal-overlay-cert-wa textarea').value);toast('📋 Mensagem copiada!')" class="btn" style="padding:8px 18px">📋 Copiar</button>
+            <a id="cert-wa-link" href="${urlWA}" target="_blank"
+              onclick="document.getElementById('modal-overlay-cert-wa').remove()"
+              class="btn btn-solid" style="padding:8px 18px;text-decoration:none;background:linear-gradient(135deg,#25D366,#128C7E)">
+              📱 Abrir WhatsApp
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>`);
+
+  // Atualizar link quando telefone muda
+  document.getElementById('cert-wa-tel')?.addEventListener('input', function() {
+    const t = this.value.replace(/\D/g,'');
+    const link = document.getElementById('cert-wa-link');
+    if (link) link.href = t
+      ? `https://wa.me/55${t}?text=${encodeURIComponent(msg)}`
+      : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+  });
+}
+
+// ── Compartilhar Certificado por E-mail ─────────────────────
+function compartilharCertEmail(vis, sessao) {
+  const d        = _getDadosLoja();
+  const nomeLoja = d.nome   || 'A.R.L.S. Fraternidade Acadêmica de Peruíbe';
+  const numero   = d.numero ? ` Nº ${d.numero}` : '';
+  const orient   = d.oriente|| 'Peruíbe — SP';
+  const dataSessao = sessao.data
+    ? new Date(sessao.data + 'T12:00:00').toLocaleDateString('pt-BR', {day:'2-digit',month:'long',year:'numeric'})
+    : '—';
+  const tipoMap  = { ordinaria:'Sessão Ordinária', extraordinaria:'Sessão Extraordinária', magna:'Sessão Magna', instrucao:'Sessão de Instrução', solene:'Sessão Solene' };
+  const tipoSess = tipoMap[sessao.tipo] || sessao.tipo || 'Sessão';
+
+  const assunto = `Certificado de Visita — ${nomeLoja}${numero} — ${dataSessao}`;
+  const corpo   = `Querido Ir. ${vis.nome},
+
+É com grande satisfação que certificamos sua visita fraterna à nossa Respeitável Loja durante a ${tipoSess} realizada em ${dataSessao}, no Oriente de ${orient}.
+
+${vis.loja    ? `Loja de origem: ${vis.loja}${vis.cim ? ' · CIM ' + vis.cim : ''}` : ''}
+${vis.cargo   ? `Cargo: ${vis.cargo}` : ''}
+${vis.potencia? `Potência: ${vis.potencia}` : ''}
+
+Que a Fraternidade Universal continue unindo todos os verdadeiros Maçons.
+
+Fraternalmente,
+Secretaria — ${nomeLoja}${numero}
+Oriente de ${orient}`;
+
+  // Tentar pegar email do visitante
+  const emailVis = vis.email || '';
+  const mailtoUrl = `mailto:${emailVis}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(corpo)}`;
+
+  document.body.insertAdjacentHTML('beforeend', `
+    <div id="modal-overlay-cert-email" style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px">
+      <div style="background:var(--white);border-radius:8px;width:500px;max-height:90vh;overflow-y:auto;position:relative">
+        <div style="height:3px;background:linear-gradient(90deg,#1B5EA0,#2A7ACC);border-radius:8px 8px 0 0"></div>
+        <div style="padding:22px 26px">
+          <div style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;color:#1B5EA0;margin-bottom:4px">✉️ Enviar Certificado por E-mail</div>
+          <div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-bottom:14px">Ir. ${vis.nome}</div>
+          <div style="margin-bottom:12px">
+            <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">E-mail do Visitante</label>
+            <input id="cert-email-addr" type="email" value="${emailVis}" placeholder="email@exemplo.com"
+              style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)">
+          </div>
+          <div style="margin-bottom:12px">
+            <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">Assunto</label>
+            <input type="text" value="${assunto}"
+              style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--cream);color:var(--text)" readonly>
+          </div>
+          <textarea id="cert-email-body" rows="8" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:10px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--cream);line-height:1.6;resize:vertical">${corpo}</textarea>
+          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap">
+            <button onclick="document.getElementById('modal-overlay-cert-email').remove()" class="btn" style="padding:8px 18px">Fechar</button>
+            <button onclick="navigator.clipboard.writeText(document.getElementById('cert-email-body').value);toast('📋 Texto copiado!')" class="btn" style="padding:8px 18px">📋 Copiar</button>
+            <a href="mailto:${emailVis}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(corpo)}"
+              onclick="document.getElementById('modal-overlay-cert-email').remove()"
+              class="btn btn-solid" style="padding:8px 18px;text-decoration:none;background:linear-gradient(135deg,#1B5EA0,#2A7ACC)">
+              ✉️ Abrir E-mail
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>`);
+}
+
+
 function abrirModalCertificados(sessaoId, dataSessao, tipoSessao) {
   const presencas  = DATA.presencas.filter(p => p.sessao_id === sessaoId);
   const visitantes = presencas.filter(p => !p.membro_id && (p.presente || p.situacao === 'presente'));
@@ -4504,6 +4645,10 @@ function abrirModalCertificados(sessaoId, dataSessao, tipoSessao) {
   const sessao = DATA.sessoes.find(s => s.id === sessaoId) || { data: dataSessao, tipo: tipoSessao };
   const tipoMap = { ordinaria:'Sessão Ordinária', extraordinaria:'Sessão Extraordinária', magna:'Sessão Magna', instrucao:'Sessão de Instrução', solene:'Sessão Solene' };
   const dataTxt = dataSessao ? new Date(dataSessao + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
+
+  // Armazenar visitantes globalmente para acesso pelos botões
+  window._certVisores    = visitantes.map(v => _parsearVisitante(v));
+  window._certSessaoAtual = sessao;
 
   document.body.insertAdjacentHTML('beforeend', `
     <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px">
@@ -4525,13 +4670,23 @@ function abrirModalCertificados(sessaoId, dataSessao, tipoSessao) {
             ${visitantes.map(v => {
               const vis = _parsearVisitante(v);
               return `
-              <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--cream);border:1px solid var(--border-mid);border-radius:6px">
-                <div>
+              <div style="padding:10px 14px;background:var(--cream);border:1px solid var(--border-mid);border-radius:6px">
+                <div style="margin-bottom:8px">
                   <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:var(--navy)">${vis.nome}</div>
                   <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${[vis.cargo, vis.loja, vis.potencia].filter(Boolean).join(' · ')}</div>
                 </div>
-                <button onclick="emitirCertificadoVisita(${JSON.stringify(vis).replace(/"/g,'&quot;')},${JSON.stringify(sessao).replace(/"/g,'&quot;')})"
-                  class="btn" style="padding:5px 12px;font-size:10px;white-space:nowrap">🎖️ Imprimir</button>
+                <div style="display:flex;gap:6px;flex-wrap:wrap">
+                  <button onclick="emitirCertificadoVisita(window._certVisores[${visitantes.indexOf(v)}],window._certSessaoAtual)"
+                    class="btn" style="padding:5px 10px;font-size:10px;white-space:nowrap">🖨️ Imprimir</button>
+                  <button onclick="compartilharCertWhatsapp(window._certVisores[${visitantes.indexOf(v)}],window._certSessaoAtual)"
+                    style="padding:5px 10px;border:none;border-radius:3px;background:linear-gradient(135deg,#25D366,#128C7E);color:#fff;font-family:'Cinzel',serif;font-size:9px;font-weight:700;cursor:pointer;white-space:nowrap">
+                    📱 WhatsApp
+                  </button>
+                  <button onclick="compartilharCertEmail(window._certVisores[${visitantes.indexOf(v)}],window._certSessaoAtual)"
+                    style="padding:5px 10px;border:none;border-radius:3px;background:linear-gradient(135deg,#1B5EA0,#2A7ACC);color:#fff;font-family:'Cinzel',serif;font-size:9px;font-weight:700;cursor:pointer;white-space:nowrap">
+                    ✉️ E-mail
+                  </button>
+                </div>
               </div>`;
             }).join('')}
           </div>
@@ -4885,6 +5040,16 @@ async function abrirModalVisitante(sessaoId) {
               </datalist>
             </div>
           </div>
+          <!-- Contato para certificado -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+            <div style="font-size:11px;color:var(--text-muted);font-style:italic;grid-column:1/-1;margin-bottom:-4px">
+              📋 Contato para envio do certificado (opcional)
+            </div>
+            <div>${lb('WhatsApp / Telefone')}
+              <input id="vis-tel" type="tel" ${inp} placeholder="Ex: 13999998888"></div>
+            <div>${lb('E-mail')}
+              <input id="vis-email" type="email" ${inp} placeholder="email@exemplo.com"></div>
+          </div>
         </div>
 
         ${visitantesCad.length > 0 ? '</div>' : ''}
@@ -4954,7 +5119,9 @@ async function salvarVisitante(sessaoId) {
   const nome  = document.getElementById('vis-nome')?.value.trim();
   const loja  = document.getElementById('vis-loja')?.value.trim();
   const cim   = document.getElementById('vis-cim')?.value.trim();
-  const cargo = document.getElementById('vis-cargo')?.value.trim();
+  const cargo    = document.getElementById('vis-cargo')?.value.trim();
+  const telefone  = document.getElementById('vis-tel')?.value.trim()    || '';
+  const emailVis  = document.getElementById('vis-email')?.value.trim()  || '';
   if (!nome || !loja) { toast('Preencha nome e loja'); return; }
 
   // Salvar a loja na tabela de lojas_visitantes para autocompletar depois
@@ -4966,7 +5133,7 @@ async function salvarVisitante(sessaoId) {
     membro_id: null,
     presente: true,
     situacao: 'presente',
-    justificativa: `VISITANTE | Nome: ${nome} | Loja: ${loja} | CIM: ${cim||'—'}${cargo?' | Cargo: '+cargo:''}`
+    justificativa: `VISITANTE | Nome: ${nome} | Loja: ${loja} | CIM: ${cim||'—'}${cargo?' | Cargo: '+cargo:''}${telefone?' | Tel: '+telefone:''}${emailVis?' | Email: '+emailVis:''}`
   });
   if (res.error) { toast('Erro: ' + res.error.message); return; }
   toast('Visitante registrado ✦');
