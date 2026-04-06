@@ -1174,22 +1174,11 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
       <div class="ornament-line"></div>
     </div>
 
-    <!-- Abas: Login Real / Demo -->
-    <div style="display:flex;border:1px solid rgba(212,168,67,0.3);border-radius:4px;overflow:hidden;margin-bottom:20px">
-      <button id="aba-real" onclick="alternarAbaLogin('real')"
-        style="flex:1;padding:9px;border:none;cursor:pointer;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;background:rgba(212,168,67,0.15);color:var(--gold-dark);border-right:1px solid rgba(212,168,67,0.3)">
-        🔐 ENTRAR COM MINHA CONTA
-      </button>
-      <button id="aba-demo" onclick="alternarAbaLogin('demo')"
-        style="flex:1;padding:9px;border:none;cursor:pointer;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;background:transparent;color:rgba(212,168,67,0.5);display:none">
-        🧪 MODO DEMONSTRAÇÃO
-      </button>
-    </div>
 
     <!-- PAINEL LOGIN REAL -->
     <div id="painel-real">
-      <label class="field-label">E-mail</label>
-      <input class="field-input" id="loginUser" type="email" placeholder="seu@email.com" autocomplete="email"
+      <label class="field-label">E-mail ou Telefone</label>
+      <input class="field-input" id="loginUser" type="text" placeholder="email@exemplo.com ou 13999998888" autocomplete="username"
         onkeydown="if(event.key==='Enter') doLogin()">
 
       <label class="field-label">Senha</label>
@@ -1201,7 +1190,7 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
       <button class="btn-login" id="btn-login" onclick="doLogin()">Entrar na Loja ✦</button>
 
       <div style="text-align:center;margin-top:10px">
-        <button onclick="abrirPainelRecuperarSenha()" style="background:transparent;border:none;color:rgba(245,225,153,0.7);font-family:'Cinzel',serif;font-size:10px;cursor:pointer;letter-spacing:0.05em;text-decoration:underline">
+        <button onclick="abrirPainelRecuperarSenha()" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.35);border-radius:4px;padding:7px 16px;color:#FFFFFF;font-family:'Cinzel',serif;font-size:10px;cursor:pointer;letter-spacing:0.05em">
           🔑 Esqueci minha senha
         </button>
       </div>
@@ -1219,7 +1208,7 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
       <input class="field-input" id="rec-email" type="email" placeholder="seu@email.com">
       <div id="rec-ok" style="display:none;background:rgba(34,100,34,0.1);border:1px solid rgba(34,100,34,0.3);border-radius:4px;padding:10px 14px;font-size:12px;color:#1a6b1a;font-style:italic;margin-bottom:8px"></div>
       <button class="btn-login" onclick="doRecuperarSenha()">Enviar link de recuperação ✦</button>
-      <button onclick="abrirPainelLogin()" style="width:100%;margin-top:8px;padding:8px;background:transparent;border:none;color:rgba(245,225,153,0.5);font-family:'Cinzel',serif;font-size:10px;cursor:pointer">← Voltar ao login</button>
+      <div style="text-align:center;margin-top:10px"><button onclick="abrirPainelLogin()" style="background:transparent;border:none;color:rgba(245,225,153,0.7);font-family:'Cinzel',serif;font-size:10px;cursor:pointer;text-decoration:underline">← Voltar ao login</button></div>
     </div>
 
     <!-- PAINEL DEMO -->
@@ -1992,8 +1981,9 @@ function doLoginDemo() {
 // ══════════════════════════════════════════════════════════════
 
 function abrirPainelLogin() {
-  document.getElementById('painel-real').style.display = '';
-  document.getElementById('painel-cadastro').style.display = 'none';
+  document.getElementById('painel-real').style.display = 'block';
+  const cadEl = document.getElementById('painel-cadastro');
+  if (cadEl) cadEl.style.display = 'none';
   document.getElementById('painel-recuperar').style.display = 'none';
 }
 function abrirPainelCadastro() {
@@ -2003,8 +1993,9 @@ function abrirPainelCadastro() {
 }
 function abrirPainelRecuperarSenha() {
   document.getElementById('painel-real').style.display = 'none';
-  document.getElementById('painel-cadastro').style.display = 'none';
-  document.getElementById('painel-recuperar').style.display = '';
+  const cadEl = document.getElementById('painel-cadastro');
+  if (cadEl) cadEl.style.display = 'none';
+  document.getElementById('painel-recuperar').style.display = 'block';
 }
 
 // Recuperar senha
@@ -5332,7 +5323,6 @@ async function confirmarPresencas(sessaoId) {
 // ══════════════════════════════════════════════════════════════
 
 // Abre modal para vincular um email/auth a um membro
-async 
 // ══════════════════════════════════════════════════════════════
 // SISTEMA DE CONVITES — SaaS Maçônico
 // ══════════════════════════════════════════════════════════════
