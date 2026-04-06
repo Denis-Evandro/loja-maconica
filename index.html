@@ -1181,7 +1181,7 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
         🔐 ENTRAR COM MINHA CONTA
       </button>
       <button id="aba-demo" onclick="alternarAbaLogin('demo')"
-        style="flex:1;padding:9px;border:none;cursor:pointer;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;background:transparent;color:rgba(212,168,67,0.5)">
+        style="flex:1;padding:9px;border:none;cursor:pointer;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;background:transparent;color:rgba(212,168,67,0.5);display:none">
         🧪 MODO DEMONSTRAÇÃO
       </button>
     </div>
@@ -1200,34 +1200,17 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
 
       <button class="btn-login" id="btn-login" onclick="doLogin()">Entrar na Loja ✦</button>
 
-      <div style="display:flex;gap:8px;margin-top:10px">
-        <button onclick="abrirPainelCadastro()" style="flex:1;padding:8px;background:rgba(212,168,67,0.12);border:1px solid rgba(212,168,67,0.4);border-radius:4px;color:var(--gold-light);font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.08em;cursor:pointer">
-          ✨ Criar minha conta
+      <div style="text-align:center;margin-top:10px">
+        <button onclick="abrirPainelRecuperarSenha()" style="background:transparent;border:none;color:rgba(245,225,153,0.7);font-family:'Cinzel',serif;font-size:10px;cursor:pointer;letter-spacing:0.05em;text-decoration:underline">
+          🔑 Esqueci minha senha
         </button>
-        <button onclick="abrirPainelRecuperarSenha()" style="flex:1;padding:8px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.35);border-radius:4px;color:rgba(245,225,153,0.95);font-family:'Cinzel',serif;font-size:10px;cursor:pointer;letter-spacing:0.05em">
-          🔑 Esqueci a senha
-        </button>
+      </div>
+      <div style="text-align:center;margin-top:8px;font-size:10px;color:rgba(245,225,153,0.35);font-style:italic">
+        Sem acesso? Fale com o Secretário da sua Loja.
       </div>
     </div>
 
-    <!-- PAINEL CADASTRO -->
-    <div id="painel-cadastro" style="display:none">
-      <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;letter-spacing:0.1em;color:var(--gold-light);margin-bottom:14px;text-align:center">✨ CRIAR MINHA CONTA</div>
-      <label class="field-label">Nome Maçônico</label>
-      <input class="field-input" id="cad-nome" type="text" placeholder="Ex: Ir. João da Luz" autocomplete="off">
-      <label class="field-label">E-mail</label>
-      <input class="field-input" id="cad-email" type="email" placeholder="seu@email.com">
-      <label class="field-label">Telefone / WhatsApp</label>
-      <input class="field-input" id="cad-tel" type="tel" placeholder="Ex: 13999998888">
-      <label class="field-label">Senha</label>
-      <input class="field-input" id="cad-senha" type="password" placeholder="Mínimo 6 caracteres">
-      <label class="field-label">Confirmar Senha</label>
-      <input class="field-input" id="cad-senha2" type="password" placeholder="Repita a senha">
-      <div id="cad-erro" style="display:none;background:rgba(139,32,32,0.1);border:1px solid rgba(139,32,32,0.3);border-radius:4px;padding:10px 14px;font-size:12px;color:#8B2020;font-style:italic;margin-bottom:4px"></div>
-      <div id="cad-ok" style="display:none;background:rgba(34,100,34,0.1);border:1px solid rgba(34,100,34,0.3);border-radius:4px;padding:10px 14px;font-size:12px;color:#1a6b1a;font-style:italic;margin-bottom:4px"></div>
-      <button class="btn-login" id="btn-cadastrar" onclick="doCadastro()">Criar Conta ✦</button>
-      <button onclick="abrirPainelLogin()" style="width:100%;margin-top:8px;padding:8px;background:transparent;border:none;color:rgba(245,225,153,0.5);font-family:'Cinzel',serif;font-size:10px;cursor:pointer">← Voltar ao login</button>
-    </div>
+    <!-- Cadastro controlado pelo Admin via convite -->
 
     <!-- PAINEL RECUPERAR SENHA -->
     <div id="painel-recuperar" style="display:none">
@@ -2040,74 +2023,127 @@ async function doRecuperarSenha() {
 }
 
 // Auto-cadastro
+// Alternância visual obrigatório email/tel
+function toggleCadObrigatorio() {
+  const email = document.getElementById('cad-email')?.value.trim();
+  const tel   = document.getElementById('cad-tel')?.value.trim();
+  // Nada a fazer — apenas deixar ambos opcionais visualmente
+}
+
 async function doCadastro() {
   const nome   = document.getElementById('cad-nome')?.value.trim();
   const email  = document.getElementById('cad-email')?.value.trim();
-  const tel    = document.getElementById('cad-tel')?.value.trim();
+  const tel    = (document.getElementById('cad-tel')?.value.trim()||'').replace(/\D/g,'');
   const senha  = document.getElementById('cad-senha')?.value;
   const senha2 = document.getElementById('cad-senha2')?.value;
   const erroEl = document.getElementById('cad-erro');
   const okEl   = document.getElementById('cad-ok');
   const btn    = document.getElementById('btn-cadastrar');
 
-  const mostrarErro = msg => { if(erroEl){erroEl.textContent='⚠️ '+msg;erroEl.style.display='block';} };
-  const mostrarOk   = msg => { if(okEl){okEl.textContent=msg;okEl.style.display='block';} };
+  const mostrarErro = msg => { if(erroEl){erroEl.textContent='⚠️ '+msg;erroEl.style.display='block';} if(okEl)okEl.style.display='none'; };
+  const mostrarOk   = msg => { if(okEl){okEl.textContent=msg;okEl.style.display='block';} if(erroEl)erroEl.style.display='none'; };
+
   if(erroEl) erroEl.style.display='none';
   if(okEl)   okEl.style.display='none';
 
-  if (!nome || !email || !senha) { mostrarErro('Preencha nome, e-mail e senha.'); return; }
-  if (senha !== senha2)          { mostrarErro('As senhas não coincidem.'); return; }
-  if (senha.length < 6)          { mostrarErro('A senha deve ter pelo menos 6 caracteres.'); return; }
+  // Validações
+  if (!nome)              { mostrarErro('Preencha seu nome maçônico.'); return; }
+  if (!email && !tel)     { mostrarErro('Preencha e-mail ou telefone.'); return; }
+  if (email && !email.includes('@')) { mostrarErro('E-mail inválido.'); return; }
+  if (!senha)             { mostrarErro('Preencha a senha.'); return; }
+  if (senha !== senha2)   { mostrarErro('As senhas não coincidem.'); return; }
+  if (senha.length < 6)   { mostrarErro('Senha deve ter pelo menos 6 caracteres.'); return; }
 
-  if (btn) { btn.textContent = '⏳ Criando conta...'; btn.disabled = true; }
+  // Precisa de email para criar conta no Supabase Auth
+  // Se só tem telefone, usar telefone como identificador no email fictício
+  const emailAuth = email || `${tel}@loja.maconica.app`;
+
+  if (btn) { btn.textContent = '⏳ Verificando...'; btn.disabled = true; }
 
   try {
-    // 1. Criar conta no Supabase Auth
-    const { data: authData, error: authErr } = await sb.auth.signUp({ email, password: senha });
-    if (authErr) { mostrarErro(authErr.message); if(btn){btn.textContent='Criar Conta ✦';btn.disabled=false;} return; }
+    // 1. Buscar membro correspondente ANTES de criar auth
+    const { data: membros } = await sb.from('membros')
+      .select('id,nome_maconico,email,telefone,auth_user_id,cargo,grau');
+
+    const nomeLower = nome.toLowerCase().replace(/^ir\.\s*/i,'').trim();
+    let membroEncontrado = null;
+
+    // Match por email
+    if (email) membroEncontrado = membros?.find(m =>
+      (m.email||'').toLowerCase() === email.toLowerCase()
+    );
+    // Match por telefone
+    if (!membroEncontrado && tel) membroEncontrado = membros?.find(m =>
+      (m.telefone||'').replace(/\D/g,'') === tel
+    );
+    // Match por nome
+    if (!membroEncontrado) membroEncontrado = membros?.find(m => {
+      const nm = (m.nome_maconico||'').toLowerCase().replace(/^ir\.\s*/i,'').trim();
+      return nm === nomeLower || nm.includes(nomeLower) || nomeLower.includes(nm);
+    });
+
+    // 2. Se encontrou cadastro — pedir CONFIRMAÇÃO antes de criar conta
+    if (membroEncontrado) {
+      if (btn) { btn.textContent = 'Criar Conta ✦'; btn.disabled = false; }
+      // Mostrar modal de confirmação
+      const cargo = membroEncontrado.cargo || 'Membro';
+      const confirmado = confirm(
+        `Encontramos um cadastro com este nome:
+
+` +
+        `👤 ${membroEncontrado.nome_maconico}
+` +
+        `📋 ${cargo}
+
+` +
+        `Este cadastro é seu? Clique OK para confirmar.`
+      );
+      if (!confirmado) {
+        mostrarErro('Cadastro não confirmado. Verifique seus dados ou fale com o Secretário.');
+        return;
+      }
+      if (btn) { btn.textContent = '⏳ Criando conta...'; btn.disabled = true; }
+    }
+
+    // 3. Criar conta no Supabase Auth
+    const { data: authData, error: authErr } = await sb.auth.signUp({
+      email: emailAuth,
+      password: senha,
+      options: { data: { nome_maconico: nome, telefone: tel } }
+    });
+
+    if (authErr) {
+      if (authErr.message.includes('already registered')) {
+        mostrarErro('Este e-mail já possui uma conta. Use "Esqueci a senha" se não lembra.');
+      } else {
+        mostrarErro(authErr.message);
+      }
+      if(btn){btn.textContent='Criar Conta ✦';btn.disabled=false;}
+      return;
+    }
 
     const userId = authData?.user?.id;
 
-    // 2. Buscar membro correspondente (por nome, email ou telefone)
-    const nomeLower = nome.toLowerCase().replace(/^ir\.\s*/i,'').trim();
-    const { data: membros } = await sb.from('membros').select('id,nome_maconico,email,telefone,auth_user_id');
-
-    let membroEncontrado = null;
-
-    // Tentar match por email
-    if (email) membroEncontrado = membros?.find(m => (m.email||'').toLowerCase() === email.toLowerCase());
-    // Tentar match por telefone
-    if (!membroEncontrado && tel) {
-      const telNum = tel.replace(/\D/g,'');
-      membroEncontrado = membros?.find(m => (m.telefone||'').replace(/\D/g,'') === telNum);
-    }
-    // Tentar match por nome
-    if (!membroEncontrado) {
-      membroEncontrado = membros?.find(m => {
-        const nm = (m.nome_maconico||'').toLowerCase().replace(/^ir\.\s*/i,'').trim();
-        return nm === nomeLower || nm.includes(nomeLower) || nomeLower.includes(nm);
-      });
-    }
-
     if (membroEncontrado) {
-      // 3a. Membro encontrado — vincular automaticamente
+      // 4a. Vincular ao cadastro existente
       await sb.from('membros').update({
         auth_user_id: userId,
         login_status: 'ativo',
         login_vinculado_em: new Date().toISOString(),
-        email: email // atualizar email se diferente
+        ...(email ? { email } : {}),
+        ...(tel    ? { telefone: tel } : {})
       }).eq('id', membroEncontrado.id);
 
-      mostrarOk('✅ Conta criada e vinculada ao seu cadastro! Verifique seu e-mail e faça login.');
+      mostrarOk('✅ Conta criada e vinculada! Já pode fazer login.');
     } else {
-      // 3b. Membro não encontrado — criar pendência para aprovação
+      // 4b. Sem cadastro — criar pendência
       await sb.from('solicitacoes_edicao').insert({
         membro_id: null,
-        dados_novos: { nome_maconico: nome, email, telefone: tel, auth_user_id: userId },
+        dados_novos: { nome_maconico: nome, email: emailAuth, telefone: tel, auth_user_id: userId },
         status: 'pendente',
-        observacao: 'Auto-cadastro: membro não encontrado — aguardando vinculação pelo Secretário'
+        observacao: 'Auto-cadastro aguardando vinculação pelo Secretário'
       });
-      mostrarOk('✅ Conta criada! Seu cadastro será analisado pelo Secretário da Loja. Você receberá acesso em breve.');
+      mostrarOk('✅ Conta criada! Aguarde o Secretário aprovar seu acesso. Você será notificado.');
     }
   } catch(e) {
     mostrarErro('Erro inesperado: ' + e.message);
@@ -2176,6 +2212,8 @@ async function doLogin() {
     currentRole = 'admin';
     _aplicarRoleNaTela('admin', _membroLogado);
     _registrarAcesso('Administrador', 'Administrador', 'admin', 'login');
+    // Admin pode ver o modo demo — mostrar botão na sidebar
+    document.getElementById('aba-demo')?.style && (document.getElementById('aba-demo').style.display = '');
     await loadAllData();
     if (btn) { btn.textContent = 'Entrar na Loja ✦'; btn.disabled = false; }
     return;
@@ -2197,7 +2235,7 @@ async function doLogin() {
   }
 
   if (!membro) {
-    if (erro) { erro.textContent = '⚠️ Cadastro não encontrado. Fale com o Secretário para vincular seu login.'; erro.style.display = 'block'; }
+    if (erro) { erro.textContent = '⚠️ Seu login foi criado mas ainda não está vinculado ao seu cadastro. Aguarde o Secretário liberar seu acesso ou entre em contato.'; erro.style.display = 'block'; }
     await sb.auth.signOut();
     if (btn) { btn.textContent = 'Entrar na Loja ✦'; btn.disabled = false; }
     return;
@@ -4115,9 +4153,13 @@ function renderMembros(access) {
           <td>${statusBadge(m.status)}</td>
           <td style="display:flex;gap:4px">
             <button class="btn" style="padding:3px 9px;font-size:8px" title="Visualizar" onclick='abrirFichaMembro(${JSON.stringify(m).replace(/'/g,"&#39;")})'>👁️</button>
+            <span title="${m.login_status==='ativo'?'Login ativo':m.login_status==='convite_enviado'?'Convite enviado':'Sem login'}" style="font-size:10px;cursor:default">
+              ${m.login_status==='ativo'?'🟢':m.login_status==='convite_enviado'?'🟡':'⚪'}
+            </span>
             ${canEdit?`<button class="btn" style="padding:3px 9px;font-size:8px" onclick='abrirModalMembro(${JSON.stringify(m).replace(/'/g,"&#39;")})'>✏️</button>
             <button class="btn" style="padding:3px 9px;font-size:8px;color:var(--red)" onclick="excluirMembro('${m.id}','${m.nome_maconico}')">✕</button>
-            <button class="btn" title="Vincular Login" style="padding:3px 9px;font-size:8px;color:var(--navy)" onclick="abrirModalVincularLogin('${m.id}')">🔗</button>`:''}
+            <button class="btn" title="Vincular Login" style="padding:3px 9px;font-size:8px;color:var(--navy)" onclick="abrirModalVincularLogin('${m.id}')">🔗</button>
+            ${m.email?`<button class="btn" title="Enviar Convite de Acesso" style="padding:3px 9px;font-size:8px;color:var(--green);border-color:var(--green)" onclick="enviarConviteMembro('${m.id}','${m.email}','${m.nome_maconico}')">📧</button>`:''}`:''}
           </td>
         </tr>`;
       }).join('');
@@ -4172,7 +4214,8 @@ function renderMembros(access) {
           </select>
           <input id="filtro-membros-loja" type="text" placeholder="Loja..." oninput="renderMembros('${access}')"
             style="border:1px solid var(--border-mid);border-radius:3px;padding:5px 10px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--cream);color:var(--text);width:110px">
-          ${canEdit?`<button class="btn btn-solid" onclick="abrirModalMembro()">+ Novo</button>`:''}
+          ${canEdit?`<button class="btn btn-solid" onclick="abrirModalMembro()">+ Novo</button>
+          <button class="btn" onclick="enviarConvitesTodos()" style="border-color:var(--green);color:var(--green)" title="Enviar convite para todos sem login">📧 Convidar Todos</button>`:''}
         </div>
       </div>
       <!-- Botões de seleção de tipo -->
@@ -5289,7 +5332,95 @@ async function confirmarPresencas(sessaoId) {
 // ══════════════════════════════════════════════════════════════
 
 // Abre modal para vincular um email/auth a um membro
-async function abrirModalVincularLogin(membroId) {
+async 
+// ══════════════════════════════════════════════════════════════
+// SISTEMA DE CONVITES — SaaS Maçônico
+// ══════════════════════════════════════════════════════════════
+
+async function enviarConviteMembro(membroId, email, nomeMemb) {
+  const canEdit = ROLES[currentRole]?.access['membros'] === 'full';
+  if (!canEdit) { toast('⛔ Sem permissão'); return; }
+  if (!email)   { toast('⚠️ Este membro não tem e-mail cadastrado. Adicione um e-mail primeiro.'); return; }
+
+  const confirmar = confirm(
+    `Enviar convite de acesso para:\n\n` +
+    `👤 ${nomeMemb}\n` +
+    `📧 ${email}\n\n` +
+    `O irmão receberá um link para criar sua senha.`
+  );
+  if (!confirmar) return;
+
+  toast('⏳ Enviando convite...');
+
+  try {
+    // Supabase Auth — invite user by email
+    const { data, error } = await sb.auth.admin?.inviteUserByEmail
+      ? await sb.auth.admin.inviteUserByEmail(email)
+      : { error: { message: 'Admin API não disponível no cliente' } };
+
+    if (error) {
+      // Fallback: usar resetPasswordForEmail como convite
+      const { error: err2 } = await sb.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + window.location.pathname
+      });
+      if (err2) { toast('❌ Erro ao enviar: ' + err2.message); return; }
+    }
+
+    // Atualizar status no membro
+    await sb.from('membros').update({
+      login_status: 'convite_enviado',
+      login_vinculado_em: new Date().toISOString()
+    }).eq('id', membroId);
+
+    toast(`✅ Convite enviado para ${email}!`);
+    await loadAllData();
+    renderMembros(ROLES[currentRole].access['membros']);
+  } catch(e) {
+    toast('❌ Erro: ' + e.message);
+  }
+}
+
+// Convite em lote — enviar para todos os membros sem login
+async function enviarConvitesTodos() {
+  const canEdit = ROLES[currentRole]?.access['membros'] === 'full';
+  if (!canEdit) { toast('⛔ Sem permissão'); return; }
+
+  const semLogin = DATA.membros.filter(m =>
+    m.email &&
+    (!m.login_status || m.login_status === 'sem_login') &&
+    (m.status === 'ativo' || m.status === 'iniciado')
+  );
+
+  if (!semLogin.length) { toast('✅ Todos os membros com e-mail já receberam convite.'); return; }
+
+  const confirmar = confirm(
+    `Enviar convites para ${semLogin.length} irmão(s) sem acesso?\n\n` +
+    semLogin.map(m => `• ${m.nome_maconico} (${m.email})`).join('\n')
+  );
+  if (!confirmar) return;
+
+  toast(`⏳ Enviando ${semLogin.length} convites...`);
+  let enviados = 0;
+
+  for (const m of semLogin) {
+    try {
+      await sb.auth.resetPasswordForEmail(m.email, {
+        redirectTo: window.location.origin + window.location.pathname
+      });
+      await sb.from('membros').update({ login_status: 'convite_enviado' }).eq('id', m.id);
+      enviados++;
+    } catch(e) { console.warn('Erro convite', m.email, e); }
+    // Pequena pausa para não sobrecarregar
+    await new Promise(r => setTimeout(r, 300));
+  }
+
+  toast(`✅ ${enviados} convite(s) enviados!`);
+  await loadAllData();
+  renderMembros(ROLES[currentRole].access['membros']);
+}
+
+
+function abrirModalVincularLogin(membroId) {
   const canEdit = ROLES[currentRole]?.access['membros'] === 'full';
   if (!canEdit) { toast('⛔ Sem permissão'); return; }
 
