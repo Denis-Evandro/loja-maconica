@@ -2,6 +2,8 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="X-Content-Type-Options" content="nosniff">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Painel de Gestão — Loja Maçônica</title>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
@@ -2150,7 +2152,7 @@ function configurarEmailAdmin() {
   if (!canConfig) { toast('⛔ Apenas o Administrador pode configurar contas admin'); return; }
   const email = prompt('E-mail da conta de Administrador do sistema:');
   if (!email) return;
-  const admins = JSON.parse(localStorage.getItem('admin_emails') || '[]');
+  let admins = []; try { admins = JSON.parse(localStorage.getItem('admin_emails') || '[]'); } catch(e) { admins = []; }
   if (!admins.includes(email.toLowerCase())) {
     admins.push(email.toLowerCase());
     localStorage.setItem('admin_emails', JSON.stringify(admins));
@@ -2190,7 +2192,7 @@ async function doLogin() {
   }
 
   // 2. Verificar se é Admin do sistema (conta separada, não é membro)
-  const adminEmails = JSON.parse(localStorage.getItem('admin_emails') || '[]');
+  let adminEmails = []; try { adminEmails = JSON.parse(localStorage.getItem('admin_emails') || '[]'); } catch(e) { adminEmails = []; }
   const userId = authData.user.id;
   // Verificar pela tabela usuarios — por auth_user_id ou email
   const { data: usuarioAdmin } = await sb.from('usuarios')
@@ -2743,7 +2745,6 @@ async function _carregarConfiguracoes() {
     const merged = { ...local, ...remoto };
     localStorage.setItem('dados_loja', JSON.stringify(merged));
     _aplicarDadosLoja();
-    console.log('✅ Configurações carregadas do Supabase');
   } catch(e) { console.warn('_carregarConfiguracoes:', e); }
 }
 
@@ -8365,8 +8366,6 @@ function verAta(conteudo, data, titulo) {
 async function renderAtas() {
   const res = await sb.from('atas').select('*').order('criado_em', {ascending:false});
   const atas = res.data || [];
-  console.log('ATAS carregadas:', atas);
-  atas.forEach((a,i) => console.log(`Ata ${i+1}:`, {id:a.id, titulo:a.titulo, data:a.data, sessao_id:a.sessao_id, criado_em:a.criado_em}));
   const hoje = new Date().toISOString().split('T')[0];
   const proxSessoes = DATA.sessoes.filter(s => s.data >= hoje).sort((a,b)=>a.data.localeCompare(b.data)).slice(0,5);
   const canEdit = currentRole === 'secretario' || currentRole === 'veneravel' || currentRole === 'admin';
