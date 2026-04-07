@@ -1191,12 +1191,13 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
 
       <button class="btn-login" id="btn-login" onclick="doLogin()">Entrar na Loja ✦</button>
 
-      <div style="text-align:center;margin-top:10px">
-        <button onclick="abrirPainelRecuperarSenha()" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.35);border-radius:4px;padding:7px 16px;color:#FFFFFF;font-family:'Cinzel',serif;font-size:10px;cursor:pointer;letter-spacing:0.05em">
-          🔑 Esqueci minha senha
+      <div style="margin-top:14px;border-top:1px solid rgba(212,168,67,0.3);padding-top:12px;text-align:center">
+        <button onclick="abrirPainelRecuperarSenha()"
+          style="background:transparent;border:none;color:#5A7AAF;font-family:'Cinzel',serif;font-size:10px;cursor:pointer;letter-spacing:0.06em;padding:2px 0;text-decoration:underline">
+          Esqueci minha senha
         </button>
       </div>
-      <div style="text-align:center;margin-top:8px;font-size:10px;color:rgba(245,225,153,0.35);font-style:italic">
+      <div style="text-align:center;margin-top:6px;font-size:10px;color:#5A7AAF;font-style:italic">
         Sem acesso? Fale com o Secretário da sua Loja.
       </div>
     </div>
@@ -1205,12 +1206,24 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
 
     <!-- PAINEL RECUPERAR SENHA -->
     <div id="painel-recuperar" style="display:none">
-      <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;letter-spacing:0.1em;color:var(--gold-light);margin-bottom:14px;text-align:center">🔑 RECUPERAR SENHA</div>
+      <div style="text-align:center;margin-bottom:20px">
+        <div style="font-size:28px;margin-bottom:8px">🔑</div>
+        <div style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;letter-spacing:0.12em;color:#5A7AAF">RECUPERAR ACESSO</div>
+        <div style="font-size:11px;color:#5A7AAF;margin-top:8px;line-height:1.6">
+          Informe seu e-mail e enviaremos<br>um link para redefinir sua senha.
+        </div>
+      </div>
       <label class="field-label">E-mail cadastrado</label>
-      <input class="field-input" id="rec-email" type="email" placeholder="seu@email.com">
-      <div id="rec-ok" style="display:none;background:rgba(34,100,34,0.1);border:1px solid rgba(34,100,34,0.3);border-radius:4px;padding:10px 14px;font-size:12px;color:#1a6b1a;font-style:italic;margin-bottom:8px"></div>
-      <button class="btn-login" onclick="doRecuperarSenha()">Enviar link de recuperação ✦</button>
-      <div style="text-align:center;margin-top:10px"><button onclick="abrirPainelLogin()" style="background:transparent;border:none;color:rgba(245,225,153,0.7);font-family:'Cinzel',serif;font-size:10px;cursor:pointer;text-decoration:underline">← Voltar ao login</button></div>
+      <input class="field-input" id="rec-email" type="email" placeholder="seu@email.com"
+        onkeydown="if(event.key==='Enter') doRecuperarSenha()">
+      <div id="rec-ok" style="display:none;background:rgba(34,100,34,0.12);border:1px solid rgba(34,139,34,0.3);border-radius:4px;padding:10px 14px;font-size:12px;color:#4CAF50;margin:8px 0;text-align:center"></div>
+      <button class="btn-login" onclick="doRecuperarSenha()" style="margin-top:4px">Enviar link de recuperação ✦</button>
+      <div style="text-align:center;margin-top:14px;border-top:1px solid rgba(212,168,67,0.3);padding-top:12px">
+        <button onclick="abrirPainelLogin()"
+          style="background:transparent;border:none;color:#5A7AAF;font-family:'Cinzel',serif;font-size:10px;cursor:pointer;letter-spacing:0.06em;text-decoration:underline">
+          ← Voltar ao login
+        </button>
+      </div>
     </div>
 
     <!-- PAINEL DEMO -->
