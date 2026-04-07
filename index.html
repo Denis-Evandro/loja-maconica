@@ -1634,7 +1634,13 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
 // ===================== SUPABASE =====================
 const SUPABASE_URL = 'https://trwhvecssvbxklqsbzsc.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_Wb0qVyphTQr8IpDg93h4sA_UyvOBmNE';
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: {
+    persistSession: true,       // Mantém sessão entre recarregamentos
+    autoRefreshToken: true,     // Renova token automaticamente
+    detectSessionInUrl: true,   // Detecta link de recuperação de senha na URL
+  }
+});
 
 // ===================== ROLE DEFINITIONS =====================
 const ROLES = {
@@ -1840,7 +1846,16 @@ async function _rl(tabela, opts = {}) {
     if (opts.orderDesc) q = q.order(opts.orderDesc, { ascending: false              });
     if (opts.limit)     q = q.limit(opts.limit);
     const { data, error } = await q;
-    if (error) { console.error(`_rl(${tabela}):`, error); return null; }
+    if (error) {
+      // Se RLS bloqueou (401/403) — sessão expirada → forçar logout
+      if (error.code === 'PGRST301' || error.message?.includes('JWT') || error.message?.includes('401')) {
+        console.warn('[_rl] Sessão expirada, fazendo logout...');
+        await doLogout();
+        return null;
+      }
+      console.error(`_rl(${tabela}):`, error);
+      return null;
+    }
     return data || [];
   } catch(e) { console.error(`_rl(${tabela}) exceção:`, e); return null; }
 }
@@ -2350,23 +2365,103 @@ function trocarPerfilDemo(chave) {
 }
 
 async function doLogout() {
-  if (!_modoDemo) await sb.auth.signOut().catch(() => {});
+  try {
+    // 1. Encerrar sessão no Supabase Auth — invalida token JWT imediatamente
+    // Com RLS ativo, após signOut() o servidor rejeita qualquer query
+    if (!_modoDemo) {
+      await sb.auth.signOut({ scope: 'local' }); // 'local' limpa só este dispositivo
+    }
+  } catch(e) { console.warn('[doLogout]', e); }
+
+  // 2. Limpar TODOS os dados em memória
   _membroLogado = null;
   _modoDemo     = false;
   currentRole   = 'irmao';
   selectedRole  = 'irmao';
-  const u = document.getElementById('loginUser');
-  const p = document.getElementById('loginPass');
-  const e = document.getElementById('login-erro');
-  if (u) u.value = '';
-  if (p) p.value = '';
-  if (e) e.style.display = 'none';
-  alternarAbaLogin('real');
+  Object.keys(DATA).forEach(k => { DATA[k] = []; });
+
+  // 3. Limpar campos do formulário de login
+  ['loginUser','loginPass','rec-email'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  ['login-erro','rec-ok'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.style.display = 'none'; el.textContent = ''; }
+  });
+
+  // 4. Limpar dados sensíveis do storage
+  sessionStorage.clear();
+  // Remover token Supabase do localStorage manualmente como garantia extra
+  Object.keys(localStorage).forEach(k => {
+    if (k.startsWith('sb-') && k.includes('-auth-token')) localStorage.removeItem(k);
+  });
+
+  // 5. Esconder aba demo (só admin logado pode ver)
+  const abaDemo = document.getElementById('aba-demo');
+  if (abaDemo) abaDemo.style.display = 'none';
+
+  // 6. Voltar para tela de login
+  abrirPainelLogin();
   document.getElementById('app-shell').style.display    = 'none';
   document.getElementById('login-screen').style.display = 'flex';
 }
 
 // Verificar sessão ativa ao carregar (login persistente)
+// Detectar link de recuperação de senha na URL (#access_token=...)
+async function verificarLinkRecuperacao() {
+  const hash = window.location.hash;
+  if (hash.includes('access_token') && hash.includes('type=recovery')) {
+    // Supabase detectSessionInUrl já processou — mostrar tela de nova senha
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) {
+      document.body.insertAdjacentHTML('beforeend', `
+        <div id="modal-nova-senha" style="position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px">
+          <div style="background:#0F2240;border:1px solid rgba(212,168,67,0.4);border-radius:8px;padding:32px;width:360px">
+            <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;color:#D4A843;text-align:center;margin-bottom:6px">🔑 DEFINIR NOVA SENHA</div>
+            <div style="font-size:11px;color:#5A7AAF;text-align:center;margin-bottom:20px">Escolha uma senha segura para sua conta.</div>
+            <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.2em;color:#5A7AAF;text-transform:uppercase;display:block;margin-bottom:6px">Nova Senha</label>
+            <input id="nova-senha" type="password" placeholder="Mínimo 6 caracteres"
+              style="width:100%;border:1px solid rgba(212,168,67,0.3);border-radius:4px;padding:10px 14px;font-size:14px;background:rgba(255,255,255,0.05);color:#FFFFFF;margin-bottom:12px">
+            <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.2em;color:#5A7AAF;text-transform:uppercase;display:block;margin-bottom:6px">Confirmar Senha</label>
+            <input id="nova-senha2" type="password" placeholder="Repita a senha"
+              style="width:100%;border:1px solid rgba(212,168,67,0.3);border-radius:4px;padding:10px 14px;font-size:14px;background:rgba(255,255,255,0.05);color:#FFFFFF;margin-bottom:16px">
+            <div id="nova-senha-erro" style="display:none;color:#FF6B6B;font-size:11px;margin-bottom:10px;text-align:center"></div>
+            <button onclick="salvarNovaSenha()"
+              style="width:100%;padding:12px;background:linear-gradient(135deg,#1B3A6B,#2A5298);border:none;border-radius:4px;color:#FFFFFF;font-family:'Cinzel',serif;font-size:11px;font-weight:700;letter-spacing:0.1em;cursor:pointer">
+              Salvar Nova Senha ✦
+            </button>
+          </div>
+        </div>`);
+      // Limpar o hash da URL
+      history.replaceState(null, '', window.location.pathname);
+    }
+  }
+}
+
+async function salvarNovaSenha() {
+  const senha  = document.getElementById('nova-senha')?.value;
+  const senha2 = document.getElementById('nova-senha2')?.value;
+  const erroEl = document.getElementById('nova-senha-erro');
+
+  if (!senha || senha.length < 6) {
+    if(erroEl){ erroEl.textContent='Senha deve ter pelo menos 6 caracteres'; erroEl.style.display='block'; } return;
+  }
+  if (senha !== senha2) {
+    if(erroEl){ erroEl.textContent='As senhas não coincidem'; erroEl.style.display='block'; } return;
+  }
+  if(erroEl) erroEl.style.display='none';
+
+  const { error } = await sb.auth.updateUser({ password: senha });
+  if (error) {
+    if(erroEl){ erroEl.textContent='Erro: ' + error.message; erroEl.style.display='block'; } return;
+  }
+
+  document.getElementById('modal-nova-senha')?.remove();
+  toast('✅ Senha atualizada com sucesso! Faça login com sua nova senha.');
+  await sb.auth.signOut();
+}
+
 async function verificarSessaoAtiva() {
   try {
     const { data: { session } } = await sb.auth.getSession();
@@ -2379,6 +2474,7 @@ async function verificarSessaoAtiva() {
   } catch(e) { console.warn('Sessão:', e); }
 }
 
+verificarLinkRecuperacao();
 verificarSessaoAtiva();
 _aplicarDadosLoja();
 // _aplicarPermRelatorios é chamada após login (quando PERM_REL já está definida)
@@ -6720,7 +6816,9 @@ function renderFinancas(access) {
           <select id="fin-filtro-cat" onchange="filtrarExtrato()" ${inp}>${opsCats}</select>
           <select id="fin-filtro-status" onchange="filtrarExtrato()" ${inp}><option value="">Todos status</option><option value="pago">✅ Pago</option><option value="agendado">📅 Agendado</option><option value="aberto">⚠️ Aberto</option></select>
           <input type="month" id="fin-filtro-mes" onchange="filtrarExtrato()" ${inp}>
-          ${canEdit?`<button class="btn" style="padding:4px 10px;font-size:9px" onclick="imprimirExtrato()">🖨️ Imprimir</button>`:''}
+          ${canEdit?`<button class="btn" style="padding:4px 10px;font-size:9px" onclick="imprimirExtrato()">🖨️ Imprimir</button>
+          <button class="btn" style="padding:4px 10px;font-size:9px;border-color:#1A5C3A;color:#1A5C3A" onclick="exportarFinancasCsv()" title="Exportar lançamentos em CSV">📥 CSV</button>
+          <button class="btn" style="padding:4px 10px;font-size:9px;border-color:#1B3A6B;color:var(--navy)" onclick="exportarDados('financas')" title="Backup completo da tabela financas">💾 Backup</button>`:''}
         </div>
       </div>
       <table id="tabela-extrato"><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Valor</th><th>Tipo</th><th>Status</th><th></th></tr></thead>
@@ -10753,6 +10851,98 @@ async function excluirComissao(id) {
 }
 
 // ─── EXPORTAR EXCEL (SheetJS) ───
+
+// ── Exportação CSV ────────────────────────────────────────────
+
+// ── Exportação de dados — função genérica ────────────────────
+// Exporta qualquer tabela em CSV para download
+async function exportarDados(tabela) {
+  const nomes = { membros:'Membros', financas:'Financas', sessoes:'Sessoes',
+                  presencas:'Presencas', trabalhos:'Trabalhos', atas:'Atas' };
+  toast(`⏳ Exportando ${nomes[tabela]||tabela}...`);
+
+  try {
+    const { data, error } = await sb.from(tabela).select('*');
+    if (error) { toast('❌ Erro: ' + error.message); return; }
+    if (!data?.length) { toast('Nenhum dado para exportar'); return; }
+
+    // Remover campos internos de controle
+    const ignorar = ['auth_user_id', 'login_vinculado_em'];
+    const dados = data.map(row => {
+      const obj = {};
+      Object.keys(row).forEach(k => {
+        if (!ignorar.includes(k)) obj[k] = row[k] ?? '';
+      });
+      return obj;
+    });
+
+    exportarCSV(dados, `${nomes[tabela]||tabela}_backup`);
+  } catch(e) {
+    toast('❌ Erro inesperado: ' + e.message);
+  }
+}
+
+
+function exportarCSV(dados, nomeArquivo) {
+  if (!dados || !dados.length) { toast('Nenhum dado para exportar'); return; }
+  // Cabeçalho: primeira linha
+  const cabecalho = Object.keys(dados[0]);
+  const escaparCSV = v => {
+    if (v === null || v === undefined) return '';
+    const s = String(v);
+    if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) {
+      return '"' + s.replace(/"/g, '""') + '"';
+    }
+    return s;
+  };
+  const linhas = [
+    cabecalho.join(','),
+    ...dados.map(row => cabecalho.map(k => escaparCSV(row[k])).join(','))
+  ];
+  const bom   = '﻿'; // BOM para Excel reconhecer UTF-8
+  const blob  = new Blob([bom + linhas.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url   = URL.createObjectURL(blob);
+  const a     = document.createElement('a');
+  a.href      = url;
+  a.download  = nomeArquivo + '_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 3000);
+  toast('📥 CSV exportado com sucesso!');
+}
+
+// Exportar membros como CSV
+function exportarMembrosCsv() {
+  const campos = ['numero_sequencial','nome_maconico','nome_civil','email',
+                  'telefone','grau','cargo','status','tipo_membro',
+                  'data_nascimento','data_ingresso','cpf','endereco','cidade','profissao'];
+  const dados = DATA.membros.map(m => {
+    const obj = {};
+    campos.forEach(k => obj[k] = m[k] ?? '');
+    return obj;
+  });
+  exportarCSV(dados, 'membros_loja');
+}
+
+// Exportar lançamentos financeiros como CSV
+function exportarFinancasCsv() {
+  const campos = ['data','tipo','categoria','descricao','valor','status',
+                  'mes_referencia','vencimento','parcelas','parcela_atual'];
+  const dados = (DATA.financas || []).map(f => {
+    const obj = {};
+    campos.forEach(k => obj[k] = f[k] ?? '');
+    // Adicionar nome do membro se houver
+    if (f.membro_id) {
+      const m = DATA.membros.find(mb => mb.id === f.membro_id);
+      obj['membro'] = m?.nome_maconico || '';
+    } else {
+      obj['membro'] = '';
+    }
+    return obj;
+  });
+  exportarCSV(dados, 'financas_loja');
+}
+
+
 function exportarExcel(dados, nomeArquivo, nomeAba) {
   // Carregar SheetJS dinamicamente se não estiver carregado
   if (typeof XLSX !== 'undefined') {
@@ -11595,7 +11785,9 @@ function mostrarRelMembros() {
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <button class="btn" onclick="toggleColsRelMembros()" style="font-size:10px">⚙️ Colunas</button>
           <button class="btn" onclick="imprimirRelMembros()">🖨️ Imprimir</button>
-          <button class="btn btn-solid" onclick="exportarRelMembrosExcel()" style="font-size:10px;background:linear-gradient(135deg,#1A5C3A,#2A8C5A)">📊 Exportar Excel</button>
+          <button class="btn btn-solid" onclick="exportarRelMembrosExcel()" style="font-size:10px;background:linear-gradient(135deg,#1A5C3A,#2A8C5A)">📊 Excel</button>
+          <button class="btn" onclick="exportarMembrosCsv()" style="font-size:10px;border-color:#1A5C3A;color:#1A5C3A" title="Exportar membros em CSV">📥 CSV</button>
+          <button class="btn" onclick="exportarDados('membros')" style="font-size:10px;border-color:#1B3A6B;color:var(--navy)" title="Backup completo da tabela membros">💾 Backup</button>
         </div>
       </div>
 
