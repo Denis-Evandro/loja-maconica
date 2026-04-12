@@ -637,9 +637,9 @@ body {
   font-size:10px; font-weight:700; border:1px solid;
 }
 
-.d1 { color:var(--blue); border-color:rgba(30,74,122,0.4); background:var(--blue-bg); }
-.d2 { color:#7A4A00; border-color:rgba(122,74,0,0.4); background:rgba(122,74,0,0.08); }
-.d3 { color:var(--gold-dark); border-color:var(--border-dark); background:rgba(184,134,11,0.1); }
+.d1 { color:#FFFFFF; border-color:#1E4A7A; background:#1E4A7A; } /* 1º Grau — Azul sólido */
+.d2 { color:#FFFFFF; border-color:#8B4513; background:#8B4513; } /* 2º Grau — Marrom sólido */
+.d3 { color:#1B3A6B; border-color:#B8860B; background:#D4A843; } /* 3º Grau — Dourado sólido */
 
 .badge {
   display:inline-block; padding:4px 10px; border-radius:2px;
@@ -761,9 +761,9 @@ tr:hover td { background:rgba(184,134,11,0.03); }
   font-size:9px; font-weight:700; border:1px solid;
 }
 
-.d1 { color:var(--blue); border-color:rgba(30,74,122,0.4); background:var(--blue-bg); }
-.d2 { color:#7A4A00; border-color:rgba(122,74,0,0.4); background:rgba(122,74,0,0.08); }
-.d3 { color:var(--gold-dark); border-color:var(--border-dark); background:rgba(184,134,11,0.1); }
+.d1 { color:#FFFFFF; border-color:#1E4A7A; background:#1E4A7A; } /* 1º Grau — Azul sólido */
+.d2 { color:#FFFFFF; border-color:#8B4513; background:#8B4513; } /* 2º Grau — Marrom sólido */
+.d3 { color:#1B3A6B; border-color:#B8860B; background:#D4A843; } /* 3º Grau — Dourado sólido */
 
 .badge {
   display:inline-block; padding:3px 9px; border-radius:2px;
@@ -1184,8 +1184,14 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
         onkeydown="if(event.key==='Enter') doLogin()">
 
       <label class="field-label">Senha</label>
-      <input class="field-input" id="loginPass" type="password" placeholder="••••••••" autocomplete="current-password"
-        onkeydown="if(event.key==='Enter') doLogin()">
+      <div style="position:relative">
+        <input class="field-input" id="loginPass" type="password" placeholder="••••••••" autocomplete="current-password"
+          onkeydown="if(event.key==='Enter') doLogin()" style="padding-right:40px">
+        <button type="button" onclick="const p=document.getElementById('loginPass');p.type=p.type==='password'?'text':'password';this.textContent=p.type==='password'?'👁️':'🙈'"
+          style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:transparent;border:none;cursor:pointer;font-size:16px;color:#5A7AAF;padding:0">
+          👁️
+        </button>
+      </div>
 
       <div id="login-erro" style="display:none;background:rgba(139,32,32,0.1);border:1px solid rgba(139,32,32,0.3);border-radius:4px;padding:10px 14px;font-size:12px;color:#8B2020;font-style:italic;margin-bottom:4px"></div>
 
@@ -4185,8 +4191,42 @@ async function confirmarSalvarMembro(id) {
   };
   if (!dados.nome_maconico || !dados.nome_civil) { toast('Preencha nome maçônico e nome civil'); return; }
   if (!isVisitante && !dados.email) { toast('E-mail é obrigatório para membros e filiados'); return; }
+
+  // Verificar email e telefone duplicados
+  const membroId = id === 'null' ? null : id;
+  if (dados.email) {
+    const dupEmail = DATA.membros.find(m => m.email === dados.email && m.id !== membroId);
+    if (dupEmail) { toast(`⚠️ E-mail já cadastrado para ${dupEmail.nome_maconico}`); return; }
+  }
+  if (dados.telefone) {
+    const telNum = dados.telefone.replace(/\D/g,'');
+    const dupTel = DATA.membros.find(m => (m.telefone||'').replace(/\D/g,'') === telNum && m.id !== membroId);
+    if (dupTel) { toast(`⚠️ Telefone já cadastrado para ${dupTel.nome_maconico}`); return; }
+  }
+
+  // Verificar cargo duplicado (exceto Membro e Visitante)
+  const cargosUnicos = ['Venerável Mestre','Secretário','Tesoureiro','Chanceler',
+    '1º Vigilante','2º Vigilante','Orador','Mestre de Cerimônias','Diácono','Hospitaleiro'];
+  if (dados.cargo && cargosUnicos.some(c => c.toLowerCase() === dados.cargo.toLowerCase())) {
+    const dupCargo = DATA.membros.find(m => 
+      (m.cargo||'').toLowerCase() === dados.cargo.toLowerCase() && 
+      m.id !== membroId &&
+      (m.status === 'ativo' || m.status === 'iniciado')
+    );
+    if (dupCargo) { 
+      toast(`⚠️ Cargo "${dados.cargo}" já ocupado por ${dupCargo.nome_maconico}`); 
+      return; 
+    }
+  }
+
+  // Gerar número sequencial automático se não informado
+  if (!membroId) {
+    const maxNum = DATA.membros.reduce((max, m) => Math.max(max, m.numero_sequencial||0), 0);
+    dados.numero_sequencial = maxNum + 1;
+  }
+
   fecharModal();
-  await salvarMembro(dados, id === 'null' ? null : id);
+  await salvarMembro(dados, membroId);
 }
 
 function renderMembros(access) {
