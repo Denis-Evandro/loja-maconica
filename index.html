@@ -2809,10 +2809,133 @@ function _aplicarPermRelatorios() {
 }
 
 
+
+// ── Gestão de Senhas — só para Admin ─────────────────────────
+async function renderConfSenhas() {
+  if (currentRole !== 'admin') return;
+  const el = document.getElementById('cfg-cont-senhas');
+  if (!el) return;
+
+  el.innerHTML = '<div style="padding:20px;color:var(--text-muted);font-style:italic">⏳ Carregando...</div>';
+
+  // Buscar membros com email cadastrado
+  const membros = DATA.membros.filter(m => m.email && m.status !== 'inativo');
+
+  const statusIcon = s => s === 'ativo' ? '🟢' : s === 'convite_enviado' ? '🟡' : '⚪';
+  const statusTxt  = s => s === 'ativo' ? 'Login ativo' : s === 'convite_enviado' ? 'Convite enviado' : 'Sem login';
+
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-header">
+        <div class="card-title">🔑 Gestão de Senhas dos Irmãos</div>
+        <span style="font-family:'Cinzel',serif;font-size:8px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);background:rgba(212,168,67,0.08);border:1px solid rgba(212,168,67,0.3);border-radius:20px;padding:3px 12px">SOMENTE ADMIN</span>
+      </div>
+      <div style="padding:0 22px 16px">
+        <div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-bottom:16px">
+          Gerencie o acesso dos irmãos ao sistema. O envio de email requer SMTP configurado.
+        </div>
+
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse">
+            <thead>
+              <tr>
+                <th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;color:#FFFFFF!important;background:var(--navy);text-align:left;text-transform:none">Irmão</th>
+                <th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;color:#FFFFFF!important;background:var(--navy);text-align:left;text-transform:none">E-mail</th>
+                <th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;color:#FFFFFF!important;background:var(--navy);text-align:center;text-transform:none">Status</th>
+                <th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;color:#FFFFFF!important;background:var(--navy);text-align:center;text-transform:none">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${membros.length === 0
+                ? `<tr><td colspan="4" style="text-align:center;padding:20px;font-style:italic;color:var(--text-muted)">Nenhum membro com e-mail cadastrado.</td></tr>`
+                : membros.map((m, i) => {
+                  const rowBg = i%2===0 ? 'var(--white)' : 'var(--cream)';
+                  const st = m.login_status || 'sem_login';
+                  return `
+                  <tr style="background:${rowBg};border-bottom:1px solid var(--border)">
+                    <td style="padding:10px 14px">
+                      <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:var(--navy)">${m.nome_maconico||'—'}</div>
+                      <div style="font-size:11px;color:var(--text-muted)">${m.cargo||'Membro'}</div>
+                    </td>
+                    <td style="padding:10px 14px;font-size:12px;color:var(--text)">${m.email}</td>
+                    <td style="padding:10px 14px;text-align:center">
+                      <span title="${statusTxt(st)}" style="font-size:16px">${statusIcon(st)}</span>
+                      <div style="font-size:10px;color:var(--text-muted);margin-top:2px">${statusTxt(st)}</div>
+                    </td>
+                    <td style="padding:8px 14px;text-align:center">
+                      <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap">
+                        <button onclick="enviarConviteMembro('${m.id}','${m.email}','${m.nome_maconico}')"
+                          class="btn" style="padding:4px 10px;font-size:9px;border-color:var(--green);color:var(--green)" title="Enviar convite/link de acesso">
+                          📧 Convidar
+                        </button>
+                        <button onclick="resetarSenhaMembro('${m.email}','${m.nome_maconico}')"
+                          class="btn" style="padding:4px 10px;font-size:9px;border-color:var(--gold-dark);color:var(--gold-dark)" title="Enviar link de reset de senha">
+                          🔑 Resetar
+                        </button>
+                        <button onclick="definirSenhaTemp('${m.id}','${m.email}','${m.nome_maconico}')"
+                          class="btn" style="padding:4px 10px;font-size:9px;border-color:var(--navy);color:var(--navy)" title="Definir senha temporária">
+                          🔧 Senha Temp.
+                        </button>
+                      </div>
+                    </td>
+                  </tr>`;
+                }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>`;
+}
+
+// Resetar senha — envia email de recuperação
+async function resetarSenhaMembro(email, nome) {
+  if (!confirm(`Enviar link de reset de senha para:\n\n${nome}\n${email}\n\nConfirmar?`)) return;
+  toast('⏳ Enviando link de recuperação...');
+  const { error } = await sb.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin + window.location.pathname
+  });
+  if (error) { toast('❌ Erro: ' + error.message); return; }
+  toast(`✅ Link de recuperação enviado para ${email}`);
+}
+
+// Definir senha temporária via SQL (só funciona com service_role — mostra instrução)
+function definirSenhaTemp(membroId, email, nome) {
+  const senha = prompt(`Definir senha temporária para ${nome}:\n\nDigite a nova senha (mínimo 6 caracteres):`);
+  if (!senha || senha.length < 6) { toast('Senha deve ter pelo menos 6 caracteres'); return; }
+
+  // Gerar SQL para o admin executar no Supabase
+  const sql = `UPDATE auth.users SET encrypted_password = crypt('${senha}', gen_salt('bf')) WHERE email = '${email}';`;
+
+  // Mostrar modal com o SQL
+  document.body.insertAdjacentHTML('beforeend', `
+    <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px">
+      <div style="background:var(--white);border-radius:8px;width:560px;max-height:90vh;overflow-y:auto">
+        <div style="height:3px;background:linear-gradient(90deg,var(--navy),var(--gold-dark));border-radius:8px 8px 0 0"></div>
+        <div style="padding:24px 28px">
+          <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;color:var(--navy);margin-bottom:4px">🔧 Definir Senha Temporária</div>
+          <div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-bottom:16px">${nome} — ${email}</div>
+          <div style="font-size:12px;color:var(--text);margin-bottom:10px">Execute este SQL no <strong>Supabase → SQL Editor</strong>:</div>
+          <div style="background:#1a1a2e;border-radius:6px;padding:14px 16px;margin-bottom:16px">
+            <code style="font-family:'Courier New',monospace;font-size:12px;color:#4CAF50;word-break:break-all">${sql}</code>
+          </div>
+          <div style="font-size:11px;color:var(--text-muted);font-style:italic;margin-bottom:16px">
+            ⚠️ Comunique a senha ao irmão pessoalmente. Oriente-o a trocar após o primeiro acesso.
+          </div>
+          <div style="display:flex;gap:8px;justify-content:flex-end">
+            <button onclick="navigator.clipboard.writeText('${sql.replace(/'/g,"\'")}');toast('📋 SQL copiado!')" class="btn" style="padding:8px 18px">📋 Copiar SQL</button>
+            <button onclick="fecharModal()" class="btn btn-solid" style="padding:8px 18px">Fechar</button>
+          </div>
+        </div>
+      </div>
+    </div>`);
+}
+
+
 function renderConfiguracoes() {
   const el = document.getElementById('configuracoes-content');
   if (!el) return;
-  const abas = ['loja','assinaturas','acessos'];
+  const abas = ['loja','assinaturas','acessos','senhas'];
+  const isAdmin = currentRole === 'admin';
   el.innerHTML = `
     <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:20px;flex-wrap:wrap">
       <button id="cfg-aba-loja" onclick="ativarAbaConfig('loja')"
@@ -2827,6 +2950,11 @@ function renderConfiguracoes() {
         style="padding:10px 22px;border:none;background:none;cursor:pointer;font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.08em;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all 0.15s">
         📋 Log de Acessos
       </button>
+      ${isAdmin ? `
+      <button id="cfg-aba-senhas" onclick="ativarAbaConfig('senhas')"
+        style="padding:10px 22px;border:none;background:none;cursor:pointer;font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.08em;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all 0.15s">
+        🔑 Gestão de Senhas
+      </button>` : ''}
     </div>
     <div id="cfg-cont-loja"></div>
     <div id="cfg-cont-assinaturas" style="display:none"></div>
@@ -2836,7 +2964,7 @@ function renderConfiguracoes() {
 }
 
 function ativarAbaConfig(aba) {
-  ['loja','assinaturas','acessos'].forEach(a => {
+  ['loja','assinaturas','acessos','senhas'].forEach(a => {
     const btn  = document.getElementById(`cfg-aba-${a}`);
     const cont = document.getElementById(`cfg-cont-${a}`);
     const ok   = a === aba;
