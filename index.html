@@ -2196,17 +2196,34 @@ function configurarEmailAdmin() {
 
 async function doLogin() {
   try {
-  const email = document.getElementById('loginUser')?.value.trim();
+  const input  = document.getElementById('loginUser')?.value.trim();
   const senha  = document.getElementById('loginPass')?.value;
   const erro   = document.getElementById('login-erro');
   const btn    = document.getElementById('btn-login');
 
-  if (!email || !senha) {
-    if (erro) { erro.textContent = 'Preencha e-mail e senha.'; erro.style.display = 'block'; }
+  if (!input || !senha) {
+    if (erro) { erro.textContent = 'Preencha e-mail ou telefone e senha.'; erro.style.display = 'block'; }
     return;
   }
   if (erro) erro.style.display = 'none';
   if (btn)  { btn.textContent = '⏳ Verificando...'; btn.disabled = true; }
+
+  // Detectar se é telefone ou email
+  const isTelefone = /^[\d\s\(\)\-\+]+$/.test(input) && !input.includes('@');
+  let email = input;
+
+  if (isTelefone) {
+    // Buscar membro pelo telefone para obter o email
+    const telNum = input.replace(/\D/g, '');
+    const { data: membros } = await sb.from('membros').select('email,telefone').eq('login_status','ativo');
+    const membroTel = membros?.find(m => (m.telefone||'').replace(/\D/g,'') === telNum);
+    if (membroTel?.email) {
+      email = membroTel.email;
+    } else {
+      // Tentar email fictício gerado pelo telefone
+      email = `${telNum}@loja.maconica.app`;
+    }
+  }
 
   // 1. Autenticar via Supabase Auth
   const { data: authData, error: authErr } = await sb.auth.signInWithPassword({ email, password: senha });
