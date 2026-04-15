@@ -1775,6 +1775,7 @@ async function loadAllData() {
 
     reRenderActive();
     renderDashboard();
+    _autoFixNumeracaoMembros(); // auto-corrigir numeração zerada
     _aplicarDadosLoja(); // atualizar nome/logo com dados salvos
     _carregarConfiguracoes(); // sincronizar dados da loja do Supabase
     _aplicarPermModulos();    // aplicar permissões de módulos do localStorage
@@ -1867,7 +1868,33 @@ async function _rl(tabela, opts = {}) {
 }
 
 // ── Reloads seletivos — usar após operações que afetam UMA tabela
-async function _reloadMembros()   { const d = await _rl('membros',   { order:'numero_sequencial' }); if (d) DATA.membros   = d; }
+async function _reloadMembros() {
+  const d = await _rl('membros', { order:'numero_sequencial' });
+  if (d) {
+    DATA.membros = d;
+    _autoFixNumeracaoMembros();
+  }
+}
+
+// Auto-corrige numeração zerada/nula em background (salva no banco)
+async function _autoFixNumeracaoMembros() {
+  const semNumero = DATA.membros.filter(m => !m.numero_sequencial || m.numero_sequencial <= 0);
+  if (semNumero.length === 0) return;
+
+  // Encontrar o maior número existente
+  let maxNum = 0;
+  DATA.membros.forEach(m => { if (m.numero_sequencial > maxNum) maxNum = m.numero_sequencial; });
+
+  // Atribuir números sequenciais aos que não têm
+  for (const m of semNumero) {
+    maxNum++;
+    m.numero_sequencial = maxNum;
+    // Salvar no banco em background
+    sb.from('membros').update({ numero_sequencial: maxNum }).eq('id', m.id)
+      .then(({ error }) => { if (error) console.warn('Auto-fix numeração:', m.id, error); });
+  }
+  console.log(`[Auto-fix] ${semNumero.length} membro(s) renumerado(s)`);
+}
 async function _reloadSessoes()   { const d = await _rl('sessoes',   { orderDesc:'data'          }); if (d) DATA.sessoes   = d; }
 async function _reloadPresencas() { const d = await _rl('presencas', { limit:2000                }); if (d) DATA.presencas = d; }
 async function _reloadFinancas()  { const d = await _rl('financas',  { orderDesc:'data', limit:1000 }); if (d) DATA.financas = d; }
@@ -2213,17 +2240,23 @@ async function doLogin() {
   let email = input;
 
   if (isTelefone) {
-    // Buscar membro pelo telefone para obter o email
+    // Buscar TODOS os membros para encontrar pelo telefone
     const telNum = input.replace(/\D/g, '');
-    const { data: membros } = await sb.from('membros').select('email,telefone').not('email','is',null);
+    if (telNum.length < 8) {
+      if (erro) { erro.textContent = '⚠️ Telefone inválido. Digite pelo menos 8 dígitos.'; erro.style.display = 'block'; }
+      if (btn) { btn.textContent = 'Entrar na Loja ✦'; btn.disabled = false; }
+      return;
+    }
+    const { data: membros } = await sb.from('membros').select('email,telefone,auth_user_id');
     const membroTel = membros?.find(m => {
       const tel = (m.telefone||'').replace(/[^0-9]/g,'');
-      return tel && tel === telNum;
+      // Match exato ou parcial (últimos 8-11 dígitos)
+      return tel && (tel === telNum || tel.endsWith(telNum) || telNum.endsWith(tel));
     });
     if (membroTel?.email) {
       email = membroTel.email;
     } else {
-      // Tentar email fictício gerado pelo telefone
+      // Tentar email fictício gerado pelo telefone (para quem se cadastrou só com telefone)
       email = `${telNum}@loja.maconica.app`;
     }
   }
@@ -2233,13 +2266,20 @@ async function doLogin() {
 
   if (authErr || !authData?.user) {
     const msg    = authErr?.message || '';
-    const msgPT  = msg.includes('Invalid login') || msg.includes('invalid_credentials')
-      ? 'E-mail ou senha incorretos.'
-      : msg.includes('Email not confirmed')
-      ? 'E-mail não confirmado. Verifique sua caixa de entrada.'
-      : msg.includes('User not found')
-      ? 'Usuário não encontrado.'
-      : 'Erro ao autenticar. Tente novamente.';
+    let msgPT;
+    if (msg.includes('Invalid login') || msg.includes('invalid_credentials')) {
+      msgPT = isTelefone
+        ? 'Telefone ou senha incorretos. Verifique se o telefone está cadastrado no sistema.'
+        : 'E-mail ou senha incorretos.';
+    } else if (msg.includes('Email not confirmed')) {
+      msgPT = 'E-mail não confirmado. Verifique sua caixa de entrada.';
+    } else if (msg.includes('User not found')) {
+      msgPT = isTelefone
+        ? 'Nenhuma conta encontrada com este telefone. Cadastre-se primeiro ou use seu e-mail.'
+        : 'Usuário não encontrado.';
+    } else {
+      msgPT = 'Erro ao autenticar. Tente novamente.';
+    }
     if (erro) { erro.textContent = '⚠️ ' + msgPT; erro.style.display = 'block'; }
     if (btn)  { btn.textContent = 'Entrar na Loja ✦'; btn.disabled = false; }
     return;
@@ -2854,6 +2894,8 @@ async function renderConfSenhas() {
                 : membros.map((m, i) => {
                   const rowBg = i%2===0 ? 'var(--white)' : 'var(--cream)';
                   const st = m.login_status || 'sem_login';
+                  const safeNome = (m.nome_maconico||'').replace(/'/g,'&#39;');
+                  const safeEmail = (m.email||'').replace(/'/g,'&#39;');
                   return `
                   <tr style="background:${rowBg};border-bottom:1px solid var(--border)">
                     <td style="padding:10px 14px">
@@ -2867,15 +2909,15 @@ async function renderConfSenhas() {
                     </td>
                     <td style="padding:8px 14px;text-align:center">
                       <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap">
-                        <button onclick="enviarConviteMembro('${m.id}','${m.email}','${m.nome_maconico}')"
+                        <button onclick="enviarConviteMembro('${m.id}','${safeEmail}','${safeNome}')"
                           class="btn" style="padding:4px 10px;font-size:9px;border-color:var(--green);color:var(--green)" title="Enviar convite/link de acesso">
                           📧 Convidar
                         </button>
-                        <button onclick="resetarSenhaMembro('${m.email}','${m.nome_maconico}')"
+                        <button onclick="resetarSenhaMembro('${safeEmail}','${safeNome}')"
                           class="btn" style="padding:4px 10px;font-size:9px;border-color:var(--gold-dark);color:var(--gold-dark)" title="Enviar link de reset de senha">
                           🔑 Resetar
                         </button>
-                        <button onclick="definirSenhaTemp('${m.id}','${m.email}','${m.nome_maconico}')"
+                        <button onclick="definirSenhaTemp('${m.id}','${safeEmail}','${safeNome}')"
                           class="btn" style="padding:4px 10px;font-size:9px;border-color:var(--navy);color:var(--navy)" title="Definir senha temporária">
                           🔧 Senha Temp.
                         </button>
@@ -2903,36 +2945,87 @@ async function resetarSenhaMembro(email, nome) {
 
 // Definir senha temporária via SQL (só funciona com service_role — mostra instrução)
 function definirSenhaTemp(membroId, email, nome) {
-  const senha = prompt(`Definir senha temporária para ${nome}:\n\nDigite a nova senha (mínimo 6 caracteres):`);
-  if (!senha || senha.length < 6) { toast('Senha deve ter pelo menos 6 caracteres'); return; }
+  // Sanitizar nome e email para prevenir XSS
+  const safeNome = (nome||'').replace(/[<>"'&]/g, '');
+  const safeEmail = (email||'').replace(/[<>"'&]/g, '');
 
-  // Gerar SQL para o admin executar no Supabase
-  const sql = `UPDATE auth.users SET encrypted_password = crypt('${senha}', gen_salt('bf')) WHERE email = '${email}';`;
-
-  // Mostrar modal com o SQL
+  // Mostrar modal com campo de senha (em vez de prompt)
   document.body.insertAdjacentHTML('beforeend', `
     <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px">
       <div style="background:var(--white);border-radius:8px;width:560px;max-height:90vh;overflow-y:auto">
         <div style="height:3px;background:linear-gradient(90deg,var(--navy),var(--gold-dark));border-radius:8px 8px 0 0"></div>
         <div style="padding:24px 28px">
           <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;color:var(--navy);margin-bottom:4px">🔧 Definir Senha Temporária</div>
-          <div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-bottom:16px">${nome} — ${email}</div>
-          <div style="font-size:12px;color:var(--text);margin-bottom:10px">Execute este SQL no <strong>Supabase → SQL Editor</strong>:</div>
-          <div style="background:#1a1a2e;border-radius:6px;padding:14px 16px;margin-bottom:16px">
-            <code style="font-family:'Courier New',monospace;font-size:12px;color:#4CAF50;word-break:break-all">${sql}</code>
+          <div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-bottom:16px">${safeNome} — ${safeEmail}</div>
+
+          <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">Nova Senha Temporária</label>
+          <div style="display:flex;gap:8px;margin-bottom:8px">
+            <input id="tmp-senha-input" type="password" placeholder="Mínimo 6 caracteres"
+              style="flex:1;border:1px solid var(--border-mid);border-radius:3px;padding:9px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"
+              onkeydown="if(event.key==='Enter')gerarSqlSenhaTemp()">
+            <button type="button" onclick="const p=document.getElementById('tmp-senha-input');p.type=p.type==='password'?'text':'password';this.textContent=p.type==='password'?'👁️':'🙈'"
+              style="border:1px solid var(--border-mid);border-radius:3px;background:var(--cream);cursor:pointer;padding:0 10px;font-size:14px">👁️</button>
+            <button onclick="document.getElementById('tmp-senha-input').value=_gerarSenhaAleatoria();document.getElementById('tmp-senha-input').type='text'"
+              class="btn" style="padding:8px 12px;font-size:10px;white-space:nowrap" title="Gerar senha aleatória">🎲 Gerar</button>
           </div>
-          <div style="font-size:11px;color:var(--text-muted);font-style:italic;margin-bottom:16px">
-            ⚠️ Comunique a senha ao irmão pessoalmente. Oriente-o a trocar após o primeiro acesso.
+          <div id="tmp-senha-erro" style="display:none;color:#FF6B6B;font-size:11px;margin-bottom:10px"></div>
+          <div id="tmp-senha-sql-area" style="display:none">
+            <div style="font-size:12px;color:var(--text);margin-bottom:10px">Execute este SQL no <strong>Supabase → SQL Editor</strong>:</div>
+            <div style="background:#1a1a2e;border-radius:6px;padding:14px 16px;margin-bottom:16px">
+              <code id="tmp-senha-sql-code" style="font-family:'Courier New',monospace;font-size:12px;color:#4CAF50;word-break:break-all"></code>
+            </div>
+            <div style="font-size:11px;color:var(--text-muted);font-style:italic;margin-bottom:16px">
+              ⚠️ Comunique a senha ao irmão pessoalmente. Oriente-o a trocar após o primeiro acesso.
+            </div>
           </div>
           <div style="display:flex;gap:8px;justify-content:flex-end">
-            <button onclick="navigator.clipboard.writeText('${sql.replace(/'/g,"\'")}');toast('📋 SQL copiado!')" class="btn" style="padding:8px 18px">📋 Copiar SQL</button>
-            <button onclick="fecharModal()" class="btn btn-solid" style="padding:8px 18px">Fechar</button>
+            <button id="tmp-senha-btn-gerar" onclick="gerarSqlSenhaTemp()" class="btn btn-solid" style="padding:8px 18px">✅ Gerar SQL</button>
+            <button id="tmp-senha-btn-copiar" onclick="copiarSqlSenhaTemp()" class="btn" style="padding:8px 18px;display:none">📋 Copiar SQL</button>
+            <button onclick="fecharModal()" class="btn" style="padding:8px 18px">Fechar</button>
           </div>
         </div>
       </div>
     </div>`);
+
+  // Guardar email para uso na geração
+  window._tmpSenhaEmail = email;
+  document.getElementById('tmp-senha-input')?.focus();
 }
 
+// Gerar senha aleatória segura
+function _gerarSenhaAleatoria() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$';
+  let senha = '';
+  for (let i = 0; i < 10; i++) senha += chars.charAt(Math.floor(Math.random() * chars.length));
+  return senha;
+}
+
+function gerarSqlSenhaTemp() {
+  const senha = document.getElementById('tmp-senha-input')?.value;
+  const erroEl = document.getElementById('tmp-senha-erro');
+  if (!senha || senha.length < 6) {
+    if (erroEl) { erroEl.textContent = 'Senha deve ter pelo menos 6 caracteres'; erroEl.style.display = 'block'; }
+    return;
+  }
+  if (erroEl) erroEl.style.display = 'none';
+
+  // Sanitizar senha para SQL (escapar aspas simples)
+  const senhaSafe = senha.replace(/'/g, "''");
+  const emailSafe = (window._tmpSenhaEmail||'').replace(/'/g, "''");
+  const sql = `UPDATE auth.users SET encrypted_password = crypt('` + senhaSafe + `', gen_salt('bf')) WHERE email = '` + emailSafe + `';`;
+
+  document.getElementById('tmp-senha-sql-code').textContent = sql;
+  document.getElementById('tmp-senha-sql-area').style.display = 'block';
+  document.getElementById('tmp-senha-btn-gerar').style.display = 'none';
+  document.getElementById('tmp-senha-btn-copiar').style.display = 'inline-block';
+  window._tmpSenhaSql = sql;
+}
+
+function copiarSqlSenhaTemp() {
+  if (window._tmpSenhaSql) {
+    navigator.clipboard.writeText(window._tmpSenhaSql).then(() => toast('📋 SQL copiado!'));
+  }
+}
 
 function renderConfiguracoes() {
   const el = document.getElementById('configuracoes-content');
@@ -2977,6 +3070,7 @@ function ativarAbaConfig(aba) {
   if (aba === 'loja')        renderConfigLoja();
   if (aba === 'assinaturas') renderConfigAssinaturas();
   if (aba === 'acessos')     renderLogAcessos();
+  if (aba === 'senhas')      renderConfSenhas();
 }
 
 function _getDadosLoja() {
@@ -4456,7 +4550,7 @@ function renderMembros(access) {
 
   const rows = filtered.length === 0
     ? `<tr><td colspan="9" style="text-align:center;padding:24px;font-style:italic;color:var(--text-muted)">Nenhum membro encontrado.</td></tr>`
-    : filtered.map(m => {
+    : filtered.map((m, idx) => {
         const eh = m.data_nascimento?.slice(5,7)===mesAtual;
         const tipo = m.tipo_membro||'membro';
         const tipoBadge = tipo==='visitante'
@@ -4464,8 +4558,9 @@ function renderMembros(access) {
           : tipo==='filiado'
           ? `<span class="badge" style="color:#1B5EA0;background:rgba(27,94,160,0.1);border-color:#1B5EA033;font-size:9px">🔗 Filiado</span>${m.loja_origem?`<br><span style="font-size:9px;color:var(--text-muted)">${m.loja_origem}</span>`:''}`
           : `<span class="badge b-active" style="font-size:9px">🏛️ Membro</span>`;
+        const numSeq = m.numero_sequencial && m.numero_sequencial > 0 ? m.numero_sequencial : (idx + 1);
         return `<tr${eh?' style="background:rgba(212,168,67,0.06)"':''}>
-          <td>${String(m.numero_sequencial||'').padStart(3,'0')}</td>
+          <td>${String(numSeq).padStart(3,'0')}</td>
           <td>${m.nome_maconico||'—'}${eh?' 🎂':''}</td>
           <td>${m.nome_civil||'—'}</td>
           <td>${degreeBadge(m.grau)}</td>
