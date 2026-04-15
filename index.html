@@ -2950,15 +2950,15 @@ function renderConfiguracoes() {
         style="padding:10px 22px;border:none;background:none;cursor:pointer;font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.08em;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all 0.15s">
         📋 Log de Acessos
       </button>
-      ${isAdmin ? `
       <button id="cfg-aba-senhas" onclick="ativarAbaConfig('senhas')"
-        style="padding:10px 22px;border:none;background:none;cursor:pointer;font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.08em;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all 0.15s">
+        style="padding:10px 22px;border:none;background:none;cursor:pointer;font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.08em;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all 0.15s;display:${currentRole==='admin'?'inline-block':'none'}">
         🔑 Gestão de Senhas
-      </button>` : ''}
+      </button>
     </div>
     <div id="cfg-cont-loja"></div>
     <div id="cfg-cont-assinaturas" style="display:none"></div>
-    <div id="cfg-cont-acessos" style="display:none"></div>`;
+    <div id="cfg-cont-acessos" style="display:none"></div>
+    <div id="cfg-cont-senhas" style="display:none"></div>`;
 
   ativarAbaConfig('loja');
 }
