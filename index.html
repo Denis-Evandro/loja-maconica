@@ -2215,8 +2215,11 @@ async function doLogin() {
   if (isTelefone) {
     // Buscar membro pelo telefone para obter o email
     const telNum = input.replace(/\D/g, '');
-    const { data: membros } = await sb.from('membros').select('email,telefone').eq('login_status','ativo');
-    const membroTel = membros?.find(m => (m.telefone||'').replace(/\D/g,'') === telNum);
+    const { data: membros } = await sb.from('membros').select('email,telefone').not('email','is',null);
+    const membroTel = membros?.find(m => {
+      const tel = (m.telefone||'').replace(/[^0-9]/g,'');
+      return tel && tel === telNum;
+    });
     if (membroTel?.email) {
       email = membroTel.email;
     } else {
@@ -4364,14 +4367,47 @@ async function confirmarSalvarMembro(id) {
     }
   }
 
-  // Gerar número sequencial automático se não informado
+  // Gerar número sequencial automático — busca MAX do banco para garantir unicidade
   if (!membroId) {
-    const maxNum = DATA.membros.reduce((max, m) => Math.max(max, m.numero_sequencial||0), 0);
+    const { data: maxData } = await sb.from('membros')
+      .select('numero_sequencial')
+      .order('numero_sequencial', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const maxNum = maxData?.numero_sequencial || 0;
     dados.numero_sequencial = maxNum + 1;
   }
 
   fecharModal();
   await salvarMembro(dados, membroId);
+}
+
+
+// Renumerar todos os membros em sequência (usar uma vez para corrigir os existentes)
+async function renumerarMembros() {
+  if (currentRole !== 'admin') { toast('⛔ Apenas o Administrador'); return; }
+  if (!confirm('Renumerar todos os membros em sequência por data de ingresso?\n\nIsso corrigirá números duplicados ou zerados.')) return;
+
+  // Buscar membros ordenados por data de ingresso e criação
+  const { data: membros } = await sb.from('membros')
+    .select('id, nome_maconico, data_ingresso, criado_em')
+    .order('data_ingresso', { ascending: true, nullsFirst: false })
+    .order('criado_em', { ascending: true });
+
+  if (!membros?.length) { toast('Nenhum membro encontrado'); return; }
+
+  toast('⏳ Renumerando...');
+  let erros = 0;
+  for (let i = 0; i < membros.length; i++) {
+    const { error } = await sb.from('membros')
+      .update({ numero_sequencial: i + 1 })
+      .eq('id', membros[i].id);
+    if (error) erros++;
+  }
+
+  toast(erros ? `⚠️ ${erros} erros. ${membros.length - erros} renumerados.` : `✅ ${membros.length} membros renumerados!`);
+  await loadAllData();
+  renderMembros(ROLES[currentRole].access['membros']);
 }
 
 function renderMembros(access) {
@@ -4501,7 +4537,8 @@ function renderMembros(access) {
           <input id="filtro-membros-loja" type="text" placeholder="Loja..." oninput="renderMembros('${access}')"
             style="border:1px solid var(--border-mid);border-radius:3px;padding:5px 10px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--cream);color:var(--text);width:110px">
           ${canEdit?`<button class="btn btn-solid" onclick="abrirModalMembro()">+ Novo</button>
-          <button class="btn" onclick="enviarConvitesTodos()" style="border-color:var(--green);color:var(--green)" title="Enviar convite para todos sem login">📧 Convidar Todos</button>`:''}
+          <button class="btn" onclick="enviarConvitesTodos()" style="border-color:var(--green);color:var(--green)" title="Enviar convite para todos sem login">📧 Convidar Todos</button>
+          ${currentRole==='admin'?`<button class="btn" onclick="renumerarMembros()" style="border-color:var(--text-muted);color:var(--text-muted)" title="Corrigir numeração sequencial">🔢 Renumerar</button>`:''}`:''}
         </div>
       </div>
       <!-- Botões de seleção de tipo -->
