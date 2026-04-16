@@ -5757,7 +5757,9 @@ async function confirmarPresencas(sessaoId) {
   if (res.error) { toast('Erro: ' + res.error.message); return; }
 
   // ── Recalcular ágape se existir para esta sessão ──
-  await _recalcularAgapeSessao(sessaoId);
+  // Passar os upserts para saber quem está presente AGORA
+  const presentesAgora = upserts.filter(u => u.presente).map(u => u.membro_id);
+  await _recalcularAgapeSessao(sessaoId, presentesAgora);
 
   toast('Presenças salvas ✦');
   fecharModal();
@@ -5769,40 +5771,35 @@ async function confirmarPresencas(sessaoId) {
 }
 
 // Recalcular ágape: quando muda a lista de presentes, recalcula o rateio
-async function _recalcularAgapeSessao(sessaoId) {
+async function _recalcularAgapeSessao(sessaoId, membroIdsPresentes) {
   try {
-    // Buscar lançamentos de ágape (despesa total) vinculados a esta sessão pela data
     const sessao = DATA.sessoes.find(s=>s.id===sessaoId);
     if (!sessao) return;
-
-    // Buscar débitos individuais de ágape na mesma data
     const dataSessao = sessao.data;
-    const agapeDebitos = DATA.financas.filter(l =>
-      l.categoria === 'agape' &&
-      l.tipo === 'receita' &&
-      l.data === dataSessao &&
-      l.descricao?.includes('rateio')
-    );
 
-    if (!agapeDebitos.length) return; // Sem ágape lançado, nada a fazer
+    // Recarregar finanças frescas do banco
+    const { data: financasFrescas } = await sb.from('financas')
+      .select('*')
+      .eq('data', dataSessao)
+      .eq('categoria', 'agape');
 
-    // Calcular o valor total do ágape (soma dos débitos individuais existentes + pagos)
-    const agapeDespesa = DATA.financas.find(l =>
-      l.categoria === 'agape' &&
-      l.tipo === 'despesa' &&
-      l.data === dataSessao
-    );
+    if (!financasFrescas?.length) return;
+
+    // Buscar a despesa total do ágape
+    const agapeDespesa = financasFrescas.find(l => l.tipo === 'despesa');
     if (!agapeDespesa) return;
     const valorTotal = parseFloat(agapeDespesa.valor) || 0;
     if (!valorTotal) return;
 
-    // Buscar presentes atualizados (excluindo visitantes)
-    const presentes = DATA.presencas.filter(p =>
-      p.sessao_id === sessaoId &&
-      (p.presente || p.situacao === 'presente')
+    // Buscar débitos individuais existentes
+    const agapeDebitos = financasFrescas.filter(l =>
+      l.tipo === 'receita' &&
+      l.descricao?.includes('rateio')
     );
-    const participantes = presentes.map(p => {
-      const m = DATA.membros.find(x => x.id === p.membro_id);
+
+    // Filtrar participantes: presentes e não-visitantes
+    const participantes = membroIdsPresentes.map(id => {
+      const m = DATA.membros.find(x => x.id === id);
       return m && (m.tipo_membro !== 'visitante') ? m : null;
     }).filter(Boolean);
 
@@ -5810,14 +5807,23 @@ async function _recalcularAgapeSessao(sessaoId) {
 
     const novoValor = parseFloat((valorTotal / participantes.length).toFixed(2));
 
-    // Apagar débitos antigos de ágape desta data
+    // Verificar se mudou algo (evitar updates desnecessários)
+    const mesmaQtd = agapeDebitos.length === participantes.length;
+    const mesmoValor = agapeDebitos.length > 0 && Math.abs(parseFloat(agapeDebitos[0].valor) - novoValor) < 0.01;
+    const mesmosIds = mesmaQtd && agapeDebitos.every(d => participantes.some(p => p.id === d.membro_id));
+    if (mesmaQtd && mesmoValor && mesmosIds) {
+      console.log('[Ágape] Sem alteração necessária');
+      return;
+    }
+
+    // Apagar débitos antigos
     for (const d of agapeDebitos) {
       await sb.from('financas').delete().eq('id', d.id);
     }
 
     // Inserir novos débitos para todos os presentes
     const novosDebitos = participantes.map(m => ({
-      descricao: agapeDespesa.descricao ? `${agapeDespesa.descricao} — rateio` : 'Ágape — rateio',
+      descricao: `${agapeDespesa.descricao || 'Ágape'} — rateio`,
       valor: novoValor,
       tipo: 'receita',
       data: dataSessao,
@@ -5826,8 +5832,10 @@ async function _recalcularAgapeSessao(sessaoId) {
       membro_id: m.id
     }));
 
-    await sb.from('financas').insert(novosDebitos);
-    await _reloadFinancas();
+    const resIns = await sb.from('financas').insert(novosDebitos);
+    if (resIns.error) { console.error('[Ágape] Erro insert:', resIns.error); return; }
+
+    toast(`🍽️ Ágape recalculado: ${participantes.length} irmãos × ${fmtVal(novoValor)}`);
     console.log(`[Ágape] Recalculado: ${participantes.length} participantes × ${novoValor}`);
   } catch(e) {
     console.warn('[_recalcularAgapeSessao]', e);
