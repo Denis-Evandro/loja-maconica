@@ -3492,11 +3492,9 @@ async function renderDashboardIrmao(el) {
   const totalPago  = minhasFinancas.filter(l=>l.tipo==='receita'&&l.status==='pago').reduce((s,l)=>s+parseFloat(l.valor||0),0);
   const totalAberto= minhasFinancas.filter(l=>l.status==='aberto'||l.status==='agendado').reduce((s,l)=>s+parseFloat(l.valor||0),0);
   const mensalidade= membro?.mensalidade || 100;
-  const anoIng  = membro?.data_ingresso ? parseInt(membro.data_ingresso.split('-')[0]) : anoAtual;
-  const mesIng  = membro?.data_ingresso ? parseInt(membro.data_ingresso.split('-')[1]) : 1;
-  const totalMeses = Math.max(0,(anoAtual-anoIng)*12+(hoje.getMonth()+1-mesIng));
-  const devia = Math.max(0, totalMeses*mensalidade - totalPago);
-  const emDia = devia<=0 && totalAberto<=0;
+  // Débito = apenas lançamentos em aberto (não calcula automaticamente por data de ingresso)
+  const devia = totalAberto;
+  const emDia = totalAberto <= 0;
 
   // ── Notificações da Biblioteca — recarregar dados frescos ─────
   await _recarregarTrabalhos();
@@ -6676,27 +6674,26 @@ function renderFinancas(access) {
   const membrosAtivos = DATA.membros.filter(m=>(m.status==='ativo'||m.status==='iniciado')&&m.tipo_membro!=='visitante');
   const anoIngresso = (m) => m.data_ingresso ? parseInt(m.data_ingresso.split('-')[0]) : anoAtual;
   const mesIngresso = (m) => m.data_ingresso ? parseInt(m.data_ingresso.split('-')[1]) : 1;
-  const diaVenc = _getDadosLoja().vencimento || 10; // dia do mês configurado em Configurações
+  const diaVenc = _getDadosLoja().vencimento || 10;
   const inadimplentes = membrosAtivos.map(m=>{
     const mens = parseFloat(m.mensalidade)||100;
-    let debitoMensalidade = 0, mesesDev = 0;
-    if (mens > 0) {
-      const ai = anoIngresso(m), mi = mesIngresso(m);
-      // Meses vencidos: só conta o mês atual se já passou o dia de vencimento
-      const mesCorrente = hoje.getDate() >= diaVenc ? hoje.getMonth()+1 : hoje.getMonth();
-      const totalMeses = Math.max(0, (anoAtual-ai)*12+(mesCorrente-mi));
-      const esperado = totalMeses * mens;
-      const pago = lancs.filter(l=>l.membro_id===m.id&&l.tipo==='receita'&&l.status==='pago'&&l.categoria==='mensalidade').reduce((s,l)=>s+parseFloat(l.valor||0),0);
-      debitoMensalidade = Math.max(0, esperado-pago);
-      mesesDev = Math.round(debitoMensalidade/mens);
-    }
-    // Outros débitos em aberto (NÃO agendado — agendado = futuro, não é dívida ainda)
+    // Débito = apenas lançamentos em aberto (não calcula automaticamente)
+    const mensalidadesAbertas = lancs.filter(l=>
+      l.membro_id===m.id &&
+      l.status==='aberto' &&
+      l.tipo==='receita' &&
+      l.categoria==='mensalidade'
+    );
+    const debitoMensalidade = mensalidadesAbertas.reduce((s,l)=>s+parseFloat(l.valor||0),0);
+    const mesesDev = mens>0 ? mensalidadesAbertas.length : 0;
+
+    // Outros débitos em aberto
     const outrosDebitos = lancs.filter(l=>
       l.membro_id===m.id &&
-      l.status==='aberto' &&   // só 'aberto', não 'agendado'
+      l.status==='aberto' &&
       l.tipo==='receita' &&
       l.categoria!=='mensalidade' &&
-      l.data <= hoje.toISOString().split('T')[0] // só vencidos até hoje
+      l.data <= hoje.toISOString().split('T')[0]
     );
     const totalOutros = outrosDebitos.reduce((s,l)=>s+parseFloat(l.valor||0),0);
     const totalDevia = debitoMensalidade + totalOutros;
@@ -7243,14 +7240,11 @@ function gerarMsgCobrancaGeral() {
   const inadimplentes = membrosAtivos.map(m=>{
     const mens = parseFloat(m.mensalidade)||100;
     if (!mens) return null;
-    const ai = m.data_ingresso?parseInt(m.data_ingresso.split('-')[0]):anoAtual;
-    const mi = m.data_ingresso?parseInt(m.data_ingresso.split('-')[1]):1;
-    const mesCorrente = hoje.getDate() >= diaVenc ? hoje.getMonth()+1 : hoje.getMonth();
-    const totalMeses = Math.max(0,(anoAtual-ai)*12+(mesCorrente-mi));
-    const esperado = totalMeses*mens;
-    const pago = DATA.financas.filter(l=>l.membro_id===m.id&&l.tipo==='receita'&&l.status==='pago'&&l.categoria==='mensalidade').reduce((s,l)=>s+parseFloat(l.valor||0),0);
-    const devia = Math.max(0,esperado-pago);
-    return devia>0?{m,devia,mesesDev:Math.round(devia/mens)}:null;
+    // Débito = apenas lançamentos em aberto
+    const mensAbertas = DATA.financas.filter(l=>l.membro_id===m.id&&l.status==='aberto'&&l.tipo==='receita'&&l.categoria==='mensalidade');
+    const devia = mensAbertas.reduce((s,l)=>s+parseFloat(l.valor||0),0);
+    const mesesDev = mensAbertas.length;
+    return devia>0?{m,devia,mesesDev}:null;
   }).filter(Boolean);
   if (!inadimplentes.length) { toast('✅ Nenhum inadimplente!'); return; }
   document.body.insertAdjacentHTML('beforeend', `
@@ -7288,20 +7282,15 @@ function renderInadimplenciaFiltrada() {
   const membrosAtivos = DATA.membros.filter(m=>(m.status==='ativo'||m.status==='iniciado'||m.status==='profano')&&m.tipo_membro!=='visitante');
   let inadimplentes = membrosAtivos.map(m=>{
     const mens = parseFloat(m.mensalidade)||100;
-    let debitoMensalidade = 0;
-    if (mens > 0) {
-      const ai = m.data_ingresso?parseInt(m.data_ingresso.split('-')[0]):anoAtual;
-      const mi = m.data_ingresso?parseInt(m.data_ingresso.split('-')[1]):1;
-      const totalMeses = Math.max(0,(anoAtual-ai)*12+(hoje.getMonth()+1-mi));
-      const esperado = totalMeses*mens;
-      const pago = lancs.filter(l=>l.membro_id===m.id&&l.tipo==='receita'&&l.status==='pago'&&l.categoria==='mensalidade').reduce((s,l)=>s+parseFloat(l.valor||0),0);
-      debitoMensalidade = Math.max(0,esperado-pago);
-    }
+    // Débito = apenas lançamentos em aberto
+    const mensAbertas = lancs.filter(l=>l.membro_id===m.id&&l.status==='aberto'&&l.tipo==='receita'&&l.categoria==='mensalidade');
+    const debitoMensalidade = mensAbertas.reduce((s,l)=>s+parseFloat(l.valor||0),0);
+    const mesesDev = mensAbertas.length;
+
     const outrosDebitos = lancs.filter(l=>l.membro_id===m.id&&(l.status==='aberto'||l.status==='agendado')&&l.tipo==='receita'&&l.categoria!=='mensalidade');
     const totalOutros = outrosDebitos.reduce((s,l)=>s+parseFloat(l.valor||0),0);
     const totalDevia = debitoMensalidade+totalOutros;
     if (totalDevia<=0) return null;
-    const mesesDev = mens>0?Math.round(debitoMensalidade/mens):0;
     const detalhes = [];
     if (mesesDev>0) detalhes.push({cat:'Mensalidade',valor:debitoMensalidade,detalhe:`${mesesDev} mês(es) em atraso`});
     outrosDebitos.forEach(l=>detalhes.push({cat:getCatLabel(l.categoria)||l.descricao,valor:parseFloat(l.valor||0),detalhe:l.descricao,lancId:l.id}));
@@ -7343,8 +7332,9 @@ function imprimirInadimplencia() {
   const hoje = new Date(); const anoAtual=hoje.getFullYear(); const lancs=DATA.financas;
   const membrosAtivos = DATA.membros.filter(m=>(m.status==='ativo'||m.status==='iniciado'||m.status==='profano')&&m.tipo_membro!=='visitante');
   let inadimplentes = membrosAtivos.map(m=>{
-    const mens=parseFloat(m.mensalidade)||100; let deb=0,mesesDev=0;
-    if(mens>0){const ai=m.data_ingresso?parseInt(m.data_ingresso.split('-')[0]):anoAtual;const mi=m.data_ingresso?parseInt(m.data_ingresso.split('-')[1]):1;const tot=Math.max(0,(anoAtual-ai)*12+(hoje.getMonth()+1-mi));const esp=tot*mens;const pago=lancs.filter(l=>l.membro_id===m.id&&l.tipo==='receita'&&l.status==='pago'&&l.categoria==='mensalidade').reduce((s,l)=>s+parseFloat(l.valor||0),0);deb=Math.max(0,esp-pago);mesesDev=Math.round(deb/mens);}
+    const mens=parseFloat(m.mensalidade)||100;
+    const mensAbertas=lancs.filter(l=>l.membro_id===m.id&&l.status==='aberto'&&l.tipo==='receita'&&l.categoria==='mensalidade');
+    const deb=mensAbertas.reduce((s,l)=>s+parseFloat(l.valor||0),0);const mesesDev=mensAbertas.length;
     const outros=lancs.filter(l=>l.membro_id===m.id&&(l.status==='aberto'||l.status==='agendado')&&l.tipo==='receita'&&l.categoria!=='mensalidade');
     const totOutros=outros.reduce((s,l)=>s+parseFloat(l.valor||0),0);const totalDevia=deb+totOutros;if(totalDevia<=0)return null;
     const det=[];if(mesesDev>0)det.push({cat:'Mensalidade',valor:deb,detalhe:`${mesesDev} mês(es) em atraso`});
@@ -8889,8 +8879,9 @@ function abrirModalInadimplenciaDetalhada() {
   const hoje = new Date(); const anoAtual=hoje.getFullYear(); const lancs=DATA.financas;
   const membrosAtivos = DATA.membros.filter(m=>(m.status==='ativo'||m.status==='iniciado'||m.status==='profano')&&m.tipo_membro!=='visitante');
   const inadimplentes = membrosAtivos.map(m=>{
-    const mens=parseFloat(m.mensalidade)||100; let deb=0,mesesDev=0;
-    if(mens>0){const ai=m.data_ingresso?parseInt(m.data_ingresso.split('-')[0]):anoAtual;const mi=m.data_ingresso?parseInt(m.data_ingresso.split('-')[1]):1;const tot=Math.max(0,(anoAtual-ai)*12+(hoje.getMonth()+1-mi));const esp=tot*mens;const pago=lancs.filter(l=>l.membro_id===m.id&&l.tipo==='receita'&&l.status==='pago'&&l.categoria==='mensalidade').reduce((s,l)=>s+parseFloat(l.valor||0),0);deb=Math.max(0,esp-pago);mesesDev=Math.round(deb/mens);}
+    const mens=parseFloat(m.mensalidade)||100;
+    const mensAbertas=lancs.filter(l=>l.membro_id===m.id&&l.status==='aberto'&&l.tipo==='receita'&&l.categoria==='mensalidade');
+    const deb=mensAbertas.reduce((s,l)=>s+parseFloat(l.valor||0),0);const mesesDev=mensAbertas.length;
     const outros=lancs.filter(l=>l.membro_id===m.id&&(l.status==='aberto'||l.status==='agendado')&&l.tipo==='receita'&&l.categoria!=='mensalidade');
     const totOutros=outros.reduce((s,l)=>s+parseFloat(l.valor||0),0);const totalDevia=deb+totOutros;if(totalDevia<=0)return null;
     const det=[];if(mesesDev>0)det.push({cat:'Mensalidade',valor:deb,detalhe:`${mesesDev} mês(es) em atraso`});
@@ -9350,13 +9341,9 @@ async function renderMeuFinanceiro() {
   const totalAberto = DATA.financas.filter(l=>l.membro_id===membro.id&&(l.status==='aberto'||l.status==='agendado')).reduce((s,l)=>s+parseFloat(l.valor||0),0);
   const mensalidade = membro?.mensalidade || 100;
   const hoje = new Date();
-  const anoAtual = hoje.getFullYear();
-  const anoIng = membro.data_ingresso ? parseInt(membro.data_ingresso.split('-')[0]) : anoAtual;
-  const mesIng  = membro.data_ingresso ? parseInt(membro.data_ingresso.split('-')[1]) : 1;
-  const totalMeses = Math.max(0, (anoAtual-anoIng)*12+(hoje.getMonth()+1-mesIng));
-  const esperado = totalMeses * mensalidade;
-  const devia = Math.max(0, esperado - totalPago);
-  const emDia = devia <= 0 && totalAberto <= 0;
+  // Débito = apenas lançamentos em aberto (não calcula por data de ingresso)
+  const devia = totalAberto;
+  const emDia = totalAberto <= 0;
 
   const inp = `style="border:1px solid var(--border-mid);border-radius:3px;padding:5px 10px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--cream);color:var(--text)"`;
   const statusBadge = (s) => {
@@ -12704,17 +12691,11 @@ function mostrarRelDebitos() {
   const devedores = membros.map(m => {
     const mens = parseFloat(m.mensalidade) || 100;
     if (!mens) return null;
-    const ai = anoIngresso(m), mi = mesIngresso(m);
-    // Só conta o mês atual se já passou o dia de vencimento
-    const mesCorrente = hoje.getDate() >= diaVenc ? hoje.getMonth()+1 : hoje.getMonth();
-    const totalMeses = Math.max(0, (anoAtual - ai)*12 + (mesCorrente - mi));
-    const esperado = totalMeses * mens;
-    const pago = lancs
-      .filter(l => l.membro_id===m.id && l.tipo==='receita' && l.status==='pago' && l.categoria==='mensalidade')
-      .reduce((s,l) => s + parseFloat(l.valor||0), 0);
-    const devia = Math.max(0, esperado - pago);
+    // Débito = apenas lançamentos em aberto
+    const mensAbertas = lancs.filter(l=>l.membro_id===m.id&&l.status==='aberto'&&l.tipo==='receita'&&l.categoria==='mensalidade');
+    const devia = mensAbertas.reduce((s,l)=>s+parseFloat(l.valor||0),0);
     if (devia <= 0) return null;
-    const mesesDev = Math.round(devia / mens);
+    const mesesDev = mensAbertas.length;
     return { ...m, mens, mesesDev, devia };
   }).filter(Boolean).sort((a,b) => b.mesesDev - a.mesesDev);
 
@@ -12771,16 +12752,12 @@ function mostrarRelDebitos() {
 
 function exportarDebitosExcel() {
   const membros = DATA.membros.filter(m=>m.status==='ativo'||m.status==='iniciado');
-  const hoje = new Date(); const anoAtual=hoje.getFullYear(); const lancs=DATA.financas;
+  const lancs=DATA.financas;
   const devedores = membros.map(m=>{
     const mens=parseFloat(m.mensalidade)||100; if(!mens) return null;
-    const ai=m.data_ingresso?parseInt(m.data_ingresso.split('-')[0]):anoAtual;
-    const mi=m.data_ingresso?parseInt(m.data_ingresso.split('-')[1]):1;
-    const tot=Math.max(0,(anoAtual-ai)*12+(hoje.getMonth()+1-mi));
-    const esp=tot*mens;
-    const pago=lancs.filter(l=>l.membro_id===m.id&&l.tipo==='receita'&&l.status==='pago'&&l.categoria==='mensalidade').reduce((s,l)=>s+parseFloat(l.valor||0),0);
-    const devia=Math.max(0,esp-pago); if(!devia) return null;
-    return {nome:m.nome_maconico,cargo:m.cargo||'',mens,devia,meses:Math.round(devia/mens)};
+    const mensAbertas=lancs.filter(l=>l.membro_id===m.id&&l.status==='aberto'&&l.tipo==='receita'&&l.categoria==='mensalidade');
+    const devia=mensAbertas.reduce((s,l)=>s+parseFloat(l.valor||0),0); if(!devia) return null;
+    return {nome:m.nome_maconico,cargo:m.cargo||'',mens,devia,meses:mensAbertas.length};
   }).filter(Boolean);
   const cab=['Nome Maçônico','Cargo','Mensalidade (R$)','Meses em Atraso','Valor em Aberto (R$)'];
   const linhas=devedores.map(d=>[d.nome,d.cargo,d.mens,d.meses,d.devia]);
@@ -12789,15 +12766,12 @@ function exportarDebitosExcel() {
 
 function imprimirRelDebitos() {
   const membros = DATA.membros.filter(m=>m.status==='ativo'||m.status==='iniciado');
-  const mesAtual = new Date().getMonth()+1;
   const devedores = membros.map(m=>{
-    const pags = DATA.financas.filter(l=>l.membro_id===m.id&&l.tipo==='receita');
-    const totalPago = pags.reduce((s,l)=>s+parseFloat(l.valor||0),0);
-    const mens = parseFloat(m.mensalidade)||100;
-    const mesesPagos = Math.floor(totalPago/mens);
-    const mesesDevidos = Math.max(0,mesAtual-mesesPagos);
-    return {...m,mesesDevidos,valorAberto:mesesDevidos*mens,emDia:mesesDevidos===0};
-  }).filter(m=>!m.emDia).sort((a,b)=>b.mesesDevidos-a.mesesDevidos);
+    const mensAbertas = DATA.financas.filter(l=>l.membro_id===m.id&&l.status==='aberto'&&l.tipo==='receita');
+    const valorAberto = mensAbertas.reduce((s,l)=>s+parseFloat(l.valor||0),0);
+    const mesesDevidos = mensAbertas.filter(l=>l.categoria==='mensalidade').length;
+    return {...m,mesesDevidos,valorAberto,emDia:valorAberto<=0};
+  }).filter(m=>!m.emDia).sort((a,b)=>b.valorAberto-a.valorAberto);
   const totalAberto = devedores.reduce((s,m)=>s+m.valorAberto,0);
   const linhas = devedores.map(m=>`<tr>
     <td>${m.nome_maconico}</td><td>${m.cargo||'—'}</td>
