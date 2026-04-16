@@ -5755,12 +5755,82 @@ async function confirmarPresencas(sessaoId) {
   });
   const res = await sb.from('presencas').upsert(upserts, { onConflict: 'sessao_id,membro_id' });
   if (res.error) { toast('Erro: ' + res.error.message); return; }
+
+  // ── Recalcular ágape se existir para esta sessão ──
+  await _recalcularAgapeSessao(sessaoId);
+
   toast('Presenças salvas ✦');
   fecharModal();
   await loadAllData();
   } catch(e) {
     console.error("[confirmarPresencas]", e);
     toast("❌ Erro inesperado. Tente novamente.");
+  }
+}
+
+// Recalcular ágape: quando muda a lista de presentes, recalcula o rateio
+async function _recalcularAgapeSessao(sessaoId) {
+  try {
+    // Buscar lançamentos de ágape (despesa total) vinculados a esta sessão pela data
+    const sessao = DATA.sessoes.find(s=>s.id===sessaoId);
+    if (!sessao) return;
+
+    // Buscar débitos individuais de ágape na mesma data
+    const dataSessao = sessao.data;
+    const agapeDebitos = DATA.financas.filter(l =>
+      l.categoria === 'agape' &&
+      l.tipo === 'receita' &&
+      l.data === dataSessao &&
+      l.descricao?.includes('rateio')
+    );
+
+    if (!agapeDebitos.length) return; // Sem ágape lançado, nada a fazer
+
+    // Calcular o valor total do ágape (soma dos débitos individuais existentes + pagos)
+    const agapeDespesa = DATA.financas.find(l =>
+      l.categoria === 'agape' &&
+      l.tipo === 'despesa' &&
+      l.data === dataSessao
+    );
+    if (!agapeDespesa) return;
+    const valorTotal = parseFloat(agapeDespesa.valor) || 0;
+    if (!valorTotal) return;
+
+    // Buscar presentes atualizados (excluindo visitantes)
+    const presentes = DATA.presencas.filter(p =>
+      p.sessao_id === sessaoId &&
+      (p.presente || p.situacao === 'presente')
+    );
+    const participantes = presentes.map(p => {
+      const m = DATA.membros.find(x => x.id === p.membro_id);
+      return m && (m.tipo_membro !== 'visitante') ? m : null;
+    }).filter(Boolean);
+
+    if (!participantes.length) return;
+
+    const novoValor = parseFloat((valorTotal / participantes.length).toFixed(2));
+
+    // Apagar débitos antigos de ágape desta data
+    for (const d of agapeDebitos) {
+      await sb.from('financas').delete().eq('id', d.id);
+    }
+
+    // Inserir novos débitos para todos os presentes
+    const novosDebitos = participantes.map(m => ({
+      descricao: agapeDespesa.descricao ? `${agapeDespesa.descricao} — rateio` : 'Ágape — rateio',
+      valor: novoValor,
+      tipo: 'receita',
+      data: dataSessao,
+      categoria: 'agape',
+      status: 'aberto',
+      membro_id: m.id
+    }));
+
+    await sb.from('financas').insert(novosDebitos);
+    await _reloadFinancas();
+    console.log(`[Ágape] Recalculado: ${participantes.length} participantes × ${novoValor}`);
+  } catch(e) {
+    console.warn('[_recalcularAgapeSessao]', e);
   }
 }
 
