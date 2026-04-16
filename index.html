@@ -4183,21 +4183,13 @@ function abrirModalMembro(membro=null) {
           <!-- ABA: HISTÓRICO -->
           <div id="tabpanel-historico" style="display:none">
             <div style="background:rgba(27,94,160,0.05);border:1px solid rgba(27,94,160,0.2);border-radius:4px;padding:12px 16px;margin-bottom:18px;font-size:12px;color:#1B5EA0;font-style:italic">
-              📋 Registre graus, cargos, honrarias e marcos importantes da trajetória do irmão na Loja.
+              📋 Registre o histórico maçônico do irmão conforme a ficha do GOB — filiações, cargos, graus, honrarias.
             </div>
-            <div style="display:grid;grid-template-columns:120px 1fr 140px 1fr;gap:12px;margin-bottom:14px;align-items:end">
-              <div>${lb('Tipo')}
-                <select id="hist-tipo" ${inp}>
-                  <option value="grau">Grau</option>
-                  <option value="cargo">Cargo</option>
-                  <option value="honraria">Honraria</option>
-                  <option value="outro">Outro</option></select></div>
-              <div>${lb('Grau, Cargo ou Honraria *')}
-                <input id="hist-titulo" ${inp} placeholder="Ex: Mestre Maçom, Venerável, Medalha..."></div>
+            <div style="display:grid;grid-template-columns:140px 1fr;gap:12px;margin-bottom:14px;align-items:end">
               <div>${lb('Data *')}
                 <input id="hist-data" type="date" ${inp}></div>
-              <div>${lb('Observações')}
-                <input id="hist-obs" ${inp} placeholder="Opcional"></div>
+              <div>${lb('Histórico *')}
+                <input id="hist-titulo" ${inp} placeholder="Ex: FILIADO NA LOJA 3524-SP, CONFORME RA Nº..."></div>
             </div>
             <button onclick="adicionarHistorico()" class="btn btn-solid" style="padding:7px 18px;margin-bottom:20px">+ Adicionar</button>
             <div id="lista-historico">${renderHistoricoLocal()}</div>
@@ -4282,24 +4274,35 @@ async function buscarCep(cep) {
 function renderHistoricoLocal() {
   const h = window._membroHistorico||[];
   if (!h.length) return `<div style="font-style:italic;color:var(--text-muted);font-size:12px;padding:12px 0">Nenhum registro no histórico.</div>`;
-  const tipoLabel = {grau:'🎓 Grau',cargo:'⚙️ Cargo',honraria:'🏅 Honraria',outro:'📌 Outro'};
-  return `<table style="width:100%"><thead><tr><th>Tipo</th><th>Título</th><th>Data</th><th>Obs.</th><th></th></tr></thead><tbody>${
-    h.map((x,i)=>`<tr><td>${tipoLabel[x.tipo]||x.tipo}</td><td>${x.titulo}</td><td>${fmtData(x.data)}</td><td style="font-size:11px;color:var(--text-muted)">${x.obs||'—'}</td>
-      <td><button class="btn" style="padding:2px 7px;font-size:9px;color:var(--red)" onclick="removerHistorico(${i})">✕</button></td></tr>`).join('')
+  return `<table style="width:100%"><thead><tr><th style="width:110px">Data</th><th>Histórico</th><th style="width:70px"></th></tr></thead><tbody>${
+    h.map((x,i)=>`<tr>
+      <td>${fmtData(x.data)}</td>
+      <td style="font-size:13px">${x.titulo||x.obs||'—'}</td>
+      <td style="display:flex;gap:4px">
+        <button class="btn" style="padding:2px 7px;font-size:9px;color:var(--navy)" onclick="editarHistorico(${i})" title="Editar">✏️</button>
+        <button class="btn" style="padding:2px 7px;font-size:9px;color:var(--red)" onclick="removerHistorico(${i})" title="Excluir">✕</button>
+      </td></tr>`).join('')
   }</tbody></table>`;
 }
 
 function adicionarHistorico() {
-  const tipo = document.getElementById('hist-tipo')?.value;
   const titulo = document.getElementById('hist-titulo')?.value.trim();
   const data = document.getElementById('hist-data')?.value;
-  const obs = document.getElementById('hist-obs')?.value.trim();
-  if (!titulo||!data) { toast('Preencha título e data'); return; }
-  window._membroHistorico.push({tipo,titulo,data,obs});
+  if (!titulo||!data) { toast('Preencha data e histórico'); return; }
+  window._membroHistorico.push({titulo,data});
   document.getElementById('hist-titulo').value='';
   document.getElementById('hist-data').value='';
-  document.getElementById('hist-obs').value='';
   document.getElementById('lista-historico').innerHTML = renderHistoricoLocal();
+}
+
+function editarHistorico(i) {
+  const h = window._membroHistorico[i];
+  if (!h) return;
+  document.getElementById('hist-data').value = h.data || '';
+  document.getElementById('hist-titulo').value = h.titulo || h.obs || '';
+  window._membroHistorico.splice(i, 1);
+  document.getElementById('lista-historico').innerHTML = renderHistoricoLocal();
+  toast('✏️ Editando — altere e clique em "+ Adicionar" para salvar');
 }
 
 function removerHistorico(i) {
@@ -4312,8 +4315,27 @@ function renderFamiliaresLocal() {
   if (!f.length) return `<div style="font-style:italic;color:var(--text-muted);font-size:12px;padding:12px 0">Nenhum familiar cadastrado.</div>`;
   return `<table style="width:100%"><thead><tr><th>Parentesco</th><th>Nome</th><th>Nascimento</th><th>Telefone</th><th></th></tr></thead><tbody>${
     f.map((x,i)=>`<tr><td>${x.grau}</td><td>${x.nome}</td><td>${fmtData(x.nascimento)}</td><td>${x.telefone||'—'}</td>
-      <td><button class="btn" style="padding:2px 7px;font-size:9px;color:var(--red)" onclick="removerFamiliar(${i})">✕</button></td></tr>`).join('')
+      <td style="display:flex;gap:4px">
+        <button class="btn" style="padding:2px 7px;font-size:9px;color:var(--navy)" onclick="editarFamiliar(${i})" title="Editar">✏️</button>
+        <button class="btn" style="padding:2px 7px;font-size:9px;color:var(--red)" onclick="removerFamiliar(${i})" title="Excluir">✕</button>
+      </td></tr>`).join('')
   }</tbody></table>`;
+}
+
+function editarFamiliar(i) {
+  const fam = window._membroFamiliares[i];
+  if (!fam) return;
+  // Preencher o formulário com os dados do familiar
+  document.getElementById('fam-grau').value = fam.grau || 'Cônjuge';
+  document.getElementById('fam-nome').value = fam.nome || '';
+  document.getElementById('fam-genero').value = fam.genero || 'Masculino';
+  document.getElementById('fam-nascimento').value = fam.nascimento || '';
+  document.getElementById('fam-telefone').value = fam.telefone || '';
+  document.getElementById('fam-email').value = fam.email || '';
+  // Remover o familiar da lista (será re-adicionado ao clicar em "+ Adicionar Familiar")
+  window._membroFamiliares.splice(i, 1);
+  document.getElementById('lista-familiares').innerHTML = renderFamiliaresLocal();
+  toast('✏️ Editando familiar — altere e clique em "+ Adicionar Familiar" para salvar');
 }
 
 function adicionarFamiliar() {
