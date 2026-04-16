@@ -6786,7 +6786,7 @@ function renderFinancas(access) {
     <!-- BOTÕES DE AÇÃO -->
     ${canEdit?`<div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap">
       <button class="btn btn-solid" onclick="abrirModalLancamento()" style="display:flex;align-items:center;gap:6px">＋ Novo Lançamento</button>
-      <button class="btn btn-solid" onclick="abrirModalMensalidadeAuto()" style="background:linear-gradient(135deg,#1B5EA0,#2A7ACC);display:flex;align-items:center;gap:6px">⚡ Mensalidades do Mês</button>
+      <button class="btn btn-solid" onclick="abrirModalMensalidadeAuto()" title="Lança em lote as mensalidades do mês atual para todos os irmãos ativos, com vencimento no dia configurado" style="background:linear-gradient(135deg,#1B5EA0,#2A7ACC);display:flex;align-items:center;gap:6px">⚡ Lançar Mensalidades do Mês</button>
       <button class="btn btn-solid" onclick="abrirModalAgape()" style="background:linear-gradient(135deg,#6B3A00,#A05A00);display:flex;align-items:center;gap:6px">🍽️ Ágape / Rateio</button>
       <button class="btn btn-solid" onclick="abrirModalTronco()" style="background:linear-gradient(135deg,#5C3D00,#8B6000);display:flex;align-items:center;gap:6px">🏺 Tronco</button>
       <button class="btn btn-solid" onclick="abrirModalFecharMes()" style="background:linear-gradient(135deg,#3A006B,#6A2AAC);display:flex;align-items:center;gap:6px">📦 Fechar Mês</button>
@@ -8039,10 +8039,13 @@ function abrirModalMensalidadeAuto() {
 
   document.body.insertAdjacentHTML('beforeend', `
     <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px">
-      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;padding:36px 40px;width:580px;max-height:85vh;overflow-y:auto;position:relative">
+      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;padding:36px 40px;width:620px;max-height:85vh;overflow-y:auto;position:relative">
         <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gold-dark),var(--gold-rich),var(--gold-light),var(--gold-dark));border-radius:6px 6px 0 0"></div>
         <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);margin-bottom:4px">⚡ Mensalidades — ${mesNomes[mesAtual]}/${anoAtual}</div>
-        <div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-bottom:18px">${pendentes.length} irmãos pendentes · ${jaLancados.length} já lançados este mês</div>
+        <div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-bottom:12px">${pendentes.length} irmãos pendentes · ${jaLancados.length} já lançados este mês</div>
+        <div style="background:rgba(27,58,107,0.05);border:1px solid rgba(27,58,107,0.15);border-radius:4px;padding:10px 14px;margin-bottom:18px;font-size:12px;color:var(--text)">
+          📅 As mensalidades serão lançadas com vencimento no dia <strong>${_getDadosLoja().vencimento||10}</strong> deste mês e ficarão com status <strong>"Em Aberto"</strong> até o pagamento.
+        </div>
         <table style="width:100%"><thead><tr><th></th><th>Irmão</th><th>Cargo</th><th>Valor (R$)</th></tr></thead>
         <tbody>${linhas}</tbody></table>
         <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:24px">
@@ -8058,7 +8061,12 @@ async function lancarMensalidadesAuto() {
   const hoje = new Date();
   const mes = hoje.getMonth();
   const ano = hoje.getFullYear();
-  const dataLanc = `${ano}-${String(mes+1).padStart(2,'0')}-01`;
+  // Usar o dia de vencimento configurado nas Configurações da Loja
+  const diaVenc = _getDadosLoja().vencimento || 10;
+  // Garantir que o dia existe no mês (ex: 31 em fevereiro -> usar último dia)
+  const ultimoDia = new Date(ano, mes+1, 0).getDate();
+  const diaReal = Math.min(diaVenc, ultimoDia);
+  const dataLanc = `${ano}-${String(mes+1).padStart(2,'0')}-${String(diaReal).padStart(2,'0')}`;
   const checkboxes = document.querySelectorAll('.mens-check:checked');
   if (!checkboxes.length) { toast('Selecione ao menos um irmão'); return; }
 
@@ -8072,13 +8080,14 @@ async function lancarMensalidadesAuto() {
       valor,
       data: dataLanc,
       categoria: 'mensalidade',
-      membro_id: cb.dataset.id
+      membro_id: cb.dataset.id,
+      status: 'aberto'  // Lançada como pendente (dia do vencimento), não como paga
     };
   });
 
   const res = await sb.from('financas').insert(inserts);
   if (_sbErr('comissao', res.error)) return;
-  toast(`✦ ${inserts.length} mensalidades lançadas com sucesso!`);
+  toast(`✦ ${inserts.length} mensalidades lançadas com vencimento em ${diaReal}/${mes+1}!`);
   fecharModal();
   await loadAllData();
 }
@@ -9356,14 +9365,47 @@ async function renderMeuFinanceiro() {
   };
 
   const rows = lancs.length === 0
-    ? `<tr><td colspan="5" style="text-align:center;padding:20px;font-style:italic;color:var(--text-muted)">Nenhum lançamento encontrado.</td></tr>`
-    : lancs.map(l=>`<tr>
-        <td style="font-size:13px">${fmtData(l.data)}</td>
-        <td style="font-size:14px;font-family:'Cormorant Garamond',serif">${l.descricao||'—'}</td>
-        <td style="font-size:12px;color:var(--text-muted)">${getCatLabel(l.categoria)||'—'}</td>
-        <td style="font-size:14px;font-weight:600;color:${l.tipo==='receita'?'var(--green)':'var(--red)'}">${l.tipo==='receita'?'+':'-'}${fmtVal(l.valor)}</td>
-        <td>${statusBadge(l.status)}</td>
-      </tr>`).join('');
+    ? `<tr><td colspan="6" style="text-align:center;padding:20px;font-style:italic;color:var(--text-muted)">Nenhum lançamento encontrado.</td></tr>`
+    : lancs.map(l => {
+        const isVencido = l.status === 'aberto' && l.data && l.data < hoje.toISOString().split('T')[0];
+        const dataStyle = isVencido ? 'color:var(--red);font-weight:600' : '';
+        return `<tr${isVencido?' style="background:rgba(139,32,32,0.04)"':''}>
+          <td style="font-size:13px;${dataStyle}">${fmtData(l.data)}${isVencido?' <span style="font-size:10px">⚠️</span>':''}</td>
+          <td style="font-size:14px;font-family:'Cormorant Garamond',serif">${l.descricao||'—'}</td>
+          <td style="font-size:12px;color:var(--text-muted)">${getCatLabel(l.categoria)||'—'}</td>
+          <td style="font-size:14px;font-weight:600;color:${l.tipo==='receita'?(l.status==='pago'?'var(--green)':'var(--red)'):'var(--red)'}">${l.tipo==='receita'?(l.status==='pago'?'+':''):'-'}${fmtVal(l.valor)}</td>
+          <td>${statusBadge(l.status)}</td>
+        </tr>`;
+      }).join('');
+
+  // Débitos em aberto (separados para destaque)
+  const debitosAbertos = DATA.financas.filter(l =>
+    l.membro_id === membro.id &&
+    l.status === 'aberto' &&
+    l.tipo === 'receita'
+  ).sort((a,b) => (a.data||'').localeCompare(b.data||''));
+
+  const hojeStr = hoje.toISOString().split('T')[0];
+  const secaoDebitos = debitosAbertos.length === 0 ? '' : `
+    <div class="card" style="margin-bottom:16px;border-color:rgba(139,32,32,0.3);background:rgba(139,32,32,0.02)">
+      <div class="card-header">
+        <div class="card-title" style="color:var(--red)">⚠️ Débitos em Aberto (${debitosAbertos.length})</div>
+      </div>
+      <div style="padding:4px 0">
+        ${debitosAbertos.map(l => {
+          const isVencido = l.data && l.data < hojeStr;
+          return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 22px;border-bottom:1px solid var(--border)">
+            <div>
+              <div style="font-family:'Cormorant Garamond',serif;font-size:15px;font-weight:600;color:var(--text)">${l.descricao||'—'}</div>
+              <div style="font-size:11px;color:${isVencido?'var(--red)':'var(--text-muted)'};margin-top:2px">
+                ${isVencido?'🔴 VENCIDO em ':'📅 Vence em '}${fmtData(l.data)} · ${getCatLabel(l.categoria)||'—'}
+              </div>
+            </div>
+            <div style="font-family:'Cinzel',serif;font-size:16px;font-weight:700;color:var(--red)">${fmtVal(l.valor)}</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
 
   el.innerHTML = `
     <!-- Status banner -->
@@ -9374,6 +9416,8 @@ async function renderMeuFinanceiro() {
         <div style="font-size:14px;font-family:'Cormorant Garamond',serif;color:var(--text-muted);margin-top:2px">${membro.nome_maconico} — ${emDia?'mensalidades em dia':'verifique seus débitos abaixo'}</div>
       </div>
     </div>
+
+    ${secaoDebitos}
 
     <!-- KPIs -->
     <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">
@@ -9401,7 +9445,7 @@ async function renderMeuFinanceiro() {
           <input type="month" id="mf-filtro-mes" value="${filtroMes}" onchange="renderMeuFinanceiro()" ${inp}>
         </div>
       </div>
-      <table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Valor</th><th>Status</th></tr></thead>
+      <table><thead><tr><th>Vencimento</th><th>Descrição</th><th>Categoria</th><th>Valor</th><th>Status</th></tr></thead>
       <tbody>${rows}</tbody></table>
     </div>`;
 }
