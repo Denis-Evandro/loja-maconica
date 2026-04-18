@@ -2295,7 +2295,8 @@ async function doLogin() {
 
   if (usuarioAdmin || adminEmails.includes(email.toLowerCase())) {
     _modoDemo = false;
-    _membroLogado = { id: null, grau: 3, cargo: 'Administrador', nome_maconico: 'Administrador do Sistema' };
+    _isAdminReal = true;
+    _membroLogado = { id: null, grau: 3, cargo: 'Administrador do Sistema', nome_maconico: 'Administrador do Sistema' };
     currentRole = 'admin';
     _aplicarRoleNaTela('admin', _membroLogado);
     _registrarAcesso('Administrador', 'Administrador', 'admin', 'login');
@@ -2378,15 +2379,14 @@ function _aplicarRoleNaTela(role, membro) {
 
   // Mostrar seletor de perfil no modo demo OU para admin real
   const switcher = document.getElementById('demo-switcher');
-  const isAdminReal = !_modoDemo && role === 'admin';
   if (switcher) {
-    switcher.style.display = (_modoDemo || isAdminReal) ? 'block' : 'none';
+    switcher.style.display = (_modoDemo || _isAdminReal) ? 'block' : 'none';
     const label = document.getElementById('demo-switcher-label');
-    if (label) label.textContent = isAdminReal ? 'Visualizar como' : 'Trocar Perfil Demo';
+    if (label) label.textContent = _isAdminReal ? 'Visualizar como' : 'Trocar Perfil Demo';
     // Sincronizar select com perfil atual
     const sel = document.getElementById('demo-select');
     if (sel) {
-      if (isAdminReal) {
+      if (_isAdminReal && role === 'admin') {
         sel.value = 'admin';
       } else {
         const chave = Object.entries(DEMO_PERFIS).find(([k,v]) => v.nome === _membroLogado?.nome_maconico)?.[0] || 'veneravel';
@@ -2410,13 +2410,13 @@ function _aplicarRoleNaTela(role, membro) {
 }
 
 // Troca rápida de perfil — funciona no modo demo E para admin real
-function trocarPerfilDemo(chave) {
-  const isAdminReal = !_modoDemo && _membroLogado?.cargo === 'Administrador do Sistema';
+let _isAdminReal = false; // Flag para saber que o login original é admin
 
-  if (!_modoDemo && !isAdminReal) return;
+function trocarPerfilDemo(chave) {
+  if (!_modoDemo && !_isAdminReal) return;
 
   // Se admin real seleciona "admin", volta ao perfil original
-  if (isAdminReal && chave === 'admin') {
+  if (_isAdminReal && chave === 'admin') {
     _membroLogado = { id: null, grau: 3, cargo: 'Administrador do Sistema', nome_maconico: 'Administrador do Sistema' };
     currentRole = 'admin';
     const r = ROLES['admin'];
@@ -2443,7 +2443,7 @@ function trocarPerfilDemo(chave) {
 
   const r        = ROLES[perfil.role];
   const iniciais = perfil.nome.split(' ').map(p => p[0]).join('').slice(0,2).toUpperCase();
-  const tag = isAdminReal ? ' · ADMIN' : ' · DEMO';
+  const tag = _isAdminReal ? ' · ADMIN' : ' · DEMO';
 
   document.getElementById('sidebarAvatar').textContent    = iniciais;
   document.getElementById('sidebarName').textContent      = perfil.nome;
@@ -2473,6 +2473,7 @@ async function doLogout() {
   // 2. Limpar TODOS os dados em memória
   _membroLogado = null;
   _modoDemo     = false;
+  _isAdminReal  = false;
   currentRole   = 'irmao';
   selectedRole  = 'irmao';
   Object.keys(DATA).forEach(k => { DATA[k] = []; });
