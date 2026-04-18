@@ -1369,16 +1369,16 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
 
       <!-- Seletor rápido de perfil demo (só aparece no modo demo) -->
       <div id="demo-switcher" style="display:none;margin:8px 0">
-        <div style="font-family:'Cinzel',serif;font-size:7px;font-weight:700;letter-spacing:0.2em;color:rgba(212,168,67,0.5);text-transform:uppercase;margin-bottom:5px">🧪 Trocar Perfil Demo</div>
+        <div id="demo-switcher-label" style="font-family:'Cinzel',serif;font-size:7px;font-weight:700;letter-spacing:0.2em;color:rgba(212,168,67,0.5);text-transform:uppercase;margin-bottom:5px">Visualizar como</div>
         <select id="demo-select" onchange="trocarPerfilDemo(this.value)"
           style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(212,168,67,0.25);border-radius:3px;color:rgba(255,255,255,0.7);font-family:'Cinzel',serif;font-size:9px;padding:6px 8px;cursor:pointer">
-          <option value="veneravel">👑 Venerável Mestre</option>
           <option value="admin">🏛️ Administrador</option>
+          <option value="veneravel">👑 Venerável Mestre</option>
           <option value="secretario">📜 Secretário</option>
           <option value="tesoureiro">⚖️ Tesoureiro</option>
           <option value="chanceler">🗂️ Chanceler</option>
-          <option value="vigilante1">🔷 1º Vigilante (apr. Grau 2)</option>
-          <option value="vigilante2">🔹 2º Vigilante (apr. Grau 1)</option>
+          <option value="vigilante1">🔷 1º Vigilante (Grau 2)</option>
+          <option value="vigilante2">🔹 2º Vigilante (Grau 1)</option>
           <option value="irmao3">⭐ Irmão Mestre — Grau 3</option>
           <option value="irmao2">🔵 Irmão Companheiro — Grau 2</option>
           <option value="irmao1">🟢 Irmão Aprendiz — Grau 1</option>
@@ -2376,15 +2376,22 @@ function _aplicarRoleNaTela(role, membro) {
   document.getElementById('sidebarBadge').querySelector('span').textContent = r.icon;
   document.getElementById('topbarRole').textContent       = cargo + demoTag;
 
-  // Mostrar seletor de perfil apenas no modo demo
+  // Mostrar seletor de perfil no modo demo OU para admin real
   const switcher = document.getElementById('demo-switcher');
+  const isAdminReal = !_modoDemo && role === 'admin';
   if (switcher) {
-    switcher.style.display = _modoDemo ? 'block' : 'none';
+    switcher.style.display = (_modoDemo || isAdminReal) ? 'block' : 'none';
+    const label = document.getElementById('demo-switcher-label');
+    if (label) label.textContent = isAdminReal ? 'Visualizar como' : 'Trocar Perfil Demo';
     // Sincronizar select com perfil atual
     const sel = document.getElementById('demo-select');
     if (sel) {
-      const chave = Object.entries(DEMO_PERFIS).find(([k,v]) => v.nome === _membroLogado?.nome_maconico)?.[0] || 'veneravel';
-      sel.value = chave;
+      if (isAdminReal) {
+        sel.value = 'admin';
+      } else {
+        const chave = Object.entries(DEMO_PERFIS).find(([k,v]) => v.nome === _membroLogado?.nome_maconico)?.[0] || 'veneravel';
+        sel.value = chave;
+      }
     }
   }
 
@@ -2402,9 +2409,33 @@ function _aplicarRoleNaTela(role, membro) {
   loadAllData().catch(e => console.warn(e));
 }
 
-// Troca rápida de perfil demo sem sair do sistema
+// Troca rápida de perfil — funciona no modo demo E para admin real
 function trocarPerfilDemo(chave) {
-  if (!_modoDemo) return;
+  const isAdminReal = !_modoDemo && _membroLogado?.cargo === 'Administrador do Sistema';
+
+  if (!_modoDemo && !isAdminReal) return;
+
+  // Se admin real seleciona "admin", volta ao perfil original
+  if (isAdminReal && chave === 'admin') {
+    _membroLogado = { id: null, grau: 3, cargo: 'Administrador do Sistema', nome_maconico: 'Administrador do Sistema' };
+    currentRole = 'admin';
+    const r = ROLES['admin'];
+    document.getElementById('sidebarAvatar').textContent    = 'AD';
+    document.getElementById('sidebarName').textContent      = 'Administrador do Sistema';
+    document.getElementById('sidebarRole').textContent      = 'Administrador';
+    document.getElementById('sidebarBadgeText').textContent = r.badge;
+    document.getElementById('sidebarBadge').querySelector('span').textContent = r.icon;
+    document.getElementById('topbarRole').textContent       = 'Administrador';
+    toast('Voltou ao perfil Administrador');
+    renderNav();
+    _aplicarPermModulos();
+    _aplicarPermRelatorios();
+    const active = document.querySelector('.panel.active');
+    const id = active ? active.id.replace('panel-','') : 'dashboard';
+    showPanel(id);
+    return;
+  }
+
   const perfil = DEMO_PERFIS[chave];
   if (!perfil) return;
   _membroLogado = { id: null, grau: perfil.grau, cargo: perfil.cargo, nome_maconico: perfil.nome };
@@ -2412,19 +2443,19 @@ function trocarPerfilDemo(chave) {
 
   const r        = ROLES[perfil.role];
   const iniciais = perfil.nome.split(' ').map(p => p[0]).join('').slice(0,2).toUpperCase();
+  const tag = isAdminReal ? ' · ADMIN' : ' · DEMO';
 
   document.getElementById('sidebarAvatar').textContent    = iniciais;
   document.getElementById('sidebarName').textContent      = perfil.nome;
-  document.getElementById('sidebarRole').textContent      = perfil.cargo + ' · DEMO';
+  document.getElementById('sidebarRole').textContent      = perfil.cargo + tag;
   document.getElementById('sidebarBadgeText').textContent = r.badge;
   document.getElementById('sidebarBadge').querySelector('span').textContent = r.icon;
-  document.getElementById('topbarRole').textContent       = perfil.cargo + ' · DEMO';
+  document.getElementById('topbarRole').textContent       = perfil.cargo + tag;
 
-  toast(`🧪 Perfil alterado: ${perfil.nome}`);
+  toast(`Visualizando como: ${perfil.cargo}`);
   renderNav();
-  _aplicarPermModulos();    // recarregar permissões de módulos ao trocar perfil
-  _aplicarPermRelatorios(); // recarregar permissões ao trocar perfil
-  // Recarregar o painel ativo com as novas permissões
+  _aplicarPermModulos();
+  _aplicarPermRelatorios();
   const active = document.querySelector('.panel.active');
   const id     = active ? active.id.replace('panel-','') : 'dashboard';
   showPanel(id);
@@ -9387,9 +9418,15 @@ async function renderMinhaFrequencia() {
   // Prioridade: membro logado > nome do role > primeiro membro
   const euNome = _membroLogado?.nome_maconico || _eu()?.nome || ROLES[currentRole].name;
   const membro = (_membroLogado?.id ? DATA.membros.find(m => m.id === _membroLogado.id) : null)
-    || DATA.membros.find(m => m.nome_maconico === euNome)
-    || DATA.membros[0];
-  if (!membro) { el.innerHTML = `<div style="padding:20px;font-style:italic;color:var(--text-muted)">Membro não encontrado.</div>`; return; }
+    || (currentRole !== 'admin' ? DATA.membros.find(m => m.nome_maconico === euNome) : null);
+  if (!membro) {
+    el.innerHTML += `<div style="padding:24px;text-align:center">
+      <div style="font-size:32px;margin-bottom:12px;opacity:0.3">🏛️</div>
+      <div style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;color:var(--navy);margin-bottom:8px">${currentRole==='admin'?'Conta Administrador':'Membro nao encontrado'}</div>
+      <div style="font-size:13px;color:var(--text-muted);font-style:italic">${currentRole==='admin'?'O Administrador nao possui frequencia pessoal. Use o seletor "Visualizar como" na barra lateral para ver a frequencia de um cargo especifico.':'Seu cadastro ainda nao esta vinculado ao sistema.'}</div>
+    </div>`;
+    return;
+  }
 
   // Filtros
   const fDe  = el.querySelector('#mf-freq-de')?.value  || '';
@@ -9612,21 +9649,23 @@ async function renderMeuFinanceiro() {
   if (!el) return;
 
   // ── Sempre mostrar o financeiro PESSOAL do irmão logado ──────
-  // (Venerável e Tesoureiro veem o financeiro da loja em Finanças, não aqui)
   const eu = _eu();
   let membro = null;
   if (_membroLogado?.id) {
     membro = DATA.membros.find(m => m.id === _membroLogado.id);
   }
-  if (!membro) {
+  if (!membro && currentRole !== 'admin') {
     const nome = eu.nome.toLowerCase();
     membro = DATA.membros.find(m => (m.nome_maconico||'').toLowerCase() === nome)
-          || DATA.membros.find(m => m.nome_maconico === ROLES[currentRole]?.name)
-          || DATA.membros[0];
+          || DATA.membros.find(m => m.nome_maconico === ROLES[currentRole]?.name);
   }
 
   if (!membro) {
-    el.innerHTML = `<div style="padding:20px;font-style:italic;color:var(--text-muted)">Membro não encontrado no cadastro.</div>`;
+    el.innerHTML = `<div style="padding:24px;text-align:center">
+      <div style="font-size:32px;margin-bottom:12px;opacity:0.3">🏛️</div>
+      <div style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;color:var(--navy);margin-bottom:8px">${currentRole==='admin'?'Conta Administrador':'Membro nao encontrado'}</div>
+      <div style="font-size:13px;color:var(--text-muted);font-style:italic">${currentRole==='admin'?'O Administrador nao possui dados financeiros pessoais. Use o seletor "Visualizar como" na barra lateral para ver o financeiro de um cargo especifico.':'Seu cadastro ainda nao esta vinculado ao sistema. Fale com o Secretario.'}</div>
+    </div>`;
     return;
   }
 
