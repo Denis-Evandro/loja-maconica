@@ -6756,6 +6756,13 @@ function renderFinancas(access) {
   const receitas = lancs.filter(l=>l.tipo==='receita'&&(l.status||'pago')==='pago').reduce((s,l)=>s+parseFloat(l.valor||0),0);
   const despesas = lancs.filter(l=>l.tipo==='despesa'&&(l.status||'pago')==='pago').reduce((s,l)=>s+parseFloat(l.valor||0),0);
   const saldo = receitas - despesas;
+  // Saldo Bancario (sem tronco) e Tronco separado
+  const recSemTronco = lancs.filter(l=>l.tipo==='receita'&&(l.status||'pago')==='pago'&&l.categoria!=='tronco').reduce((s,l)=>s+parseFloat(l.valor||0),0);
+  const despSemTronco = lancs.filter(l=>l.tipo==='despesa'&&(l.status||'pago')==='pago'&&l.categoria!=='tronco').reduce((s,l)=>s+parseFloat(l.valor||0),0);
+  const saldoBancario = recSemTronco - despSemTronco;
+  const recTronco = lancs.filter(l=>l.tipo==='receita'&&(l.status||'pago')==='pago'&&l.categoria==='tronco').reduce((s,l)=>s+parseFloat(l.valor||0),0);
+  const despTronco = lancs.filter(l=>l.tipo==='despesa'&&(l.status||'pago')==='pago'&&l.categoria==='tronco').reduce((s,l)=>s+parseFloat(l.valor||0),0);
+  const saldoTroncoTotal = recTronco - despTronco;
   const totalAgendado = lancs.filter(l=>l.status==='agendado').reduce((s,l)=>s+parseFloat(l.valor||0),0);
   const totalAberto = lancs.filter(l=>l.status==='aberto').reduce((s,l)=>s+parseFloat(l.valor||0),0);
 
@@ -6884,19 +6891,26 @@ function renderFinancas(access) {
     ${canEdit?`<div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap">
       <button class="btn btn-solid" onclick="abrirModalLancamento()" style="display:flex;align-items:center;gap:6px">＋ Novo Lançamento</button>
       <button class="btn btn-solid" onclick="abrirModalMensalidadeAuto()" title="Lança em lote as mensalidades do mês atual para todos os irmãos ativos, com vencimento no dia configurado" style="background:linear-gradient(135deg,#1B5EA0,#2A7ACC);display:flex;align-items:center;gap:6px">⚡ Lançar Mensalidades do Mês</button>
-      <button class="btn btn-solid" onclick="abrirModalAgape()" style="background:linear-gradient(135deg,#6B3A00,#A05A00);display:flex;align-items:center;gap:6px">🍽️ Ágape / Rateio</button>
+      <button class="btn btn-solid" onclick="abrirModalAgape()" style="background:linear-gradient(135deg,#6B3A00,#A05A00);display:flex;align-items:center;gap:6px">🍽️ Agape / Rateio</button>
+      <button class="btn" onclick="abrirModalEditarAgape()" style="border-color:#6B3A00;color:#6B3A00;display:flex;align-items:center;gap:6px">✏️ Editar Agape</button>
       <button class="btn btn-solid" onclick="abrirModalTronco()" style="background:linear-gradient(135deg,#5C3D00,#8B6000);display:flex;align-items:center;gap:6px">🏺 Tronco</button>
       <button class="btn btn-solid" onclick="abrirModalFecharMes()" style="background:linear-gradient(135deg,#3A006B,#6A2AAC);display:flex;align-items:center;gap:6px">📦 Fechar Mês</button>
       <button class="btn btn-solid" onclick="abrirModalInadimplenciaDetalhada()" style="background:linear-gradient(135deg,#7A1010,#B03030);display:flex;align-items:center;gap:6px">📊 Inadimplência</button>
     </div>`:''}
 
+
     <!-- LINHA 1: KPIs principais -->
-    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px">
+    <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:10px">
       <div class="stat-card"><div class="stat-label">Receitas Pagas</div><div class="stat-value" style="color:var(--green);font-size:18px">${fmtVal(receitas)}</div><div class="stat-change up">Mês: ${fmtVal(recMes)}</div></div>
       <div class="stat-card"><div class="stat-label">Despesas Pagas</div><div class="stat-value" style="color:var(--red);font-size:18px">${fmtVal(despesas)}</div><div class="stat-change down">Mês: ${fmtVal(despMes)}</div></div>
-      <div class="stat-card"><div class="stat-label">Saldo Atual</div><div class="stat-value" style="color:${saldo>=0?'var(--green)':'var(--red)'};font-size:18px">${fmtVal(saldo)}</div><div class="stat-change" style="color:${saldoPrev>=0?'var(--green)':'var(--red)'}">Prev. 30d: ${fmtVal(saldoPrev)}</div></div>
-      <div class="stat-card"><div class="stat-label">A Receber/Pagar</div><div class="stat-value" style="color:#1B5EA0;font-size:18px">${fmtVal(totalAgendado+totalAberto)}</div><div class="stat-change" style="color:#1B5EA0">${fmtVal(totalAgendado)} agend. · ${fmtVal(totalAberto)} aberto</div></div>
+      <div class="stat-card"><div class="stat-label">Saldo Geral</div><div class="stat-value" style="color:${saldo>=0?'var(--green)':'var(--red)'};font-size:18px">${fmtVal(saldo)}</div><div class="stat-change" style="color:${saldoPrev>=0?'var(--green)':'var(--red)'}">Prev. 30d: ${fmtVal(saldoPrev)}</div></div>
     </div>
+    <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px">
+      <div class="stat-card" style="border-left:3px solid #1B5EA0"><div class="stat-label">Saldo Bancario</div><div class="stat-value" style="color:${saldoBancario>=0?'var(--green)':'var(--red)'};font-size:18px">${fmtVal(saldoBancario)}</div><div class="stat-change" style="color:var(--text-muted)">Sem tronco benef.</div></div>
+      <div class="stat-card" style="border-left:3px solid #8B6000"><div class="stat-label">Tronco Benef.</div><div class="stat-value" style="color:${saldoTroncoTotal>=0?'var(--green)':'var(--red)'};font-size:18px">${fmtVal(saldoTroncoTotal)}</div><div class="stat-change" style="color:var(--text-muted)">Investimento/Reserva</div></div>
+      <div class="stat-card"><div class="stat-label">A Receber/Pagar</div><div class="stat-value" style="color:#1B5EA0;font-size:18px">${fmtVal(totalAgendado+totalAberto)}</div><div class="stat-change" style="color:#1B5EA0">${fmtVal(totalAgendado)} agend. / ${fmtVal(totalAberto)} aberto</div></div>
+    </div>
+
 
     <!-- LINHA 2: Inadimplência + Previsão + Parcelas -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
@@ -8090,10 +8104,113 @@ async function lancarAgape() {
   }));
   const res = await sb.from('financas').insert(debitos);
   if (_sbErr('comissao', res.error)) return;
-  toast(`🍽️ Rateio lançado! ${participantes.length} irmãos — ${fmtVal(valPorCabeca)} cada`);
+  toast(`Rateio lancado! ${participantes.length} irmaos - ${fmtVal(valPorCabeca)} cada`);
   fecharModal();
   await _reloadFinancas();
   renderFinancas('full');
+}
+
+// Editar Agape ja lancado - corrigir valor sem excluir um por um
+function abrirModalEditarAgape() {
+  const lancs = DATA.financas;
+  const agapes = lancs.filter(l => l.categoria === 'agape' && l.tipo === 'despesa').sort((a,b) => (b.data||'').localeCompare(a.data||''));
+  if (!agapes.length) { toast('Nenhum agape lancado ainda'); return; }
+
+  const inp = `style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"`;
+  const opsAgape = agapes.map(a => `<option value="${a.id}" data-data="${a.data}" data-valor="${a.valor}">${fmtData(a.data)} - ${a.descricao||'Agape'} - ${fmtVal(a.valor)}</option>`).join('');
+
+  document.body.insertAdjacentHTML('beforeend', `
+    <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px">
+      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;padding:36px 40px;width:500px;position:relative">
+        <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#6B3A00,#A05A00);border-radius:6px 6px 0 0"></div>
+        <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;letter-spacing:0.1em;color:#6B3A00;margin-bottom:20px">Editar Agape</div>
+        <div style="margin-bottom:14px">
+          <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Selecione o Agape</label>
+          <select id="edit-agape-sel" onchange="previewEditAgape()" ${inp}>${opsAgape}</select>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+          <div>
+            <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Novo Valor Total (R$)</label>
+            <input id="edit-agape-valor" type="number" step="0.01" ${inp}>
+          </div>
+          <div>
+            <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Participantes</label>
+            <div id="edit-agape-qtd" style="padding:8px 12px;font-size:14px;color:var(--text-muted)">--</div>
+          </div>
+        </div>
+        <div id="edit-agape-preview" style="background:rgba(107,58,0,0.04);border:1px solid rgba(107,58,0,0.2);border-radius:4px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#6B3A00;display:none"></div>
+        <div style="display:flex;gap:10px;justify-content:flex-end">
+          <button class="btn" onclick="fecharModal()" style="padding:8px 20px">Cancelar</button>
+          <button class="btn" onclick="excluirAgape()" style="padding:8px 20px;color:var(--red);border-color:rgba(139,32,32,0.3)">Excluir Agape</button>
+          <button class="btn btn-solid" onclick="salvarEditAgape()" style="padding:8px 20px;background:linear-gradient(135deg,#6B3A00,#A05A00)">Salvar</button>
+        </div>
+      </div>
+    </div>`);
+  previewEditAgape();
+}
+
+function previewEditAgape() {
+  const sel = document.getElementById('edit-agape-sel');
+  const opt = sel?.selectedOptions[0];
+  if (!opt) return;
+  const dataAgape = opt.dataset.data;
+  const valorAtual = parseFloat(opt.dataset.valor);
+  document.getElementById('edit-agape-valor').value = valorAtual.toFixed(2);
+  // Contar debitos individuais
+  const debitos = DATA.financas.filter(l => l.categoria==='agape' && l.tipo==='receita' && l.data===dataAgape && l.descricao?.includes('rateio'));
+  document.getElementById('edit-agape-qtd').textContent = debitos.length + ' irmao(s)';
+  if (debitos.length) {
+    const valPP = valorAtual / debitos.length;
+    document.getElementById('edit-agape-preview').style.display = 'block';
+    document.getElementById('edit-agape-preview').innerHTML = `Valor atual: ${fmtVal(valPP)} por irmao (${debitos.length} participantes)`;
+  }
+}
+
+async function salvarEditAgape() {
+  const sel = document.getElementById('edit-agape-sel');
+  const opt = sel?.selectedOptions[0];
+  if (!opt) return;
+  const agapeId = opt.value;
+  const dataAgape = opt.dataset.data;
+  const novoValor = parseFloat(document.getElementById('edit-agape-valor')?.value);
+  if (!novoValor) { toast('Informe o novo valor'); return; }
+
+  // Atualizar despesa total
+  await sb.from('financas').update({ valor: novoValor }).eq('id', agapeId);
+
+  // Recalcular debitos individuais
+  const debitos = DATA.financas.filter(l => l.categoria==='agape' && l.tipo==='receita' && l.data===dataAgape && l.descricao?.includes('rateio'));
+  if (debitos.length) {
+    const novoValPP = parseFloat((novoValor / debitos.length).toFixed(2));
+    for (const d of debitos) {
+      await sb.from('financas').update({ valor: novoValPP }).eq('id', d.id);
+    }
+  }
+
+  toast('Agape atualizado!');
+  fecharModal();
+  await loadAllData();
+}
+
+async function excluirAgape() {
+  const sel = document.getElementById('edit-agape-sel');
+  const opt = sel?.selectedOptions[0];
+  if (!opt) return;
+  const agapeId = opt.value;
+  const dataAgape = opt.dataset.data;
+  if (!confirm('Excluir este agape e todos os rateios individuais?')) return;
+
+  // Excluir despesa
+  await sb.from('financas').delete().eq('id', agapeId);
+  // Excluir debitos individuais
+  const debitos = DATA.financas.filter(l => l.categoria==='agape' && l.tipo==='receita' && l.data===dataAgape && l.descricao?.includes('rateio'));
+  for (const d of debitos) {
+    await sb.from('financas').delete().eq('id', d.id);
+  }
+
+  toast('Agape excluido!');
+  fecharModal();
+  await loadAllData();
 }
 
 function abrirModalMensalidadeAuto() {
@@ -9539,38 +9656,158 @@ async function renderMeuFinanceiro() {
 
 function abrirModalLancamentoMembro(membroId, nomeM) {
   const hoje = new Date().toISOString().split('T')[0];
+  const membro = DATA.membros.find(m=>m.id===membroId);
+  const mens = membro?.mensalidade || 100;
+
+  // Buscar debitos em aberto deste membro
+  const debitosAbertos = DATA.financas.filter(l =>
+    l.membro_id === membroId &&
+    l.status === 'aberto' &&
+    l.tipo === 'receita'
+  ).sort((a,b) => (a.data||'').localeCompare(b.data||''));
+
+  const temDebitos = debitosAbertos.length > 0;
+  const totalAberto = debitosAbertos.reduce((s,l)=>s+parseFloat(l.valor||0),0);
+
+  const listaDebitos = temDebitos ? `
+    <div style="margin-bottom:16px">
+      <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:8px">Selecione os debitos a quitar</label>
+      <div style="max-height:200px;overflow-y:auto;border:1px solid var(--border-mid);border-radius:4px">
+        ${debitosAbertos.map((l,i) => {
+          const vencido = l.data && l.data < hoje;
+          return `<label style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--border);cursor:pointer;background:${vencido?'rgba(139,32,32,0.03)':'var(--white)'}">
+            <input type="checkbox" class="pm-debito-check" data-id="${l.id}" data-valor="${l.valor}" checked onchange="recalcularPagamento()">
+            <div style="flex:1">
+              <div style="font-size:13px;font-weight:600;color:var(--text)">${l.descricao||'--'}</div>
+              <div style="font-size:11px;color:${vencido?'var(--red)':'var(--text-muted)'}">
+                ${vencido?'VENCIDO ':''}${fmtData(l.data)} - ${getCatLabel(l.categoria)||'--'}
+              </div>
+            </div>
+            <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;color:var(--red)">${fmtVal(l.valor)}</div>
+          </label>`;
+        }).join('')}
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:8px 12px;background:rgba(27,58,107,0.04);border-radius:0 0 4px 4px;margin-top:-1px;border:1px solid var(--border-mid);border-top:none">
+        <span style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:var(--navy)">TOTAL SELECIONADO</span>
+        <span id="pm-total-selecionado" style="font-family:'Cinzel',serif;font-size:14px;font-weight:700;color:var(--navy)">${fmtVal(totalAberto)}</span>
+      </div>
+    </div>
+    <div style="background:rgba(58,122,74,0.06);border:1px solid rgba(58,122,74,0.2);border-radius:4px;padding:10px 14px;margin-bottom:16px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Valor Recebido (R$)</label>
+          <input id="pm-valor" type="number" step="0.01" value="${totalAberto.toFixed(2)}" oninput="calcularTroco()" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"></div>
+        <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Data do Pagamento</label>
+          <input id="pm-data" type="date" value="${hoje}" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"></div>
+      </div>
+      <div id="pm-troco-info" style="display:none;margin-top:8px;font-size:12px;padding:6px 10px;border-radius:3px"></div>
+    </div>` : `
+    <div style="background:rgba(58,122,74,0.06);border:1px solid rgba(58,122,74,0.2);border-radius:4px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:var(--green);font-style:italic">
+      Nenhum debito em aberto para este irmao.
+    </div>
+    <div style="display:grid;gap:14px">
+      <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Descricao</label>
+        <input id="pm-desc" value="Mensalidade" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Valor (R$)</label>
+          <input id="pm-valor" type="number" value="${mens}" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"></div>
+        <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Data</label>
+          <input id="pm-data" type="date" value="${hoje}" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"></div>
+      </div>
+    </div>`;
+
   document.body.insertAdjacentHTML('beforeend', `
     <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center">
-      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;padding:36px 40px;width:420px;position:relative">
+      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;padding:36px 40px;width:520px;max-height:90vh;overflow-y:auto;position:relative">
         <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gold-dark),var(--gold-rich),var(--gold-light),var(--gold-dark));border-radius:6px 6px 0 0"></div>
         <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);margin-bottom:6px">+ Registrar Pagamento</div>
-        <div style="font-style:italic;color:var(--text-muted);font-size:13px;margin-bottom:20px">${nomeM}</div>
-        <div style="display:grid;gap:14px">
-          <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Descrição</label>
-            <input id="pm-desc" value="Mensalidade" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"></div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Valor (R$)</label>
-              <input id="pm-valor" type="number" value="100" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"></div>
-            <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Data</label>
-              <input id="pm-data" type="date" value="${hoje}" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"></div>
-          </div>
-        </div>
+        <div style="font-style:italic;color:var(--text-muted);font-size:13px;margin-bottom:20px">${nomeM}${temDebitos?' - '+debitosAbertos.length+' debito(s) em aberto':''}</div>
+        ${listaDebitos}
         <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:24px">
           <button class="btn" onclick="fecharModal()" style="padding:8px 20px">Cancelar</button>
-          <button class="btn btn-solid" onclick="salvarPagamentoMembro('${membroId}')" style="padding:8px 20px">Salvar</button>
+          <button class="btn btn-solid" onclick="salvarPagamentoMembro('${membroId}',${temDebitos})" style="padding:8px 20px">Salvar Pagamento</button>
         </div>
       </div>
     </div>`);
+
+  window._pmMembroId = membroId;
 }
 
-async function salvarPagamentoMembro(membroId) {
-  const descricao = document.getElementById('pm-desc')?.value.trim();
+function recalcularPagamento() {
+  const checks = document.querySelectorAll('.pm-debito-check:checked');
+  const total = Array.from(checks).reduce((s,c) => s + parseFloat(c.dataset.valor||0), 0);
+  const el = document.getElementById('pm-total-selecionado');
+  if (el) el.textContent = fmtVal(total);
+  const valInput = document.getElementById('pm-valor');
+  if (valInput) valInput.value = total.toFixed(2);
+  calcularTroco();
+}
+
+function calcularTroco() {
+  const checks = document.querySelectorAll('.pm-debito-check:checked');
+  const totalDebito = Array.from(checks).reduce((s,c) => s + parseFloat(c.dataset.valor||0), 0);
+  const valorRecebido = parseFloat(document.getElementById('pm-valor')?.value) || 0;
+  const diff = valorRecebido - totalDebito;
+  const el = document.getElementById('pm-troco-info');
+  if (!el) return;
+  if (Math.abs(diff) < 0.01) {
+    el.style.display = 'none';
+  } else if (diff > 0) {
+    el.style.display = 'block';
+    el.style.background = 'rgba(58,122,74,0.08)';
+    el.style.color = 'var(--green)';
+    el.innerHTML = 'Valor excedente de <strong>' + fmtVal(diff) + '</strong> sera lancado como credito.';
+  } else {
+    el.style.display = 'block';
+    el.style.background = 'rgba(139,32,32,0.08)';
+    el.style.color = 'var(--red)';
+    el.innerHTML = 'Pagamento parcial. Faltam <strong>' + fmtVal(Math.abs(diff)) + '</strong>.';
+  }
+}
+
+async function salvarPagamentoMembro(membroId, temDebitos) {
   const valor = parseFloat(document.getElementById('pm-valor')?.value);
   const data = document.getElementById('pm-data')?.value;
   if (!valor || !data) { toast('Preencha valor e data'); return; }
-  const res = await sb.from('financas').insert({ descricao, valor, tipo:'receita', data, categoria:'mensalidade', membro_id: membroId });
-  if (res.error) { toast('Erro: ' + res.error.message); return; }
-  toast('Pagamento registrado ✦');
+
+  if (temDebitos) {
+    // Modo com debitos selecionaveis
+    const checks = document.querySelectorAll('.pm-debito-check:checked');
+    if (!checks.length) { toast('Selecione ao menos um debito'); return; }
+
+    const totalDebito = Array.from(checks).reduce((s,c) => s + parseFloat(c.dataset.valor||0), 0);
+    const diff = valor - totalDebito;
+
+    // Marcar debitos selecionados como pagos
+    for (const cb of checks) {
+      await sb.from('financas').update({ status: 'pago' }).eq('id', cb.dataset.id);
+    }
+
+    // Se valor recebido > total dos debitos, lancar credito
+    if (diff > 0.01) {
+      await sb.from('financas').insert({
+        descricao: 'Credito de arredondamento',
+        valor: parseFloat(diff.toFixed(2)),
+        tipo: 'receita',
+        data,
+        categoria: 'outros',
+        membro_id: membroId,
+        status: 'pago'
+      });
+      toast('Pagamento registrado + credito de ' + fmtVal(diff) + ' lancado');
+    } else {
+      toast('Pagamento registrado');
+    }
+  } else {
+    // Modo sem debitos (pagamento avulso)
+    const descricao = document.getElementById('pm-desc')?.value.trim() || 'Pagamento';
+    const res = await sb.from('financas').insert({
+      descricao, valor, tipo:'receita', data,
+      categoria:'mensalidade', membro_id: membroId, status:'pago'
+    });
+    if (res.error) { toast('Erro: ' + res.error.message); return; }
+    toast('Pagamento registrado');
+  }
+
   fecharModal();
   await loadAllData();
 }
