@@ -3496,10 +3496,14 @@ async function renderDashboardIrmao(el) {
   if (_membroLogado?.id) {
     membro = DATA.membros.find(m => m.id === _membroLogado.id);
   }
-  if (!membro) {
+  // Se admin visualizando outro cargo, buscar membro real com aquele cargo
+  if (!membro && _isAdminReal && currentRole !== 'admin') {
+    const cargoAtual = _membroLogado?.cargo || '';
+    membro = DATA.membros.find(m => (m.cargo||'').toLowerCase() === cargoAtual.toLowerCase() && (m.status==='ativo'||m.status==='iniciado'));
+  }
+  if (!membro && !_isAdminReal) {
     membro = DATA.membros.find(m => m.nome_maconico === nomeLimpo)
-          || DATA.membros.find(m => m.nome_maconico === name)
-          || DATA.membros[0];
+          || DATA.membros.find(m => m.nome_maconico === name);
   }
 
   const hoje = new Date();
@@ -9418,8 +9422,16 @@ async function renderMinhaFrequencia() {
   // ── FREQUÊNCIA PESSOAL (todos os cargos, incluindo admins) ──
   // Prioridade: membro logado > nome do role > primeiro membro
   const euNome = _membroLogado?.nome_maconico || _eu()?.nome || ROLES[currentRole].name;
-  const membro = (_membroLogado?.id ? DATA.membros.find(m => m.id === _membroLogado.id) : null)
-    || (currentRole !== 'admin' ? DATA.membros.find(m => m.nome_maconico === euNome) : null);
+  let membro = (_membroLogado?.id ? DATA.membros.find(m => m.id === _membroLogado.id) : null);
+  // Se admin visualizando outro cargo, buscar membro real com aquele cargo
+  if (!membro && _isAdminReal && currentRole !== 'admin') {
+    const cargoAtual = _membroLogado?.cargo || '';
+    membro = DATA.membros.find(m => (m.cargo||'').toLowerCase() === cargoAtual.toLowerCase() && (m.status==='ativo'||m.status==='iniciado'));
+  }
+  // Para login normal (nao admin), buscar por nome
+  if (!membro && !_isAdminReal && currentRole !== 'admin') {
+    membro = DATA.membros.find(m => m.nome_maconico === euNome);
+  }
   if (!membro) {
     el.innerHTML += `<div style="padding:24px;text-align:center">
       <div style="font-size:32px;margin-bottom:12px;opacity:0.3">🏛️</div>
@@ -9655,7 +9667,13 @@ async function renderMeuFinanceiro() {
   if (_membroLogado?.id) {
     membro = DATA.membros.find(m => m.id === _membroLogado.id);
   }
-  if (!membro && currentRole !== 'admin') {
+  // Se admin visualizando outro cargo, buscar membro real com aquele cargo
+  if (!membro && _isAdminReal && currentRole !== 'admin') {
+    const cargoAtual = _membroLogado?.cargo || '';
+    membro = DATA.membros.find(m => (m.cargo||'').toLowerCase() === cargoAtual.toLowerCase() && (m.status==='ativo'||m.status==='iniciado'));
+  }
+  // Para login normal (nao admin), buscar por nome
+  if (!membro && !_isAdminReal && currentRole !== 'admin') {
     const nome = eu.nome.toLowerCase();
     membro = DATA.membros.find(m => (m.nome_maconico||'').toLowerCase() === nome)
           || DATA.membros.find(m => m.nome_maconico === ROLES[currentRole]?.name);
