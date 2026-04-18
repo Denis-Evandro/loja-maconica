@@ -9917,20 +9917,18 @@ function recalcularPagamento() {
   });
   const el = document.getElementById('pm-total-selecionado');
   if (el) el.textContent = fmtVal(total);
-  const valInput = document.getElementById('pm-valor');
-  if (valInput) valInput.value = total.toFixed(2);
+  // NAO sobrescrever o Valor Recebido - o tesoureiro digita o que recebeu
   calcularTroco();
 }
 
 function calcularTroco() {
   const checks = document.querySelectorAll('.pm-debito-check:checked');
-  let totalDebito = 0;
+  let totalOriginal = 0;
   checks.forEach(c => {
-    const valInput = document.querySelector(`.pm-debito-valor[data-id="${c.dataset.id}"]`);
-    totalDebito += parseFloat(valInput?.value || c.dataset.valorOriginal || 0);
+    totalOriginal += parseFloat(c.dataset.valorOriginal || 0);
   });
   const valorRecebido = parseFloat(document.getElementById('pm-valor')?.value) || 0;
-  const diff = valorRecebido - totalDebito;
+  const diff = valorRecebido - totalOriginal;
   const el = document.getElementById('pm-troco-info');
   if (!el) return;
   if (Math.abs(diff) < 0.01) {
@@ -9939,7 +9937,7 @@ function calcularTroco() {
     el.style.display = 'block';
     el.style.background = 'rgba(58,122,74,0.08)';
     el.style.color = 'var(--green)';
-    el.innerHTML = 'Valor excedente de <strong>' + fmtVal(diff) + '</strong> sera lancado como credito.';
+    el.innerHTML = 'Valor excedente de <strong>' + fmtVal(diff) + '</strong> sera destinado ao Tronco de Beneficencia.';
   } else {
     el.style.display = 'block';
     el.style.background = 'rgba(139,32,32,0.08)';
@@ -9959,6 +9957,7 @@ async function salvarPagamentoMembro(membroId, temDebitos) {
     if (!checks.length) { toast('Selecione ao menos um debito'); return; }
 
     let totalDebitoEditado = 0;
+    let totalDebitoOriginal = 0;
 
     // Marcar debitos selecionados como pagos (com valor possivelmente editado)
     for (const cb of checks) {
@@ -9966,6 +9965,7 @@ async function salvarPagamentoMembro(membroId, temDebitos) {
       const valorEditado = parseFloat(valInput?.value || cb.dataset.valorOriginal);
       const valorOriginal = parseFloat(cb.dataset.valorOriginal);
       totalDebitoEditado += valorEditado;
+      totalDebitoOriginal += valorOriginal;
 
       // Se valor foi editado, atualizar no banco antes de marcar como pago
       if (Math.abs(valorEditado - valorOriginal) > 0.01) {
@@ -9975,8 +9975,10 @@ async function salvarPagamentoMembro(membroId, temDebitos) {
       }
     }
 
-    // Se valor recebido > total dos debitos, lancar como tronco de beneficencia (pendente transferencia)
-    const diff = valor - totalDebitoEditado;
+    // Diferenca = valor recebido - valor ORIGINAL dos debitos
+    // Ex: debito original R$19,71, recebeu R$20 -> diff = R$0,29 para o tronco
+    const diff = valor - totalDebitoOriginal;
+    console.log('[Pagamento] Valor recebido:', valor, 'Total original:', totalDebitoOriginal, 'Total editado:', totalDebitoEditado, 'Diferenca:', diff);
     if (diff > 0.01) {
       const insertData = {
         descricao: 'Arredondamento destinado ao Tronco de Beneficencia',
