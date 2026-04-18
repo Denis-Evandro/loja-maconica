@@ -1420,7 +1420,7 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
       <div class="panel active" id="panel-dashboard">
         <div class="section-header">
           <div class="section-title">Painel Geral</div>
-          <div class="section-subtitle" id="dash-subtitle">Visão consolidada — Ano Maçônico 6026</div>
+          <div class="section-subtitle" id="dash-subtitle">Visão consolidada</div>
           <div class="gold-rule"></div>
         </div>
         <div id="dashboard-content">
@@ -3750,6 +3750,10 @@ async function renderDashboardIrmao(el) {
 async function renderDashboard() {
   const el = document.getElementById('dashboard-content');
   if (!el) return;
+
+  // Atualizar subtitulo com ano atual
+  const subEl = document.getElementById('dash-subtitle');
+  if (subEl) subEl.textContent = `Visão consolidada — ${new Date().getFullYear()}`;
 
   // Irmão vê painel personalizado
   if (currentRole === 'irmao') { renderDashboardIrmao(el); return; }
@@ -9974,7 +9978,7 @@ async function salvarPagamentoMembro(membroId, temDebitos) {
     // Se valor recebido > total dos debitos, lancar como tronco de beneficencia (pendente transferencia)
     const diff = valor - totalDebitoEditado;
     if (diff > 0.01) {
-      await sb.from('financas').insert({
+      const insertData = {
         descricao: 'Arredondamento destinado ao Tronco de Beneficencia',
         valor: parseFloat(diff.toFixed(2)),
         tipo: 'receita',
@@ -9982,8 +9986,16 @@ async function salvarPagamentoMembro(membroId, temDebitos) {
         categoria: 'tronco',
         membro_id: membroId,
         status: 'aberto'
-      });
-      toast('Pagamento registrado + ' + fmtVal(diff) + ' pendente p/ Tronco');
+      };
+      console.log('[Arredondamento] Inserindo:', insertData);
+      const resArred = await sb.from('financas').insert(insertData);
+      if (resArred.error) {
+        console.error('[Arredondamento] Erro:', resArred.error);
+        toast('Pagamento registrado, mas erro ao lancar arredondamento: ' + resArred.error.message);
+      } else {
+        console.log('[Arredondamento] Sucesso!');
+        toast('Pagamento registrado + ' + fmtVal(diff) + ' pendente p/ Tronco');
+      }
     } else {
       toast('Pagamento registrado');
     }
