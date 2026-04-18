@@ -6763,6 +6763,9 @@ function renderFinancas(access) {
   const recTronco = lancs.filter(l=>l.tipo==='receita'&&(l.status||'pago')==='pago'&&l.categoria==='tronco').reduce((s,l)=>s+parseFloat(l.valor||0),0);
   const despTronco = lancs.filter(l=>l.tipo==='despesa'&&(l.status||'pago')==='pago'&&l.categoria==='tronco').reduce((s,l)=>s+parseFloat(l.valor||0),0);
   const saldoTroncoTotal = recTronco - despTronco;
+  // Arredondamentos pendentes de transferencia para o tronco
+  const arredondamentosPendentes = lancs.filter(l => l.categoria==='tronco' && l.tipo==='receita' && l.status==='aberto' && l.descricao?.includes('rredondamento'));
+  const totalArredPendente = arredondamentosPendentes.reduce((s,l)=>s+parseFloat(l.valor||0),0);
   const totalAgendado = lancs.filter(l=>l.status==='agendado').reduce((s,l)=>s+parseFloat(l.valor||0),0);
   const totalAberto = lancs.filter(l=>l.status==='aberto').reduce((s,l)=>s+parseFloat(l.valor||0),0);
 
@@ -6911,6 +6914,26 @@ function renderFinancas(access) {
       <div class="stat-card"><div class="stat-label">A Receber/Pagar</div><div class="stat-value" style="color:#1B5EA0;font-size:18px">${fmtVal(totalAgendado+totalAberto)}</div><div class="stat-change" style="color:#1B5EA0">${fmtVal(totalAgendado)} agend. / ${fmtVal(totalAberto)} aberto</div></div>
     </div>
 
+
+    <!-- ALERTA: Arredondamentos pendentes de transferência -->
+    ${totalArredPendente > 0 ? `
+    <div class="card" style="margin-bottom:14px;border-color:rgba(139,96,0,0.4);background:rgba(139,96,0,0.03)">
+      <div style="padding:14px 22px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="font-size:24px">🏺</div>
+          <div>
+            <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;letter-spacing:0.1em;color:#6B3A00">TRANSFERENCIA PENDENTE PARA O TRONCO</div>
+            <div style="font-size:13px;color:var(--text-muted);margin-top:2px">
+              <strong style="color:#6B3A00">${fmtVal(totalArredPendente)}</strong> em arredondamentos de ${arredondamentosPendentes.length} pagamento(s) aguardando transferencia para a conta do Tronco de Beneficencia.
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn" onclick="verArredondamentosPendentes()" style="padding:6px 14px;font-size:10px;border-color:#6B3A00;color:#6B3A00">📋 Ver detalhes</button>
+          <button class="btn btn-solid" onclick="confirmarTransferenciaTronco()" style="padding:6px 14px;font-size:10px;background:linear-gradient(135deg,#5C3D00,#8B6000)">✅ Confirmar Transferencia</button>
+        </div>
+      </div>
+    </div>` : ''}
 
     <!-- LINHA 2: Inadimplência + Previsão + Parcelas -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
@@ -8111,6 +8134,70 @@ async function lancarAgape() {
 }
 
 // Editar Agape ja lancado - corrigir valor sem excluir um por um
+// Ver detalhes dos arredondamentos pendentes
+function verArredondamentosPendentes() {
+  const pendentes = DATA.financas.filter(l => l.categoria==='tronco' && l.tipo==='receita' && l.status==='aberto' && l.descricao?.includes('rredondamento'));
+  const total = pendentes.reduce((s,l)=>s+parseFloat(l.valor||0),0);
+
+  const linhas = pendentes.map(l => {
+    const membro = DATA.membros.find(m=>m.id===l.membro_id);
+    return `<tr>
+      <td style="font-size:12px">${fmtData(l.data)}</td>
+      <td style="font-size:12px">${membro?.nome_maconico||'--'}</td>
+      <td style="font-size:12px">${l.descricao||'--'}</td>
+      <td style="font-size:13px;font-weight:700;color:#6B3A00;text-align:right">${fmtVal(l.valor)}</td>
+    </tr>`;
+  }).join('');
+
+  document.body.insertAdjacentHTML('beforeend', `
+    <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px">
+      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;padding:32px 36px;width:560px;max-height:85vh;overflow-y:auto;position:relative">
+        <div style="height:3px;background:linear-gradient(90deg,#5C3D00,#8B6000);border-radius:6px 6px 0 0;position:absolute;top:0;left:0;right:0"></div>
+        <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;letter-spacing:0.1em;color:#6B3A00;margin-bottom:16px">Arredondamentos Pendentes de Transferencia</div>
+        <div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-bottom:16px">
+          Estes valores foram gerados por pagamentos acima do debito e estao aguardando transferencia para a conta do Tronco de Beneficencia.
+        </div>
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr>
+            <th style="padding:8px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;color:#fff;background:#5C3D00;text-align:left">Data</th>
+            <th style="padding:8px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;color:#fff;background:#5C3D00;text-align:left">Irmao</th>
+            <th style="padding:8px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;color:#fff;background:#5C3D00;text-align:left">Descricao</th>
+            <th style="padding:8px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;color:#fff;background:#5C3D00;text-align:right">Valor</th>
+          </tr></thead>
+          <tbody>${linhas}</tbody>
+          <tfoot><tr style="background:rgba(92,61,0,0.08)">
+            <td colspan="3" style="padding:10px 8px;font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:#5C3D00">TOTAL A TRANSFERIR</td>
+            <td style="padding:10px 8px;font-family:'Cinzel',serif;font-size:16px;font-weight:700;color:#5C3D00;text-align:right">${fmtVal(total)}</td>
+          </tr></tfoot>
+        </table>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
+          <button class="btn" onclick="fecharModal()" style="padding:8px 20px">Fechar</button>
+          <button class="btn btn-solid" onclick="fecharModal();confirmarTransferenciaTronco()" style="padding:8px 20px;background:linear-gradient(135deg,#5C3D00,#8B6000)">Confirmar Transferencia</button>
+        </div>
+      </div>
+    </div>`);
+}
+
+// Confirmar que a transferencia bancaria foi feita
+async function confirmarTransferenciaTronco() {
+  const pendentes = DATA.financas.filter(l => l.categoria==='tronco' && l.tipo==='receita' && l.status==='aberto' && l.descricao?.includes('rredondamento'));
+  const total = pendentes.reduce((s,l)=>s+parseFloat(l.valor||0),0);
+
+  if (!pendentes.length) { toast('Nenhum arredondamento pendente'); return; }
+
+  if (!confirm(`Confirmar que a transferencia de ${fmtVal(total)} foi realizada para a conta do Tronco de Beneficencia?\n\nIsso marcara ${pendentes.length} lancamento(s) como pagos.`)) return;
+
+  toast('Confirmando transferencia...');
+  let ok = 0;
+  for (const l of pendentes) {
+    const { error } = await sb.from('financas').update({ status: 'pago' }).eq('id', l.id);
+    if (!error) ok++;
+  }
+
+  toast(`Transferencia confirmada! ${ok} lancamento(s) marcados como pagos.`);
+  await loadAllData();
+}
+
 function abrirModalEditarAgape() {
   const lancs = DATA.financas;
   const agapes = lancs.filter(l => l.categoria === 'agape' && l.tipo === 'despesa').sort((a,b) => (b.data||'').localeCompare(a.data||''));
@@ -9804,19 +9891,19 @@ async function salvarPagamentoMembro(membroId, temDebitos) {
       }
     }
 
-    // Se valor recebido > total dos debitos, lancar credito
+    // Se valor recebido > total dos debitos, lancar como tronco de beneficencia (pendente transferencia)
     const diff = valor - totalDebitoEditado;
     if (diff > 0.01) {
       await sb.from('financas').insert({
-        descricao: 'Credito de arredondamento',
+        descricao: 'Arredondamento destinado ao Tronco de Beneficencia',
         valor: parseFloat(diff.toFixed(2)),
         tipo: 'receita',
         data,
-        categoria: 'outros',
+        categoria: 'tronco',
         membro_id: membroId,
-        status: 'pago'
+        status: 'aberto'
       });
-      toast('Pagamento registrado + credito de ' + fmtVal(diff));
+      toast('Pagamento registrado + ' + fmtVal(diff) + ' pendente p/ Tronco');
     } else {
       toast('Pagamento registrado');
     }
