@@ -2438,21 +2438,43 @@ function trocarPerfilDemo(chave) {
 
   const perfil = DEMO_PERFIS[chave];
   if (!perfil) return;
-  _membroLogado = { id: null, grau: perfil.grau, cargo: perfil.cargo, nome_maconico: perfil.nome };
+
+  // Se admin real, buscar membro real com aquele cargo
+  let nomeExibir = perfil.nome;
+  let idMembro = null;
+  let grauExibir = perfil.grau;
+  let cargoExibir = perfil.cargo;
+
+  if (_isAdminReal) {
+    const membroReal = DATA.membros.find(m =>
+      (m.cargo||'').toLowerCase() === perfil.cargo.toLowerCase() &&
+      (m.status==='ativo'||m.status==='iniciado')
+    );
+    if (membroReal) {
+      nomeExibir = membroReal.nome_maconico;
+      idMembro = membroReal.id;
+      grauExibir = membroReal.grau || perfil.grau;
+      cargoExibir = membroReal.cargo || perfil.cargo;
+    } else {
+      nomeExibir = perfil.cargo;
+    }
+  }
+
+  _membroLogado = { id: idMembro, grau: grauExibir, cargo: cargoExibir, nome_maconico: nomeExibir };
   currentRole   = perfil.role;
 
   const r        = ROLES[perfil.role];
-  const iniciais = perfil.nome.split(' ').map(p => p[0]).join('').slice(0,2).toUpperCase();
+  const iniciais = nomeExibir.split(' ').filter(Boolean).map(p => p[0]).join('').slice(0,2).toUpperCase();
   const tag = _isAdminReal ? ' · ADMIN' : ' · DEMO';
 
   document.getElementById('sidebarAvatar').textContent    = iniciais;
-  document.getElementById('sidebarName').textContent      = perfil.nome;
-  document.getElementById('sidebarRole').textContent      = perfil.cargo + tag;
+  document.getElementById('sidebarName').textContent      = nomeExibir;
+  document.getElementById('sidebarRole').textContent      = cargoExibir + tag;
   document.getElementById('sidebarBadgeText').textContent = r.badge;
   document.getElementById('sidebarBadge').querySelector('span').textContent = r.icon;
-  document.getElementById('topbarRole').textContent       = perfil.cargo + tag;
+  document.getElementById('topbarRole').textContent       = cargoExibir + tag;
 
-  toast(`Visualizando como: ${perfil.cargo}`);
+  toast(`Visualizando como: ${cargoExibir}${_isAdminReal && nomeExibir !== cargoExibir ? ' (' + nomeExibir + ')' : ''}`);
   renderNav();
   _aplicarPermModulos();
   _aplicarPermRelatorios();
