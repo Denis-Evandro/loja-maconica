@@ -7324,11 +7324,14 @@ function renderFinancas(access) {
       </div>
     </div>
 
-    <!-- DÉBITOS PENDENTES -->
+    <!-- DÉBITOS PENDENTES DO MÊS -->
     ${todosDebitos.length>0?`<div class="card" style="margin-bottom:14px;border-color:rgba(139,32,32,0.25)">
       <div class="card-header" style="background:rgba(139,32,32,0.03)">
-        <div class="card-title" style="color:var(--red)">⚠️ Débitos Pendentes — ${todosDebitos.length} item(ns) · ${fmtVal(totalDebitosGeral)}</div>
-        ${canEdit?`<button class="btn" style="font-size:9px;padding:3px 8px" onclick="gerarMsgCobrancaGeral()">📋 Gerar Cobranças</button>`:''}
+        <div class="card-title" style="color:var(--red)">⚠️ Débitos Pendentes — Mês Atual (${todosDebitos.length})</div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:var(--red)">${fmtVal(totalDebitosGeral)}</span>
+          ${canEdit?`<button class="btn" style="font-size:9px;padding:3px 8px" onclick="gerarMsgCobrancaGeral()">Gerar Cobranças</button>`:''}
+        </div>
       </div>
       <table><thead><tr><th>Irmão</th><th>Cargo</th><th>Referência</th><th>Valor</th><th>Status</th><th>Ações</th></tr></thead>
       <tbody>${todosDebitos.map(d=>{
@@ -7339,21 +7342,63 @@ function renderFinancas(access) {
         return `<tr${bgRow}>
           <td style="font-weight:600">${d.nome}</td>
           <td style="font-size:11px;color:var(--text-muted)">${d.cargo}</td>
-          <td>${d.origem}${vencido?'<br><span style="font-size:9px;color:var(--red);font-weight:700">⚠️ VENCIDO</span>':venceHoje?'<br><span style="font-size:9px;color:#B05A00;font-weight:700">📅 Vence hoje</span>':futuroMes?'<br><span style="font-size:9px;color:var(--text-muted)">📅 A vencer</span>':''}</td>
+          <td>${d.origem}${vencido?'<br><span style="font-size:9px;color:var(--red);font-weight:700">⚠️ VENCIDO</span>':venceHoje?'<br><span style="font-size:9px;color:#B05A00;font-weight:700">Vence hoje</span>':futuroMes?'<br><span style="font-size:9px;color:var(--text-muted)">A vencer</span>':''}</td>
           <td style="color:var(--red);font-weight:600">${fmtVal(d.valor)}</td>
           <td>${statusBadgeHtml(d.statusBadge)}</td>
           <td style="display:flex;gap:4px;flex-wrap:wrap">
-            ${d.lancId?`<button class="btn" style="padding:2px 8px;font-size:8px;background:var(--green);color:#fff;border-color:var(--green)" onclick="confirmarPagamentoAgendado('${d.lancId}')">✓ Pago</button>
-              <button class="btn" style="padding:2px 8px;font-size:8px" onclick="adiarAgendado('${d.lancId}')">📅 Adiar</button>`:''}
-            ${d.id?`<button class="btn" style="padding:2px 8px;font-size:8px" onclick="cobrarWhatsapp('${d.nome}','',${d.valor},0)">📱 WhatsApp</button>`:''}
+            ${d.lancId?`<button class="btn" style="padding:2px 8px;font-size:8px;background:var(--green);color:#fff;border-color:var(--green)" onclick="confirmarPagamentoAgendado('${d.lancId}')">Pago</button>
+              <button class="btn" style="padding:2px 8px;font-size:8px" onclick="adiarAgendado('${d.lancId}')">Adiar</button>`:''}
+            ${d.id?`<button class="btn" style="padding:2px 8px;font-size:8px" onclick="cobrarWhatsapp('${d.nome}','',${d.valor},0)">WhatsApp</button>`:''}
             ${d.id?`<button class="btn" style="padding:2px 8px;font-size:8px" onclick="abrirModalLancamentoMembro('${d.id}','${d.nome}')">+ Registrar Pag.</button>`:''}
             ${d.lancId?`<button class="btn" style="padding:2px 7px;font-size:10px" onclick="abrirModalEditarLancamento('${d.lancId}')">✏️</button>`:''}
           </td>
         </tr>`;
       }).join('')}</tbody></table>
     </div>`:`<div class="card" style="margin-bottom:14px;border-color:rgba(58,122,74,0.3);padding:14px 20px">
-      <span style="color:var(--green);font-size:13px">✅ Nenhum débito pendente — todos os irmãos estão em dia!</span>
+      <span style="color:var(--green);font-size:13px">Nenhum débito pendente no mês — todos em dia!</span>
     </div>`}
+
+    <!-- PARCELAS A VENCER -->
+    ${(()=>{
+      const parcelasFuturas = lancs.filter(l=>
+        (l.status==='aberto'||l.status==='agendado') &&
+        l.data > fimMes &&
+        l.descricao?.includes('/')
+      ).sort((a,b)=>(a.data||'').localeCompare(b.data||''));
+      if (!parcelasFuturas.length) return '';
+      const totalFuturo = parcelasFuturas.reduce((s,l)=>s+parseFloat(l.valor||0),0);
+      // Agrupar por descricao base (sem o numero da parcela)
+      const grupos = {};
+      parcelasFuturas.forEach(l=>{
+        const base = (l.descricao||'').replace(/\s*\(\d+\/\d+\)/, '').trim();
+        if (!grupos[base]) grupos[base] = {desc:base, parcelas:[], tipo:l.tipo, categoria:l.categoria};
+        grupos[base].parcelas.push(l);
+      });
+      const grpArr = Object.values(grupos);
+      return `<div class="card" style="margin-bottom:14px;border-color:rgba(27,94,160,0.25)">
+        <div class="card-header" style="background:rgba(27,94,160,0.03)">
+          <div class="card-title" style="color:#1B5EA0">Parcelas a Vencer (${parcelasFuturas.length})</div>
+          <span style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:#1B5EA0">${fmtVal(totalFuturo)}</span>
+        </div>
+        <table><thead><tr>
+          <th>Descrição</th><th>Tipo</th><th>Parcelas Restantes</th><th>Próximo Venc.</th><th>Valor Unit.</th><th>Total</th>
+        </tr></thead>
+        <tbody>${grpArr.map(g=>{
+          const proxVenc = g.parcelas[0]?.data;
+          const valUnit = parseFloat(g.parcelas[0]?.valor||0);
+          const totalGrp = g.parcelas.reduce((s,p)=>s+parseFloat(p.valor||0),0);
+          const isRec = g.tipo==='receita';
+          return `<tr>
+            <td style="font-weight:600">${g.desc}</td>
+            <td><span class="badge" style="color:${isRec?'var(--green)':'var(--red)'};background:${isRec?'var(--green-bg)':'var(--red-bg)'}">${isRec?'Receita':'Despesa'}</span></td>
+            <td style="text-align:center">${g.parcelas.length}x</td>
+            <td>${fmtData(proxVenc)}</td>
+            <td style="font-weight:600">${fmtVal(valUnit)}</td>
+            <td style="font-weight:700;color:#1B5EA0">${fmtVal(totalGrp)}</td>
+          </tr>`;
+        }).join('')}</tbody></table>
+      </div>`;
+    })()}
 
     <!-- EXTRATO -->
     <div class="card">
