@@ -6511,13 +6511,15 @@ async function salvarLancamento() {
     // Receitas parceladas: 1ª com status escolhido, demais 'agendado' (ainda não recebidas)
     const statusParcela = tipo === 'despesa' ? 'aberto' : 'agendado';
     inserts = Array.from({length: nParcelas}, (_, i) => {
-      const mesAlvo = mes - 1 + i; // 0-indexed
-      const anoAlvo = ano + Math.floor(mesAlvo / 12);
-      const mesReal = mesAlvo % 12; // 0-indexed
+      // Calcular mes e ano alvo
+      let mesAlvo = mes + i;
+      let anoAlvo = ano;
+      while (mesAlvo > 12) { mesAlvo -= 12; anoAlvo++; }
       // Ultimo dia do mes alvo
-      const ultimoDia = new Date(anoAlvo, mesReal + 1, 0).getDate();
+      const ultimoDia = new Date(anoAlvo, mesAlvo, 0).getDate();
+      // Usar o dia original ou o ultimo dia do mes (o que for menor)
       const diaReal = Math.min(dia, ultimoDia);
-      const dStr = `${anoAlvo}-${String(mesReal+1).padStart(2,'0')}-${String(diaReal).padStart(2,'0')}`;
+      const dStr = `${anoAlvo}-${String(mesAlvo).padStart(2,'0')}-${String(diaReal).padStart(2,'0')}`;
       return { descricao: `${descricao} (${i+1}/${nParcelas})`, valor: valorParc, tipo, data: dStr, categoria, status: i===0?status:statusParcela, membro_id: membro_id||null };
     });
   } else {
@@ -6910,13 +6912,29 @@ function renderFinancas(access) {
   })();
 
   // ── Débitos pendentes ─────────────────────────────────────────
-  const debitosMens = inadimplentes.map(({m, devia})=>({
-    nome: m.nome_maconico, cargo: m.cargo||'—', id: m.id,
-    origem: 'Ver detalhes abaixo', valor: devia, statusBadge:'aberto', lancId:null, data:null
-  }));
-  const debitosLancs = lancs.filter(l=>(l.status==='agendado'||l.status==='aberto')&&l.data<=hojeStr).filter(l=>{
-    // Excluir lançamentos de membros inadimplentes já contabilizados acima
-    return !inadimplentes.find(i=>i.m.id===l.membro_id);
+  // Mostrar débitos de inadimplentes com datas de vencimento
+  const debitosMens = inadimplentes.flatMap(({m, detalhes}) => {
+    // Buscar lancamentos individuais para mostrar cada um com sua data
+    const mensMembro = lancs.filter(l =>
+      l.membro_id===m.id && l.status==='aberto' && l.tipo==='receita' &&
+      l.categoria==='mensalidade' && l.data <= hojeStr
+    );
+    const outrosMembro = lancs.filter(l =>
+      l.membro_id===m.id && l.status==='aberto' && l.tipo==='receita' &&
+      l.categoria!=='mensalidade' && l.data <= hojeStr
+    );
+    const todos = [...mensMembro, ...outrosMembro];
+    if (!todos.length) return [];
+    return todos.map(l => ({
+      nome: m.nome_maconico, cargo: m.cargo||'—', id: m.id,
+      origem: `${l.descricao||getCatLabel(l.categoria)} · Venc: ${fmtData(l.data)}`,
+      valor: parseFloat(l.valor||0), statusBadge:'aberto', lancId:l.id, data:l.data
+    }));
+  });
+  // Lançamentos avulsos (despesas da loja, etc) — vencidos + mês corrente
+  const debitosLancs = lancs.filter(l=>(l.status==='agendado'||l.status==='aberto')&&(l.data<=hojeStr||l.data?.startsWith(mesPrefix))).filter(l=>{
+    // Excluir lançamentos já contabilizados nos debitosMens
+    return !debitosMens.find(d=>d.lancId===l.id);
   }).map(l=>{
     const mb = DATA.membros.find(mb=>mb.id===l.membro_id);
     return {nome:mb?mb.nome_maconico:'(Loja)',cargo:mb?mb.cargo||'—':'—',id:mb?.id||null,
@@ -7296,12 +7314,14 @@ function renderFinancas(access) {
       </div>
       <table><thead><tr><th>Irmão</th><th>Cargo</th><th>Referência</th><th>Valor</th><th>Status</th><th>Ações</th></tr></thead>
       <tbody>${todosDebitos.map(d=>{
-        const isAg = d.statusBadge==='agendado';
-        const vencido = isAg && d.data && d.data<=hojeStr;
-        return `<tr${vencido?' style="background:rgba(176,90,0,0.04)"':''}>
+        const vencido = d.data && d.data < hojeStr;
+        const venceHoje = d.data && d.data === hojeStr;
+        const futuroMes = d.data && d.data > hojeStr;
+        const bgRow = vencido ? ' style="background:rgba(139,32,32,0.04)"' : venceHoje ? ' style="background:rgba(212,168,67,0.06)"' : '';
+        return `<tr${bgRow}>
           <td style="font-weight:600">${d.nome}</td>
           <td style="font-size:11px;color:var(--text-muted)">${d.cargo}</td>
-          <td>${d.origem}${vencido?`<br><span style="font-size:9px;color:#B05A00;font-weight:700">📅 ${d.data===hojeStr?'Vence hoje':'Venceu '+fmtData(d.data)}</span>`:''}</td>
+          <td>${d.origem}${vencido?'<br><span style="font-size:9px;color:var(--red);font-weight:700">⚠️ VENCIDO</span>':venceHoje?'<br><span style="font-size:9px;color:#B05A00;font-weight:700">📅 Vence hoje</span>':futuroMes?'<br><span style="font-size:9px;color:var(--text-muted)">📅 A vencer</span>':''}</td>
           <td style="color:var(--red);font-weight:600">${fmtVal(d.valor)}</td>
           <td>${statusBadgeHtml(d.statusBadge)}</td>
           <td style="display:flex;gap:4px;flex-wrap:wrap">
