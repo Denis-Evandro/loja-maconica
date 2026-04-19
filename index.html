@@ -3537,8 +3537,11 @@ async function renderDashboardIrmao(el) {
 
   // ── Frequência pessoal ─────────────────────────────────────
   const sessoes = DATA.sessoes;
-  const minhasPres = membro ? DATA.presencas.filter(p=>p.membro_id===membro.id&&(p.presente||p.situacao==='presente')) : [];
-  const pctFreq = sessoes.length ? Math.round(minhasPres.length/sessoes.length*100) : 0;
+  const hojeStrFreq = new Date().toISOString().split('T')[0];
+  const sessoesRealizadas = sessoes.filter(s => s.data && s.data <= hojeStrFreq);
+  const sessoesRealIds = new Set(sessoesRealizadas.map(s => s.id));
+  const minhasPres = membro ? DATA.presencas.filter(p=>p.membro_id===membro.id&&(p.presente||p.situacao==='presente')&&sessoesRealIds.has(p.sessao_id)) : [];
+  const pctFreq = sessoesRealizadas.length ? Math.round(minhasPres.length/sessoesRealizadas.length*100) : 0;
   const corFreq = pctFreq>=75?'var(--green)':pctFreq>=50?'var(--gold-dark)':'var(--red)';
 
   // Últimas 3 presenças confirmadas
@@ -3565,9 +3568,9 @@ async function renderDashboardIrmao(el) {
   const totalFiliados= DATA.membros.filter(m=>m.tipo_membro==='filiado'&&(m.status==='ativo'||m.status==='iniciado')).length;
 
   // ── Registros ──────────────────────────────────────────────
-  const totalSessoes = sessoes.length;
-  const totalAtas    = DATA.atas?.length || 0;
   const hojeStr = hoje.toISOString().split('T')[0];
+  const totalSessoes = sessoes.filter(s => s.data && s.data <= hojeStr).length;
+  const totalAtas    = DATA.atas?.length || 0;
 
   // ── Próximos eventos ───────────────────────────────────────
   const sessFut = sessoes.filter(s=>s.data>=hojeStr).sort((a,b)=>a.data.localeCompare(b.data));
@@ -5021,12 +5024,17 @@ function _permFreqHistorico() {
 // Renderizar bloco de Histórico de Frequência da Loja
 function _renderHistoricoFreqLoja(membrosAtivos, sessoes, presencas) {
   if (!membrosAtivos.length || !sessoes.length) return '';
-  const totalSessoes = sessoes.length;
+  // Contar apenas sessoes com data até hoje (nao contar sessoes futuras)
+  const hojeStr = new Date().toISOString().split('T')[0];
+  const sessoesRealizadas = sessoes.filter(s => s.data && s.data <= hojeStr);
+  const totalSessoes = sessoesRealizadas.length;
+  if (!totalSessoes) return '<div style="padding:16px;font-style:italic;color:var(--text-muted)">Nenhuma sessao realizada ate o momento.</div>';
   const th = t => `<th style="padding:10px 14px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:#FFFFFF;background:#1B3A6B;text-align:left;text-transform:none">${t}</th>`;
 
-  // Calcular frequência de cada irmão
+  // Calcular frequência de cada irmão (apenas sessoes realizadas)
+  const sessoesIds = new Set(sessoesRealizadas.map(s => s.id));
   const dados = membrosAtivos.map(m => {
-    const presM = presencas.filter(p => p.membro_id === m.id && (p.presente || p.situacao==='presente')).length;
+    const presM = presencas.filter(p => p.membro_id === m.id && (p.presente || p.situacao==='presente') && sessoesIds.has(p.sessao_id)).length;
     const pct   = totalSessoes > 0 ? Math.round(presM / totalSessoes * 100) : 0;
     const cor   = pct >= 75 ? 'var(--green)' : pct >= 50 ? 'var(--gold-dark)' : 'var(--red)';
     return {m, presM, pct, cor};
@@ -9405,9 +9413,12 @@ async function renderMinhaFrequencia() {
     const membros = DATA.membros.filter(m => m.status==='ativo'||m.status==='iniciado');
     const sessoes = DATA.sessoes;
     const presencas = DATA.presencas;
-    const total = sessoes.length || 1;
+    const hojeFreq = new Date().toISOString().split('T')[0];
+    const sessoesReal = sessoes.filter(s => s.data && s.data <= hojeFreq);
+    const sessoesRIds = new Set(sessoesReal.map(s => s.id));
+    const total = sessoesReal.length || 1;
     const rows = membros.map(m => {
-      const presM = presencas.filter(p => p.membro_id === m.id && (p.presente || p.situacao==='presente')).length;
+      const presM = presencas.filter(p => p.membro_id === m.id && (p.presente || p.situacao==='presente') && sessoesRIds.has(p.sessao_id)).length;
       const pct = Math.round(presM / total * 100);
       const cor = pct >= 75 ? 'var(--green)' : pct >= 50 ? 'var(--gold-dark)' : 'var(--red)';
       return `<tr>
@@ -9496,7 +9507,9 @@ async function renderMinhaFrequencia() {
   } catch(e){}
 
   const totalPresencas = sessoesPresente.length + visitasAprov.length;
-  const totalSessoes = sessoes.length;
+  const hojeFreqP = new Date().toISOString().split('T')[0];
+  const sessoesRealizadasP = sessoes.filter(s => s.data && s.data <= hojeFreqP);
+  const totalSessoes = sessoesRealizadasP.length;
   const pctLoja = totalSessoes ? Math.round(sessoesPresente.length/totalSessoes*100) : 0;
   const cor = pctLoja >= 75 ? 'var(--green)' : pctLoja >= 50 ? 'var(--gold-dark)' : 'var(--red)';
 
@@ -9914,12 +9927,13 @@ function recalcularPagamento() {
   const checks = document.querySelectorAll('.pm-debito-check:checked');
   let total = 0;
   checks.forEach(c => {
-    const valInput = document.querySelector(`.pm-debito-valor[data-id="${c.dataset.id}"]`);
-    total += parseFloat(valInput?.value || c.dataset.valorOriginal || 0);
+    total += parseFloat(c.dataset.valorOriginal || 0);
   });
   const el = document.getElementById('pm-total-selecionado');
   if (el) el.textContent = fmtVal(total);
-  // NAO sobrescrever o Valor Recebido - o tesoureiro digita o que recebeu
+  // Atualizar Valor Recebido para o total dos debitos selecionados
+  const valInput = document.getElementById('pm-valor');
+  if (valInput) valInput.value = total.toFixed(2);
   calcularTroco();
 }
 
