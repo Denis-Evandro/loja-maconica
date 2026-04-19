@@ -6835,9 +6835,6 @@ function renderFinancas(access) {
   const recTronco = lancs.filter(l=>l.tipo==='receita'&&(l.status||'pago')==='pago'&&l.categoria==='tronco').reduce((s,l)=>s+parseFloat(l.valor||0),0);
   const despTronco = lancs.filter(l=>l.tipo==='despesa'&&(l.status||'pago')==='pago'&&l.categoria==='tronco').reduce((s,l)=>s+parseFloat(l.valor||0),0);
   const saldoTroncoTotal = recTronco - despTronco;
-  // Arredondamentos pendentes de transferencia para o tronco
-  const arredondamentosPendentes = lancs.filter(l => l.categoria==='tronco' && l.tipo==='receita' && l.status==='aberto' && l.descricao?.includes('rredondamento'));
-  const totalArredPendente = arredondamentosPendentes.reduce((s,l)=>s+parseFloat(l.valor||0),0);
   const totalAgendado = lancs.filter(l=>l.status==='agendado').reduce((s,l)=>s+parseFloat(l.valor||0),0);
   const totalAberto = lancs.filter(l=>l.status==='aberto').reduce((s,l)=>s+parseFloat(l.valor||0),0);
 
@@ -6988,26 +6985,6 @@ function renderFinancas(access) {
       <div class="stat-card"><div class="stat-label">A Receber/Pagar</div><div class="stat-value" style="color:#1B5EA0;font-size:18px">${fmtVal(totalAgendado+totalAberto)}</div><div class="stat-change" style="color:#1B5EA0">${fmtVal(totalAgendado)} agend. / ${fmtVal(totalAberto)} aberto</div></div>
     </div>
 
-
-    <!-- ALERTA: Arredondamentos pendentes de transferência -->
-    ${totalArredPendente > 0 ? `
-    <div class="card" style="margin-bottom:14px;border-color:rgba(139,96,0,0.4);background:rgba(139,96,0,0.03)">
-      <div style="padding:14px 22px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
-        <div style="display:flex;align-items:center;gap:12px">
-          <div style="font-size:24px">🏺</div>
-          <div>
-            <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;letter-spacing:0.1em;color:#6B3A00">TRANSFERENCIA PENDENTE PARA O TRONCO</div>
-            <div style="font-size:13px;color:var(--text-muted);margin-top:2px">
-              <strong style="color:#6B3A00">${fmtVal(totalArredPendente)}</strong> em arredondamentos de ${arredondamentosPendentes.length} pagamento(s) aguardando transferencia para a conta do Tronco de Beneficencia.
-            </div>
-          </div>
-        </div>
-        <div style="display:flex;gap:8px">
-          <button class="btn" onclick="verArredondamentosPendentes()" style="padding:6px 14px;font-size:10px;border-color:#6B3A00;color:#6B3A00">📋 Ver detalhes</button>
-          <button class="btn btn-solid" onclick="confirmarTransferenciaTronco()" style="padding:6px 14px;font-size:10px;background:linear-gradient(135deg,#5C3D00,#8B6000)">✅ Confirmar Transferencia</button>
-        </div>
-      </div>
-    </div>` : ''}
 
     <!-- LINHA 2: Inadimplência + Previsão + Parcelas -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
@@ -9927,15 +9904,15 @@ function abrirModalLancamentoMembro(membroId, nomeM) {
 
 function recalcularPagamento() {
   const checks = document.querySelectorAll('.pm-debito-check:checked');
-  let total = 0;
+  let totalEditado = 0;
   checks.forEach(c => {
-    total += parseFloat(c.dataset.valorOriginal || 0);
+    const valInput = document.querySelector(`.pm-debito-valor[data-id="${c.dataset.id}"]`);
+    totalEditado += parseFloat(valInput?.value || c.dataset.valorOriginal || 0);
   });
   const el = document.getElementById('pm-total-selecionado');
-  if (el) el.textContent = fmtVal(total);
-  // Atualizar Valor Recebido para o total dos debitos selecionados
+  if (el) el.textContent = fmtVal(totalEditado);
   const valInput = document.getElementById('pm-valor');
-  if (valInput) valInput.value = total.toFixed(2);
+  if (valInput) valInput.value = totalEditado.toFixed(2);
   calcularTroco();
 }
 
@@ -9993,32 +9970,8 @@ async function salvarPagamentoMembro(membroId, temDebitos) {
       }
     }
 
-    // Diferenca = valor recebido - valor ORIGINAL dos debitos
-    // Ex: debito original R$19,71, recebeu R$20 -> diff = R$0,29 para o tronco
-    const diff = valor - totalDebitoOriginal;
-    console.log('[Pagamento] Valor recebido:', valor, 'Total original:', totalDebitoOriginal, 'Total editado:', totalDebitoEditado, 'Diferenca:', diff);
-    if (diff > 0.01) {
-      const insertData = {
-        descricao: 'Arredondamento destinado ao Tronco de Beneficencia',
-        valor: parseFloat(diff.toFixed(2)),
-        tipo: 'receita',
-        data,
-        categoria: 'tronco',
-        membro_id: membroId,
-        status: 'aberto'
-      };
-      console.log('[Arredondamento] Inserindo:', insertData);
-      const resArred = await sb.from('financas').insert(insertData);
-      if (resArred.error) {
-        console.error('[Arredondamento] Erro:', resArred.error);
-        toast('Pagamento registrado, mas erro ao lancar arredondamento: ' + resArred.error.message);
-      } else {
-        console.log('[Arredondamento] Sucesso!');
-        toast('Pagamento registrado + ' + fmtVal(diff) + ' pendente p/ Tronco');
-      }
-    } else {
-      toast('Pagamento registrado');
-    }
+    // Diferenca entre valor editado e original ja esta no caixa (o debito foi atualizado com o valor editado)
+    toast('Pagamento registrado');
   } else {
     // Modo sem debitos (pagamento avulso)
     const descricao = document.getElementById('pm-desc')?.value.trim() || 'Pagamento';
