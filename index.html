@@ -6563,9 +6563,37 @@ async function confirmarPagamentoAgendado(lancId) {
   const lanc = DATA.financas.find(l => l.id === lancId);
   if (!lanc) return;
   const hoje = new Date().toISOString().split('T')[0];
-  const res = await sb.from('financas').update({ status: 'pago', data: hoje }).eq('id', lancId);
+  const membro = lanc.membro_id ? DATA.membros.find(m=>m.id===lanc.membro_id) : null;
+  const inp = `style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"`;
+
+  document.body.insertAdjacentHTML('beforeend', `
+    <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center">
+      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;padding:28px 32px;width:400px;position:relative">
+        <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--green),#2A7A3A);border-radius:6px 6px 0 0"></div>
+        <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;letter-spacing:0.1em;color:var(--green);margin-bottom:16px">Confirmar Pagamento</div>
+        <div style="background:rgba(27,58,107,0.04);border:1px solid rgba(27,58,107,0.15);border-radius:4px;padding:10px 14px;margin-bottom:16px;font-size:13px">
+          <div style="font-weight:600;color:var(--text)">${lanc.descricao||'--'}</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:4px">${membro?membro.nome_maconico:'(Loja)'} · Venc: ${fmtData(lanc.data)} · ${fmtVal(lanc.valor)}</div>
+        </div>
+        <div style="margin-bottom:16px">
+          <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Data do Pagamento</label>
+          <input id="pag-data-confirm" type="date" value="${hoje}" ${inp}>
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end">
+          <button class="btn" onclick="fecharModal()" style="padding:8px 20px">Cancelar</button>
+          <button class="btn btn-solid" onclick="executarPagamentoAgendado('${lancId}')" style="padding:8px 20px;background:var(--green)">Confirmar Pagamento</button>
+        </div>
+      </div>
+    </div>`);
+}
+
+async function executarPagamentoAgendado(lancId) {
+  const dataPag = document.getElementById('pag-data-confirm')?.value;
+  if (!dataPag) { toast('Informe a data do pagamento'); return; }
+  const res = await sb.from('financas').update({ status: 'pago', data: dataPag }).eq('id', lancId);
   if (res.error) { toast('Erro: ' + res.error.message); return; }
-  toast('✅ Pagamento confirmado!');
+  toast('Pagamento confirmado!');
+  fecharModal();
   await loadAllData();
   document.getElementById('alerta-agendados')?.remove();
   verificarAgendadosVencidos();
