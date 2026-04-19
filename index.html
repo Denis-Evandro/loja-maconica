@@ -6470,9 +6470,25 @@ function toggleParcelamento() {
 
 function calcularParcelas() {
   const valor = parseFloat(document.getElementById('f-valor')?.value)||0;
-  const n = parseInt(document.getElementById('f-parcelas')?.value)||1;
+  const n = parseInt(document.getElementById('f-parcelas')?.value)||2;
+  // Garantir limites
+  const input = document.getElementById('f-parcelas');
+  if (input && n < 2) input.value = 2;
+  if (input && n > 48) input.value = 48;
   const label = document.getElementById('label-parcela');
-  if (label) label.textContent = valor && n ? `R$ ${(valor/n).toFixed(2)}` : '—';
+  if (label && valor && n >= 2) label.textContent = fmtVal(valor/n) + ' cada';
+  else if (label) label.textContent = '—';
+}
+
+function ajustarParcelas(delta) {
+  const input = document.getElementById('f-parcelas');
+  if (!input) return;
+  let val = parseInt(input.value)||2;
+  val += delta;
+  if (val < 2) val = 2;
+  if (val > 48) val = 48;
+  input.value = val;
+  calcularParcelas();
 }
 
 async function salvarLancamento() {
@@ -6768,9 +6784,13 @@ function abrirModalLancamento(prefCat='') {
             </div>
             <div id="campos-parcelamento" style="display:none;display:grid;grid-template-columns:1fr 1fr;gap:12px">
               <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">Nº de Parcelas</label>
-                <select id="f-parcelas" onchange="calcularParcelas()" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)">
-                  ${[2,3,4,5,6,8,10,12].map(n=>`<option value="${n}">${n}x</option>`).join('')}
-                </select></div>
+                <div style="display:flex;align-items:center;gap:4px">
+                  <button type="button" onclick="ajustarParcelas(-1)" style="width:32px;height:36px;border:1px solid var(--border-mid);border-radius:3px 0 0 3px;background:var(--cream);cursor:pointer;font-size:16px;font-weight:700;color:var(--navy)">−</button>
+                  <input id="f-parcelas" type="number" min="2" max="48" value="2" onchange="calcularParcelas()" oninput="calcularParcelas()"
+                    style="width:50px;text-align:center;border:1px solid var(--border-mid);border-left:none;border-right:none;border-radius:0;padding:8px 4px;font-family:'Cinzel',serif;font-size:14px;font-weight:700;background:var(--cream);color:var(--text)">
+                  <button type="button" onclick="ajustarParcelas(1)" style="width:32px;height:36px;border:1px solid var(--border-mid);border-radius:0 3px 3px 0;background:var(--cream);cursor:pointer;font-size:16px;font-weight:700;color:var(--navy)">+</button>
+                  <span style="font-size:13px;color:var(--text-muted);margin-left:4px">parcelas</span>
+                </div></div>
               <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">Valor por Parcela</label>
                 <div id="label-parcela" style="border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:#f5f5f5;color:var(--text-muted)">—</div></div>
             </div>
