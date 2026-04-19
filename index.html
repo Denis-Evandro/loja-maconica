@@ -7444,7 +7444,7 @@ function renderFinancas(access) {
         </div>
       </div>
       <table id="tabela-extrato"><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Valor</th><th>Tipo</th><th>Status</th><th></th></tr></thead>
-      <tbody id="tbody-extrato">${buildRows(lancs)}</tbody></table>
+      <tbody id="tbody-extrato">${buildRows(lancs.filter(l=>l.data>=`${anoAtual}-${mesAtual}-01`&&l.data<=`${anoAtual}-12-31`))}</tbody></table>
     </div>
 
     <!-- FECHAMENTOS MENSAIS -->
@@ -8105,6 +8105,15 @@ function filtrarExtrato() {
   const status= document.getElementById('fin-filtro-status')?.value;
   const mes   = document.getElementById('fin-filtro-mes')?.value;
   let lancs = DATA.financas;
+
+  // Se nenhum filtro de mes, mostrar do mes atual ate dezembro do ano corrente
+  const hoje = new Date();
+  const anoAtual = hoje.getFullYear();
+  const mesAtual = String(hoje.getMonth()+1).padStart(2,'0');
+  if (!mes && !irmao && !tipo && !cat && !status) {
+    lancs = lancs.filter(l=>l.data>=`${anoAtual}-${mesAtual}-01`&&l.data<=`${anoAtual}-12-31`);
+  }
+
   if (irmao)  lancs = lancs.filter(l=>l.membro_id===irmao);
   if (tipo)   lancs = lancs.filter(l=>l.tipo===tipo);
   if (cat)    lancs = lancs.filter(l=>l.categoria===cat);
