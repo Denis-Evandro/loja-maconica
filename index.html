@@ -2988,6 +2988,7 @@ async function renderConfSenhas() {
 
 // Resetar senha — envia email de recuperação
 async function resetarSenhaMembro(email, nome) {
+  email = (email||'').toLowerCase().trim();
   if (!confirm(`Enviar link de reset de senha para:\n\n${nome}\n${email}\n\nConfirmar?`)) return;
   toast('⏳ Enviando link de recuperação...');
   const { error } = await sb.auth.resetPasswordForEmail(email, {
@@ -5917,6 +5918,7 @@ async function _recalcularAgapeSessao(sessaoId, membroIdsPresentes) {
 async function enviarConviteMembro(membroId, email, nomeMemb) {
   const canEdit = ROLES[currentRole]?.access['membros'] === 'full';
   if (!canEdit) { toast('⛔ Sem permissão'); return; }
+  email = (email||'').toLowerCase().trim();
   if (!email)   { toast('⚠️ Este membro não tem e-mail cadastrado. Adicione um e-mail primeiro.'); return; }
 
   const confirmar = confirm(
