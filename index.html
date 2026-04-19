@@ -6511,8 +6511,13 @@ async function salvarLancamento() {
     // Receitas parceladas: 1ª com status escolhido, demais 'agendado' (ainda não recebidas)
     const statusParcela = tipo === 'despesa' ? 'aberto' : 'agendado';
     inserts = Array.from({length: nParcelas}, (_, i) => {
-      const d = new Date(ano, mes - 1 + i, dia);
-      const dStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      const mesAlvo = mes - 1 + i; // 0-indexed
+      const anoAlvo = ano + Math.floor(mesAlvo / 12);
+      const mesReal = mesAlvo % 12; // 0-indexed
+      // Ultimo dia do mes alvo
+      const ultimoDia = new Date(anoAlvo, mesReal + 1, 0).getDate();
+      const diaReal = Math.min(dia, ultimoDia);
+      const dStr = `${anoAlvo}-${String(mesReal+1).padStart(2,'0')}-${String(diaReal).padStart(2,'0')}`;
       return { descricao: `${descricao} (${i+1}/${nParcelas})`, valor: valorParc, tipo, data: dStr, categoria, status: i===0?status:statusParcela, membro_id: membro_id||null };
     });
   } else {
@@ -6880,8 +6885,11 @@ function renderFinancas(access) {
     const totalDevia = debitoMensalidade + totalOutros;
     if (totalDevia <= 0) return null;
     const detalhes = [];
-    if (mesesDev > 0) detalhes.push({cat:'Mensalidade', valor:debitoMensalidade, detalhe:`${mesesDev} mês(es) · vence dia ${diaVenc}`});
-    outrosDebitos.forEach(l=>detalhes.push({cat:getCatLabel(l.categoria)||l.descricao, valor:parseFloat(l.valor||0), detalhe:l.descricao, lancId:l.id}));
+    if (mesesDev > 0) {
+      const datasVenc = mensalidadesAbertas.map(l => fmtData(l.data)).join(', ');
+      detalhes.push({cat:'Mensalidade', valor:debitoMensalidade, detalhe:`${mesesDev} mês(es) · Venc: ${datasVenc}`});
+    }
+    outrosDebitos.forEach(l=>detalhes.push({cat:getCatLabel(l.categoria)||l.descricao, valor:parseFloat(l.valor||0), detalhe:`${l.descricao} · Venc: ${fmtData(l.data)}`, lancId:l.id}));
     return {m, devia:totalDevia, mesesDev, detalhes};
   }).filter(Boolean);
   const pctAdimplente = membrosAtivos.length ? Math.round((membrosAtivos.length-inadimplentes.length)/membrosAtivos.length*100) : 100;
@@ -6905,13 +6913,13 @@ function renderFinancas(access) {
     nome: m.nome_maconico, cargo: m.cargo||'—', id: m.id,
     origem: 'Ver detalhes abaixo', valor: devia, statusBadge:'aberto', lancId:null, data:null
   }));
-  const debitosLancs = lancs.filter(l=>l.status==='agendado'||l.status==='aberto').filter(l=>{
+  const debitosLancs = lancs.filter(l=>(l.status==='agendado'||l.status==='aberto')&&l.data<=hojeStr).filter(l=>{
     // Excluir lançamentos de membros inadimplentes já contabilizados acima
     return !inadimplentes.find(i=>i.m.id===l.membro_id);
   }).map(l=>{
     const mb = DATA.membros.find(mb=>mb.id===l.membro_id);
     return {nome:mb?mb.nome_maconico:'(Loja)',cargo:mb?mb.cargo||'—':'—',id:mb?.id||null,
-      origem:l.descricao||'—',valor:parseFloat(l.valor||0),statusBadge:l.status,lancId:l.id,data:l.data||null};
+      origem:`${l.descricao||'—'} · Venc: ${fmtData(l.data)}`,valor:parseFloat(l.valor||0),statusBadge:l.status,lancId:l.id,data:l.data||null};
   });
   const todosDebitos = [...debitosMens, ...debitosLancs];
   const totalDebitosGeral = todosDebitos.reduce((s,d)=>s+d.valor,0);
@@ -7296,7 +7304,7 @@ function renderFinancas(access) {
           <td style="color:var(--red);font-weight:600">${fmtVal(d.valor)}</td>
           <td>${statusBadgeHtml(d.statusBadge)}</td>
           <td style="display:flex;gap:4px;flex-wrap:wrap">
-            ${isAg&&d.lancId?`<button class="btn" style="padding:2px 8px;font-size:8px;background:var(--green);color:#fff;border-color:var(--green)" onclick="confirmarPagamentoAgendado('${d.lancId}')">✓ Pago</button>
+            ${d.lancId?`<button class="btn" style="padding:2px 8px;font-size:8px;background:var(--green);color:#fff;border-color:var(--green)" onclick="confirmarPagamentoAgendado('${d.lancId}')">✓ Pago</button>
               <button class="btn" style="padding:2px 8px;font-size:8px" onclick="adiarAgendado('${d.lancId}')">📅 Adiar</button>`:''}
             ${d.id?`<button class="btn" style="padding:2px 8px;font-size:8px" onclick="cobrarWhatsapp('${d.nome}','',${d.valor},0)">📱 WhatsApp</button>`:''}
             ${d.id?`<button class="btn" style="padding:2px 8px;font-size:8px" onclick="abrirModalLancamentoMembro('${d.id}','${d.nome}')">+ Registrar Pag.</button>`:''}
@@ -9932,7 +9940,7 @@ function calcularTroco() {
     el.style.display = 'block';
     el.style.background = 'rgba(58,122,74,0.08)';
     el.style.color = 'var(--green)';
-    el.innerHTML = 'Valor excedente de <strong>' + fmtVal(diff) + '</strong> sera destinado ao Tronco de Beneficencia.';
+    el.innerHTML = 'Valor excedente de <strong>' + fmtVal(diff) + '</strong> sera registrado no caixa.';
   } else {
     el.style.display = 'block';
     el.style.background = 'rgba(139,32,32,0.08)';
