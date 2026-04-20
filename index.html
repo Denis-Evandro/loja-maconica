@@ -5828,8 +5828,8 @@ async function confirmarPresencas(sessaoId) {
   if (res.error) { toast('Erro: ' + res.error.message); return; }
 
   // ── Recalcular ágape se existir para esta sessão ──
-  // Passar os upserts para saber quem está presente AGORA
-  const presentesAgora = upserts.filter(u => u.presente).map(u => u.membro_id);
+  // Passar apenas presentes fisicamente (nao abonadas) para o agape
+  const presentesAgora = upserts.filter(u => u.situacao === 'presente').map(u => u.membro_id);
   await _recalcularAgapeSessao(sessaoId, presentesAgora);
 
   toast('Presenças salvas ✦');
@@ -8248,7 +8248,7 @@ function calcularRateio() {
 
   let participantes = [];
   if (tipo === 'sessao' && sessaoId) {
-    const presS = DATA.presencas.filter(p=>p.sessao_id===sessaoId&&(p.presente||p.situacao==='presente')&&p.membro_id);
+    const presS = DATA.presencas.filter(p=>p.sessao_id===sessaoId&&p.situacao==='presente'&&p.membro_id);
     participantes = presS.map(p=>{
       const m = DATA.membros.find(x=>x.id===p.membro_id);
       return m && (m.tipo_membro!=='visitante') ? m : null;
@@ -8282,7 +8282,7 @@ async function lancarAgape() {
 
   let participantes = [];
   if (tipo === 'sessao' && sessaoId) {
-    const presS = DATA.presencas.filter(p=>p.sessao_id===sessaoId&&(p.presente||p.situacao==='presente')&&p.membro_id);
+    const presS = DATA.presencas.filter(p=>p.sessao_id===sessaoId&&p.situacao==='presente'&&p.membro_id);
     participantes = presS.map(p=>{
       const m = DATA.membros.find(x=>x.id===p.membro_id);
       return m && (m.tipo_membro!=='visitante') ? m : null;
