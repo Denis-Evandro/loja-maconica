@@ -8,6 +8,7 @@
 <title>Painel de Gestão — Loja Maçônica</title>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
 :root {
   --cream:      #EEF4FB;
@@ -7018,9 +7019,9 @@ function renderFinancas(access) {
         </tr>`;
       }).join('');
 
-  // ── Gráfico histórico 6 meses ─────────────────────────────────
+  // ── Gráfico histórico 12 meses ─────────────────────────────────
   const grafMeses = [];
-  for (let i=5;i>=0;i--) {
+  for (let i=11;i>=0;i--) {
     const d = new Date(anoAtual, hoje.getMonth()-i, 1);
     const mm = String(d.getMonth()+1).padStart(2,'0');
     const aa = d.getFullYear();
@@ -7030,6 +7031,7 @@ function renderFinancas(access) {
     grafMeses.push({label:meses[d.getMonth()],rec:r,desp:d2});
   }
   const maxG = Math.max(...grafMeses.map(g=>Math.max(g.rec,g.desp)),1);
+  window._grafMesesData = grafMeses;
 
   document.getElementById('financas-content').innerHTML = `
     ${!canEdit ? readOnlyBanner() : ''}
@@ -7220,137 +7222,41 @@ function renderFinancas(access) {
       </div>
     </div>
 
-    <!-- LINHA 3: Gráfico histórico melhorado -->
+    <!-- LINHA 3: Grafico historico Chart.js -->
     <div class="card" style="margin-bottom:14px">
       <div class="card-header">
-        <div class="card-title">📈 Histórico Financeiro — Últimos 6 Meses</div>
-        <div style="display:flex;gap:14px;align-items:center">
-          <span style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:5px">
-            <span style="width:12px;height:12px;background:rgba(34,139,34,0.7);border-radius:2px;display:inline-block"></span>Receitas
-          </span>
-          <span style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:5px">
-            <span style="width:12px;height:12px;background:rgba(139,32,32,0.6);border-radius:2px;display:inline-block"></span>Despesas
-          </span>
-          <span style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:5px">
-            <span style="width:24px;height:2px;background:var(--navy);border-radius:2px;display:inline-block"></span>Saldo
-          </span>
+        <div class="card-title">Historico Financeiro - Ultimos 12 Meses</div>
+        <div style="display:flex;gap:14px;align-items:center;font-size:11px;color:var(--text-muted)">
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:rgba(58,122,74,0.75);display:inline-block"></span>Receitas</span>
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:rgba(193,64,64,0.75);display:inline-block"></span>Despesas</span>
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:14px;height:2px;background:#1B5EA0;display:inline-block"></span>Saldo</span>
         </div>
       </div>
-      <div style="padding:16px 20px 8px">
-        ${(() => {
-          const W = 600, H = 160, PAD_L = 72, PAD_R = 16, PAD_T = 14, PAD_B = 36;
-          const plotW = W - PAD_L - PAD_R;
-          const plotH = H - PAD_T - PAD_B;
-          const n = grafMeses.length;
-          // Calcular max e saldos
-          const saldos = grafMeses.map(g => g.rec - g.desp);
-          const allVals = [...grafMeses.map(g=>g.rec), ...grafMeses.map(g=>g.desp), ...saldos.map(v=>Math.abs(v))];
-          const maxV = Math.max(...allVals, 1);
-          // Escala Y: 0 no fundo, maxV no topo
-          const yScale = v => PAD_T + plotH - Math.round(Math.max(0,v) / maxV * plotH);
-          const barW = Math.floor(plotW / n * 0.32);
-          const slotW = plotW / n;
-          // Linhas de grade (4 linhas horizontais)
-          const gridLines = [0.25, 0.5, 0.75, 1].map(f => {
-            const val = maxV * f;
-            const y = PAD_T + plotH - Math.round(f * plotH);
-            const label = val >= 1000 ? `R$${(val/1000).toFixed(0)}k` : `R$${Math.round(val)}`;
-            return {y, label};
-          });
-          // Pontos para linha de saldo
-          const saldoPts = grafMeses.map((g, i) => {
-            const cx = PAD_L + i * slotW + slotW/2;
-            const cy = yScale(g.rec - g.desp);
-            return `${cx},${cy}`;
-          }).join(' ');
-          const saldoPtsLine = grafMeses.map((g, i) => {
-            const cx = PAD_L + i * slotW + slotW/2;
-            const cy = yScale(g.rec - g.desp);
-            return (i===0?'M':'L') + `${cx} ${cy}`;
-          }).join(' ');
-
-          return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;overflow:visible">
-            <defs>
-              <linearGradient id="gRec" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(34,139,34,0.85)"/><stop offset="100%" stop-color="rgba(34,139,34,0.35)"/></linearGradient>
-              <linearGradient id="gDesp" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(139,32,32,0.75)"/><stop offset="100%" stop-color="rgba(139,32,32,0.25)"/></linearGradient>
-            </defs>
-
-            <!-- Área de plot background -->
-            <rect x="${PAD_L}" y="${PAD_T}" width="${plotW}" height="${plotH}" fill="rgba(27,58,107,0.02)" rx="3"/>
-
-            <!-- Linhas de grade -->
-            ${gridLines.map(gl=>`
-              <line x1="${PAD_L}" y1="${gl.y}" x2="${PAD_L+plotW}" y2="${gl.y}" stroke="rgba(27,58,107,0.08)" stroke-width="1" stroke-dasharray="4,3"/>
-              <text x="${PAD_L-6}" y="${gl.y+4}" text-anchor="end" font-family="Cinzel,serif" font-size="8" fill="#5A7AAF">${gl.label}</text>
-            `).join('')}
-            <!-- Linha base -->
-            <line x1="${PAD_L}" y1="${PAD_T+plotH}" x2="${PAD_L+plotW}" y2="${PAD_T+plotH}" stroke="rgba(27,58,107,0.2)" stroke-width="1"/>
-
-            <!-- Barras por mês -->
-            ${grafMeses.map((g,i) => {
-              const cx = PAD_L + i * slotW + slotW/2;
-              const xRec  = cx - barW - 2;
-              const xDesp = cx + 2;
-              const hRec  = Math.max(g.rec>0?2:0,  Math.round(g.rec/maxV*plotH));
-              const hDesp = Math.max(g.desp>0?2:0, Math.round(g.desp/maxV*plotH));
-              const yRec  = PAD_T + plotH - hRec;
-              const yDesp = PAD_T + plotH - hDesp;
-              const saldo = g.rec - g.desp;
-              const corSaldo = saldo >= 0 ? '#2A6A3A' : '#8B2020';
-              return `
-                <rect x="${xRec}" y="${yRec}" width="${barW}" height="${hRec}" fill="url(#gRec)" rx="2" opacity="0.9">
-                  <title>Receitas ${g.label}: ${fmtVal(g.rec)}</title>
-                </rect>
-                <rect x="${xDesp}" y="${yDesp}" width="${barW}" height="${hDesp}" fill="url(#gDesp)" rx="2" opacity="0.85">
-                  <title>Despesas ${g.label}: ${fmtVal(g.desp)}</title>
-                </rect>
-                ${g.rec>0?`<text x="${xRec+barW/2}" y="${yRec-3}" text-anchor="middle" font-family="Cinzel,serif" font-size="7" fill="#2A6A3A" font-weight="700">${g.rec>=1000?(g.rec/1000).toFixed(1)+'k':Math.round(g.rec)}</text>`:''}
-                ${g.desp>0?`<text x="${xDesp+barW/2}" y="${yDesp-3}" text-anchor="middle" font-family="Cinzel,serif" font-size="7" fill="#8B2020" font-weight="700">${g.desp>=1000?(g.desp/1000).toFixed(1)+'k':Math.round(g.desp)}</text>`:''}
-              `;
-            }).join('')}
-
-            <!-- Linha de saldo -->
-            <path d="${saldoPtsLine}" fill="none" stroke="rgba(27,58,107,0.6)" stroke-width="1.5" stroke-dasharray="5,3"/>
-
-            <!-- Pontos de saldo com valores -->
-            ${grafMeses.map((g,i) => {
-              const cx = PAD_L + i * slotW + slotW/2;
-              const saldo = g.rec - g.desp;
-              const cy = yScale(saldo);
-              const corDot = saldo >= 0 ? '#2A6A3A' : '#8B2020';
-              const label = saldo >= 1000 ? (saldo/1000).toFixed(1)+'k' : saldo <= -1000 ? '-'+(Math.abs(saldo)/1000).toFixed(1)+'k' : Math.round(saldo).toString();
-              const yText = saldo >= 0 ? cy - 8 : cy + 14;
-              return `
-                <circle cx="${cx}" cy="${cy}" r="4" fill="${corDot}" stroke="white" stroke-width="1.5">
-                  <title>Saldo ${g.label}: ${fmtVal(saldo)}</title>
-                </circle>
-                <text x="${cx}" y="${yText}" text-anchor="middle" font-family="Cinzel,serif" font-size="7.5" fill="${corDot}" font-weight="700">${label}</text>
-              `;
-            }).join('')}
-
-            <!-- Labels dos meses -->
-            ${grafMeses.map((g,i) => {
-              const cx = PAD_L + i * slotW + slotW/2;
-              return `<text x="${cx}" y="${H-4}" text-anchor="middle" font-family="Cinzel,serif" font-size="9" fill="#5A7AAF" font-weight="700" letter-spacing="0.5">${g.label}</text>`;
-            }).join('')}
-          </svg>`;
-        })()}
-
-        <!-- Resumo mensal em cards pequenos -->
-        <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
-          ${grafMeses.map(g=>{
-            const saldo = g.rec - g.desp;
-            const corS = saldo>=0 ? 'var(--green)' : 'var(--red)';
-            return `<div style="flex:1;min-width:80px;background:var(--cream);border:1px solid var(--border);border-radius:4px;padding:7px 10px;text-align:center">
-              <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:4px">${g.label}</div>
-              <div style="font-size:11px;color:var(--green);font-weight:600">+${fmtVal(g.rec)}</div>
-              <div style="font-size:11px;color:var(--red);font-weight:600">-${fmtVal(g.desp)}</div>
-              <div style="font-size:12px;font-weight:700;color:${corS};margin-top:3px;border-top:1px solid var(--border);padding-top:3px">${saldo>=0?'+':''}${fmtVal(saldo)}</div>
-            </div>`;
-          }).join('')}
+      <div style="padding:12px 22px 0">
+        <div style="position:relative;width:100%;height:280px">
+          <canvas id="chartFinHistorico" role="img" aria-label="Grafico financeiro ultimos 12 meses">Historico financeiro</canvas>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px;padding-bottom:16px">
+          <div style="background:var(--cream);border-radius:4px;padding:8px 10px;text-align:center">
+            <div style="font-family:'Cinzel',serif;font-size:8px;font-weight:700;letter-spacing:0.1em;color:var(--text-muted)">TOTAL RECEITAS</div>
+            <div style="font-size:16px;font-weight:700;color:var(--green);margin-top:4px">${fmtVal(grafMeses.reduce((s,g)=>s+g.rec,0))}</div>
+          </div>
+          <div style="background:var(--cream);border-radius:4px;padding:8px 10px;text-align:center">
+            <div style="font-family:'Cinzel',serif;font-size:8px;font-weight:700;letter-spacing:0.1em;color:var(--text-muted)">TOTAL DESPESAS</div>
+            <div style="font-size:16px;font-weight:700;color:var(--red);margin-top:4px">${fmtVal(grafMeses.reduce((s,g)=>s+g.desp,0))}</div>
+          </div>
+          <div style="background:var(--cream);border-radius:4px;padding:8px 10px;text-align:center">
+            <div style="font-family:'Cinzel',serif;font-size:8px;font-weight:700;letter-spacing:0.1em;color:var(--text-muted)">SALDO PERIODO</div>
+            <div style="font-size:16px;font-weight:700;color:${(grafMeses.reduce((s,g)=>s+g.rec-g.desp,0))>=0?'var(--green)':'var(--red)'};margin-top:4px">${fmtVal(grafMeses.reduce((s,g)=>s+g.rec-g.desp,0))}</div>
+          </div>
+          <div style="background:var(--cream);border-radius:4px;padding:8px 10px;text-align:center">
+            <div style="font-family:'Cinzel',serif;font-size:8px;font-weight:700;letter-spacing:0.1em;color:var(--text-muted)">MEDIA MENSAL</div>
+            <div style="font-size:16px;font-weight:700;color:var(--text);margin-top:4px">${fmtVal(Math.round(grafMeses.reduce((s,g)=>s+g.rec-g.desp,0)/12))}</div>
+          </div>
         </div>
       </div>
     </div>
+
 
     <!-- DÉBITOS PENDENTES DO MÊS -->
     ${todosDebitos.length>0?`<div class="card" style="margin-bottom:14px;border-color:rgba(139,32,32,0.25)">
@@ -7464,6 +7370,9 @@ function renderFinancas(access) {
         </tr>`).join('')}</tbody></table>
       </div>`;
     })()}`;
+
+  // Inicializar grafico Chart.js apos innerHTML
+  setTimeout(_renderChartFinanceiro, 100);
 }
 
 // ── Cobrar via WhatsApp ───────────────────────────────────────
@@ -8096,6 +8005,42 @@ function imprimirExtrato() {
     <table class="print-table"><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Valor</th><th>Status</th></tr></thead>
     <tbody>${rows}</tbody></table>
     <div style="text-align:right;margin-top:10px;font-weight:bold;font-size:12px">Saldo: ${fmtVal(total)}</div>`);
+}
+
+function _renderChartFinanceiro() {
+  const canvas = document.getElementById('chartFinHistorico');
+  if (!canvas || typeof Chart === 'undefined') return;
+  const isDk = matchMedia('(prefers-color-scheme:dark)').matches;
+  const gm = window._grafMesesData || [];
+  if (!gm.length) return;
+  // Destruir chart anterior se existir
+  if (window._chartFinInstance) { window._chartFinInstance.destroy(); }
+  let saldoAcum = 0;
+  const saldos = gm.map(g => { saldoAcum += g.rec - g.desp; return saldoAcum; });
+  window._chartFinInstance = new Chart(canvas, {
+    type:'bar',
+    data:{
+      labels: gm.map(g=>g.label),
+      datasets:[
+        {label:'Receitas',data:gm.map(g=>g.rec),backgroundColor:isDk?'rgba(90,180,100,0.7)':'rgba(58,122,74,0.75)',borderRadius:4,barPercentage:0.7,categoryPercentage:0.6,order:2},
+        {label:'Despesas',data:gm.map(g=>g.desp),backgroundColor:isDk?'rgba(200,80,80,0.7)':'rgba(193,64,64,0.75)',borderRadius:4,barPercentage:0.7,categoryPercentage:0.6,order:2},
+        {label:'Saldo',data:saldos,type:'line',borderColor:'#1B5EA0',backgroundColor:'rgba(27,94,160,0.08)',fill:true,tension:0.35,pointRadius:3,pointBackgroundColor:'#1B5EA0',borderWidth:2,order:1,yAxisID:'y1'}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      scales:{
+        x:{grid:{display:false},ticks:{font:{size:11},color:isDk?'#999':'#666',autoSkip:false}},
+        y:{position:'left',grid:{color:isDk?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.06)'},ticks:{font:{size:11},color:isDk?'#999':'#666',callback:v=>v>=1000?'R$'+(v/1000).toFixed(1)+'k':'R$'+v}},
+        y1:{position:'right',grid:{display:false},ticks:{font:{size:11},color:'#1B5EA0',callback:v=>v>=1000||v<=-1000?(v<0?'-':'')+'R$'+(Math.abs(v)/1000).toFixed(1)+'k':'R$'+v}}
+      },
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': R$ '+Math.round(ctx.parsed.y).toLocaleString('pt-BR')}}
+      }
+    }
+  });
 }
 
 function filtrarExtrato() {
