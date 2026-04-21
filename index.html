@@ -7019,19 +7019,21 @@ function renderFinancas(access) {
         </tr>`;
       }).join('');
 
-  // ── Gráfico histórico 12 meses ─────────────────────────────────
+  // ── Gráfico histórico — ano corrente (com filtro de ano) ─────
+  const anoGrafico = window._anoGraficoFin || anoAtual;
   const grafMeses = [];
-  for (let i=11;i>=0;i--) {
-    const d = new Date(anoAtual, hoje.getMonth()-i, 1);
-    const mm = String(d.getMonth()+1).padStart(2,'0');
-    const aa = d.getFullYear();
-    const pref = `${aa}-${mm}`;
+  for (let m=0; m<12; m++) {
+    const mm = String(m+1).padStart(2,'0');
+    const pref = `${anoGrafico}-${mm}`;
     const r = lancs.filter(l=>l.data?.startsWith(pref)&&l.tipo==='receita'&&l.status==='pago').reduce((s,l)=>s+parseFloat(l.valor||0),0);
     const d2 = lancs.filter(l=>l.data?.startsWith(pref)&&l.tipo==='despesa'&&l.status==='pago').reduce((s,l)=>s+parseFloat(l.valor||0),0);
-    grafMeses.push({label:meses[d.getMonth()],rec:r,desp:d2});
+    grafMeses.push({label:meses[m].slice(0,3),rec:r,desp:d2});
   }
   const maxG = Math.max(...grafMeses.map(g=>Math.max(g.rec,g.desp)),1);
   window._grafMesesData = grafMeses;
+  // Anos disponíveis para o filtro
+  const anosDisp = [...new Set(lancs.map(l=>l.data?.slice(0,4)).filter(Boolean))].sort().reverse();
+  if (!anosDisp.includes(String(anoAtual))) anosDisp.unshift(String(anoAtual));
 
   document.getElementById('financas-content').innerHTML = `
     ${!canEdit ? readOnlyBanner() : ''}
@@ -7224,9 +7226,12 @@ function renderFinancas(access) {
 
     <!-- LINHA 3: Grafico historico Chart.js -->
     <div class="card" style="margin-bottom:14px">
-      <div class="card-header">
-        <div class="card-title">Historico Financeiro - Ultimos 12 Meses</div>
+      <div class="card-header" style="flex-wrap:wrap;gap:8px">
+        <div class="card-title">Historico Financeiro — ${anoGrafico}</div>
         <div style="display:flex;gap:14px;align-items:center;font-size:11px;color:var(--text-muted)">
+          <select onchange="window._anoGraficoFin=parseInt(this.value);renderFinancas('full')" style="border:1px solid var(--border-mid);border-radius:3px;padding:4px 8px;font-family:'Cinzel',serif;font-size:10px;background:var(--cream);color:var(--text)">
+            ${anosDisp.map(a=>`<option value="${a}" ${a==String(anoGrafico)?'selected':''}>${a}</option>`).join('')}
+          </select>
           <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:rgba(58,122,74,0.75);display:inline-block"></span>Receitas</span>
           <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:rgba(193,64,64,0.75);display:inline-block"></span>Despesas</span>
           <span style="display:flex;align-items:center;gap:4px"><span style="width:14px;height:2px;background:#1B5EA0;display:inline-block"></span>Saldo</span>
