@@ -1,0 +1,1164 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Importar Ficha GOB — Demo</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Source+Sans+3:wght@300;400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  :root {
+    --navy: #0F2240;
+    --navy-light: #162D54;
+    --gold: #D4A843;
+    --gold-dim: rgba(212,168,67,0.3);
+    --blue-soft: #5A7AAF;
+    --bg: #0A1628;
+    --card: #0F2240;
+    --text: #C8D6E5;
+    --white: #FFFFFF;
+    --green: #2ECC71;
+    --red: #FF6B6B;
+    --orange: #F39C12;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    font-family: 'Source Sans 3', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  .header {
+    background: linear-gradient(135deg, var(--navy) 0%, #1B3A6B 100%);
+    border-bottom: 1px solid var(--gold-dim);
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .header-icon {
+    width: 48px; height: 48px;
+    background: linear-gradient(135deg, var(--gold), #C4943A);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+  }
+  .header h1 {
+    font-family: 'Cinzel', serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--gold);
+    letter-spacing: 0.1em;
+  }
+  .header p {
+    font-size: 12px;
+    color: var(--blue-soft);
+    margin-top: 2px;
+  }
+
+  /* ── Container ── */
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 24px 16px;
+  }
+
+  /* ── Steps indicator ── */
+  .steps {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    margin-bottom: 32px;
+  }
+  .step-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .step-circle {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Cinzel', serif;
+    font-size: 14px;
+    font-weight: 700;
+    border: 2px solid rgba(90,122,175,0.3);
+    color: var(--blue-soft);
+    background: transparent;
+    transition: all 0.3s;
+  }
+  .step-circle.active {
+    border-color: var(--gold);
+    color: var(--navy);
+    background: var(--gold);
+  }
+  .step-circle.done {
+    border-color: var(--green);
+    color: var(--white);
+    background: var(--green);
+  }
+  .step-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--blue-soft);
+    letter-spacing: 0.05em;
+    transition: color 0.3s;
+  }
+  .step-label.active { color: var(--gold); }
+  .step-label.done { color: var(--green); }
+  .step-line {
+    width: 60px;
+    height: 2px;
+    background: rgba(90,122,175,0.2);
+    margin: 0 12px;
+    transition: background 0.3s;
+  }
+  .step-line.done { background: var(--green); }
+
+  /* ── Upload area ── */
+  .upload-zone {
+    border: 2px dashed var(--gold-dim);
+    border-radius: 12px;
+    padding: 48px 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    background: rgba(212,168,67,0.03);
+  }
+  .upload-zone:hover {
+    border-color: var(--gold);
+    background: rgba(212,168,67,0.06);
+  }
+  .upload-zone.dragging {
+    border-color: var(--gold);
+    background: rgba(212,168,67,0.1);
+    transform: scale(1.01);
+  }
+  .upload-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.8;
+  }
+  .upload-title {
+    font-family: 'Cinzel', serif;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--gold);
+    letter-spacing: 0.08em;
+    margin-bottom: 8px;
+  }
+  .upload-desc {
+    font-size: 13px;
+    color: var(--blue-soft);
+  }
+  .upload-desc strong { color: var(--gold); }
+  input[type="file"] { display: none; }
+
+  /* ── Processing ── */
+  .processing {
+    display: none;
+    text-align: center;
+    padding: 48px 32px;
+  }
+  .spinner {
+    width: 48px; height: 48px;
+    border: 3px solid rgba(212,168,67,0.2);
+    border-top-color: var(--gold);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 20px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .processing p {
+    font-size: 14px;
+    color: var(--blue-soft);
+  }
+
+  /* ── Review panel ── */
+  .review-panel { display: none; }
+
+  .section-card {
+    background: var(--card);
+    border: 1px solid rgba(212,168,67,0.15);
+    border-radius: 10px;
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+  .section-header {
+    padding: 14px 20px;
+    background: linear-gradient(135deg, rgba(212,168,67,0.08), transparent);
+    border-bottom: 1px solid rgba(212,168,67,0.1);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .section-header:hover {
+    background: linear-gradient(135deg, rgba(212,168,67,0.12), transparent);
+  }
+  .section-icon { font-size: 18px; }
+  .section-title {
+    font-family: 'Cinzel', serif;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--gold);
+    letter-spacing: 0.1em;
+    flex: 1;
+  }
+  .section-badge {
+    font-size: 10px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-weight: 600;
+  }
+  .badge-ok { background: rgba(46,204,113,0.15); color: var(--green); }
+  .badge-warn { background: rgba(243,156,18,0.15); color: var(--orange); }
+
+  .section-body {
+    padding: 16px 20px;
+  }
+
+  .field-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .field-full { grid-column: 1 / -1; }
+
+  .field-group {
+    position: relative;
+  }
+  .field-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--blue-soft);
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .field-label .extracted {
+    font-size: 8px;
+    font-weight: 400;
+    letter-spacing: 0;
+    text-transform: none;
+    color: rgba(90,122,175,0.6);
+    font-style: italic;
+  }
+  .field-input {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid rgba(90,122,175,0.25);
+    border-radius: 6px;
+    background: rgba(255,255,255,0.04);
+    color: var(--white);
+    font-family: 'Source Sans 3', sans-serif;
+    font-size: 13px;
+    transition: border-color 0.2s;
+  }
+  .field-input:focus {
+    outline: none;
+    border-color: var(--gold);
+    background: rgba(212,168,67,0.05);
+  }
+  .field-input.modified {
+    border-color: var(--orange);
+    background: rgba(243,156,18,0.05);
+  }
+  .field-input.empty {
+    border-color: var(--red);
+    background: rgba(255,107,107,0.05);
+  }
+  select.field-input {
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%235A7AAF'%3E%3Cpath d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 28px;
+  }
+
+  /* ── Dependentes / Histórico table ── */
+  .mini-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  .mini-table th {
+    text-align: left;
+    padding: 8px 10px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--blue-soft);
+    border-bottom: 1px solid rgba(90,122,175,0.2);
+  }
+  .mini-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid rgba(90,122,175,0.08);
+    color: var(--text);
+  }
+  .mini-table tr:last-child td { border-bottom: none; }
+
+  /* ── Action bar ── */
+  .action-bar {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(212,168,67,0.1);
+  }
+  .btn {
+    padding: 12px 28px;
+    border: none;
+    border-radius: 6px;
+    font-family: 'Cinzel', serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-secondary {
+    background: rgba(90,122,175,0.15);
+    color: var(--blue-soft);
+    border: 1px solid rgba(90,122,175,0.2);
+  }
+  .btn-secondary:hover { background: rgba(90,122,175,0.25); }
+  .btn-primary {
+    background: linear-gradient(135deg, #1B3A6B, #2A5298);
+    color: var(--white);
+  }
+  .btn-primary:hover {
+    background: linear-gradient(135deg, #2A5298, #3B6AD8);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(42,82,152,0.3);
+  }
+
+  /* ── Success message ── */
+  .success-panel {
+    display: none;
+    text-align: center;
+    padding: 64px 32px;
+  }
+  .success-icon {
+    font-size: 64px;
+    margin-bottom: 20px;
+  }
+  .success-title {
+    font-family: 'Cinzel', serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--green);
+    margin-bottom: 8px;
+  }
+  .success-desc {
+    font-size: 14px;
+    color: var(--blue-soft);
+    margin-bottom: 24px;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 640px) {
+    .field-grid { grid-template-columns: 1fr; }
+    .steps { flex-wrap: wrap; gap: 4px; }
+    .step-line { width: 24px; }
+    .action-bar { flex-direction: column; }
+    .btn { width: 100%; text-align: center; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-icon">📄</div>
+  <div>
+    <h1>IMPORTAR FICHA DO GOB</h1>
+    <p>Extraia dados do PDF e confira antes de salvar</p>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- STEPS -->
+  <div class="steps">
+    <div class="step-item">
+      <div class="step-circle active" id="s1">1</div>
+      <span class="step-label active" id="sl1">Upload</span>
+    </div>
+    <div class="step-line" id="line1"></div>
+    <div class="step-item">
+      <div class="step-circle" id="s2">2</div>
+      <span class="step-label" id="sl2">Conferir</span>
+    </div>
+    <div class="step-line" id="line2"></div>
+    <div class="step-item">
+      <div class="step-circle" id="s3">3</div>
+      <span class="step-label" id="sl3">Salvar</span>
+    </div>
+  </div>
+
+  <!-- STEP 1: UPLOAD -->
+  <div id="step-upload">
+    <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+      <div class="upload-icon">📁</div>
+      <div class="upload-title">ARRASTE O PDF AQUI OU CLIQUE PARA SELECIONAR</div>
+      <div class="upload-desc">Aceita apenas <strong>Ficha de Obreiro</strong> do GOB em formato PDF</div>
+    </div>
+    <input type="file" id="fileInput" accept="application/pdf">
+  </div>
+
+  <!-- PROCESSING -->
+  <div class="processing" id="step-processing">
+    <div class="spinner"></div>
+    <p>Extraindo dados do PDF...</p>
+  </div>
+
+  <!-- STEP 2: REVIEW -->
+  <div class="review-panel" id="step-review">
+
+    <!-- Dados Maçônicos -->
+    <div class="section-card">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-icon">⚔️</span>
+        <span class="section-title">DADOS MAÇÔNICOS</span>
+        <span class="section-badge badge-ok" id="badge-mac">✓ Completo</span>
+      </div>
+      <div class="section-body">
+        <div class="field-grid">
+          <div class="field-group">
+            <div class="field-label">Nº Cadastro GOB</div>
+            <input class="field-input" id="f-cim" value="">
+          </div>
+          <div class="field-group">
+            <div class="field-label">Nome Completo</div>
+            <input class="field-input" id="f-nome" value="">
+          </div>
+          <div class="field-group">
+            <div class="field-label">Grau <span class="extracted">detectado pelo histórico</span></div>
+            <select class="field-input" id="f-grau">
+              <option value="1">Aprendiz — Grau 1</option>
+              <option value="2">Companheiro — Grau 2</option>
+              <option value="3" selected>Mestre — Grau 3</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <div class="field-label">Status</div>
+            <select class="field-input" id="f-status">
+              <option value="regular" selected>Regular</option>
+              <option value="irregular">Irregular</option>
+              <option value="licenciado">Licenciado</option>
+              <option value="suspenso">Suspenso</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <div class="field-label">Data Iniciação</div>
+            <input class="field-input" type="date" id="f-iniciacao" value="">
+          </div>
+          <div class="field-group">
+            <div class="field-label">Data Elevação</div>
+            <input class="field-input" type="date" id="f-elevacao" value="">
+          </div>
+          <div class="field-group">
+            <div class="field-label">Data Exaltação</div>
+            <input class="field-input" type="date" id="f-exaltacao" value="">
+          </div>
+          <div class="field-group">
+            <div class="field-label">Data Instalação</div>
+            <input class="field-input" type="date" id="f-instalacao" value="">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dados Pessoais -->
+    <div class="section-card">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-icon">👤</span>
+        <span class="section-title">DADOS PESSOAIS</span>
+        <span class="section-badge badge-ok">✓ Completo</span>
+      </div>
+      <div class="section-body">
+        <div class="field-grid">
+          <div class="field-group">
+            <div class="field-label">Data de Nascimento</div>
+            <input class="field-input" type="date" id="f-nascimento" value="">
+          </div>
+          <div class="field-group">
+            <div class="field-label">Naturalidade</div>
+            <input class="field-input" id="f-naturalidade" value="">
+          </div>
+          <div class="field-group">
+            <div class="field-label">CPF</div>
+            <input class="field-input" id="f-cpf" value="">
+          </div>
+          <div class="field-group">
+            <div class="field-label">RG</div>
+            <input class="field-input" id="f-rg" value="">
+          </div>
+          <div class="field-group">
+            <div class="field-label">E-mail</div>
+            <input class="field-input" type="email" id="f-email" value="">
+          </div>
+          <div class="field-group">
+            <div class="field-label">Telefone</div>
+            <input class="field-input" id="f-telefone" value="">
+          </div>
+          <div class="field-group">
+            <div class="field-label">Estado Civil</div>
+            <input class="field-input" id="f-estado-civil" value="">
+          </div>
+          <div class="field-group">
+            <div class="field-label">Tipo Sanguíneo</div>
+            <input class="field-input" id="f-sangue" value="">
+          </div>
+          <div class="field-group">
+            <div class="field-label">Profissão</div>
+            <input class="field-input" id="f-profissao" value="">
+          </div>
+          <div class="field-group">
+            <div class="field-label">Grau de Instrução</div>
+            <input class="field-input" id="f-instrucao" value="">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Endereço -->
+    <div class="section-card">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-icon">📍</span>
+        <span class="section-title">ENDEREÇO</span>
+        <span class="section-badge badge-ok">✓ Completo</span>
+      </div>
+      <div class="section-body">
+        <div class="field-grid">
+          <div class="field-group">
+            <div class="field-label">CEP</div>
+            <input class="field-input" id="f-cep" value="">
+          </div>
+          <div class="field-group">
+            <div class="field-label">Cidade / UF</div>
+            <input class="field-input" id="f-cidade" value="">
+          </div>
+          <div class="field-group field-full">
+            <div class="field-label">Endereço</div>
+            <input class="field-input" id="f-endereco" value="">
+          </div>
+          <div class="field-group">
+            <div class="field-label">Número</div>
+            <input class="field-input" id="f-numero" value="">
+          </div>
+          <div class="field-group">
+            <div class="field-label">Bairro</div>
+            <input class="field-input" id="f-bairro" value="">
+          </div>
+          <div class="field-group field-full">
+            <div class="field-label">Complemento</div>
+            <input class="field-input" id="f-complemento" value="">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filiação -->
+    <div class="section-card">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-icon">👨‍👩‍👦</span>
+        <span class="section-title">FILIAÇÃO</span>
+        <span class="section-badge badge-ok">✓ Completo</span>
+      </div>
+      <div class="section-body">
+        <div class="field-grid">
+          <div class="field-group">
+            <div class="field-label">Nome do Pai</div>
+            <input class="field-input" id="f-pai" value="">
+          </div>
+          <div class="field-group">
+            <div class="field-label">Nome da Mãe</div>
+            <input class="field-input" id="f-mae" value="">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dependentes -->
+    <div class="section-card">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-icon">👨‍👧‍👦</span>
+        <span class="section-title">DEPENDENTES</span>
+        <span class="section-badge badge-ok" id="badge-dep">3 encontrados</span>
+      </div>
+      <div class="section-body">
+        <table class="mini-table" id="table-dep">
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>Parentesco</th>
+              <th>Data Nasc.</th>
+            </tr>
+          </thead>
+          <tbody id="dep-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Histórico -->
+    <div class="section-card">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-icon">📜</span>
+        <span class="section-title">HISTÓRICO MAÇÔNICO</span>
+        <span class="section-badge badge-ok" id="badge-hist">registros</span>
+      </div>
+      <div class="section-body">
+        <table class="mini-table">
+          <thead>
+            <tr>
+              <th style="width:100px">Data</th>
+              <th>Evento</th>
+            </tr>
+          </thead>
+          <tbody id="hist-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="action-bar">
+      <button class="btn btn-secondary" onclick="resetAll()">← Novo Upload</button>
+      <button class="btn btn-primary" onclick="salvarMembro()">Salvar no Sistema ✦</button>
+    </div>
+  </div>
+
+  <!-- STEP 3: SUCCESS -->
+  <div class="success-panel" id="step-success">
+    <div class="success-icon">✅</div>
+    <div class="success-title">MEMBRO CADASTRADO COM SUCESSO</div>
+    <div class="success-desc" id="success-name"></div>
+    <button class="btn btn-primary" onclick="resetAll()">Importar Outro PDF ✦</button>
+  </div>
+
+</div>
+
+<script>
+// PDF.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ── Drag & drop ──
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+
+['dragenter','dragover'].forEach(e => {
+  dropZone.addEventListener(e, ev => { ev.preventDefault(); dropZone.classList.add('dragging'); });
+});
+['dragleave','drop'].forEach(e => {
+  dropZone.addEventListener(e, ev => { ev.preventDefault(); dropZone.classList.remove('dragging'); });
+});
+dropZone.addEventListener('drop', ev => {
+  const file = ev.dataTransfer.files[0];
+  if (file && file.type === 'application/pdf') processFile(file);
+});
+fileInput.addEventListener('change', () => {
+  if (fileInput.files[0]) processFile(fileInput.files[0]);
+});
+
+// ── Process PDF ──
+async function processFile(file) {
+  document.getElementById('step-upload').style.display = 'none';
+  document.getElementById('step-processing').style.display = 'block';
+
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    let fullText = '';
+
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      // Reconstruct text preserving line breaks based on Y position
+      let lastY = null;
+      let pageText = '';
+      content.items.forEach(item => {
+        const y = Math.round(item.transform[5]);
+        if (lastY !== null && Math.abs(y - lastY) > 5) {
+          pageText += '\n';
+        } else if (lastY !== null) {
+          pageText += ' ';
+        }
+        pageText += item.str;
+        lastY = y;
+      });
+      fullText += pageText + '\n';
+    }
+
+    console.log('=== TEXTO EXTRAÍDO DO PDF ===');
+    console.log(fullText);
+    console.log('=== FIM ===');
+
+    const data = parseGOBText(fullText);
+    fillForm(data);
+
+    setTimeout(() => {
+      document.getElementById('step-processing').style.display = 'none';
+      document.getElementById('step-review').style.display = 'block';
+      setStep(2);
+    }, 800);
+
+  } catch (err) {
+    alert('Erro ao ler o PDF: ' + err.message);
+    resetAll();
+  }
+}
+
+// ── Parse GOB text ──
+// O PDF do GOB tem formato peculiar: muitas vezes o VALOR aparece ANTES do rótulo
+// ou em linhas separadas. Esta versão navega por índice de linhas.
+function parseGOBText(rawText) {
+  const d = {};
+  const lines = rawText.split(/\n/).map(l => l.trim()).filter(l => l);
+
+  console.log('=== LINHAS PARSEADAS ===');
+  lines.forEach((l, i) => console.log(`${i}: ${l}`));
+
+  // Helper: parse date DD/MM/YYYY → YYYY-MM-DD
+  const parseDate = (str) => {
+    if (!str) return '';
+    const m = str.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+    return m ? `${m[3]}-${m[2]}-${m[1]}` : '';
+  };
+
+  // Helper: find line index containing text
+  const findLine = (regex, startFrom = 0) => {
+    for (let i = startFrom; i < lines.length; i++) {
+      if (regex.test(lines[i])) return i;
+    }
+    return -1;
+  };
+
+  // Helper: get value from same line (after colon) or return empty
+  const valueOnLine = (idx) => {
+    if (idx < 0 || idx >= lines.length) return '';
+    const m = lines[idx].match(/:\s*(.+)/);
+    return m ? m[1].trim() : '';
+  };
+
+  // ══ Nome e CIM ══
+  const obreiroIdx = findLine(/^Obreiro\s*:/i);
+  if (obreiroIdx > -1) {
+    const m = lines[obreiroIdx].match(/(\d+)\s*-\s*(.+)/);
+    d.cim = m ? m[1] : '';
+    d.nome = m ? m[2].trim() : '';
+  }
+
+  // ══ Datas maçônicas ══
+  // Rótulos: Iniciação:/Elevação:/Exaltação:/Instalação: (linhas consecutivas)
+  // Valores: 4 datas em linhas consecutivas logo após
+  const inicIdx = findLine(/^Inicia[çc][aã]o\s*:$/i);
+  if (inicIdx > -1) {
+    // Coletar todas as datas após os rótulos
+    const dateBlock = [];
+    for (let i = inicIdx; i < Math.min(inicIdx + 12, lines.length); i++) {
+      const dm = lines[i].match(/^(\d{2}\/\d{2}\/\d{4})$/);
+      if (dm) dateBlock.push(dm[1]);
+      if (dateBlock.length >= 4) break;
+    }
+    d.iniciacao = parseDate(dateBlock[0] || '');
+    d.elevacao = parseDate(dateBlock[1] || '');
+    d.exaltacao = parseDate(dateBlock[2] || '');
+    d.instalacao = parseDate(dateBlock[3] || '');
+  } else {
+    // Tentar formato inline: "Iniciação: 01/04/2013"
+    const ii = rawText.match(/Inicia[çc][aã]o\s*:\s*(\d{2}\/\d{2}\/\d{4})/i);
+    d.iniciacao = ii ? parseDate(ii[1]) : '';
+    const ie = rawText.match(/Eleva[çc][aã]o\s*:\s*(\d{2}\/\d{2}\/\d{4})/i);
+    d.elevacao = ie ? parseDate(ie[1]) : '';
+    const ix = rawText.match(/Exalta[çc][aã]o\s*:\s*(\d{2}\/\d{2}\/\d{4})/i);
+    d.exaltacao = ix ? parseDate(ix[1]) : '';
+    const is = rawText.match(/Instala[çc][aã]o\s*:\s*(\d{2}\/\d{2}\/\d{4})/i);
+    d.instalacao = is ? parseDate(is[1]) : '';
+  }
+
+  // Status
+  const statusMatch = rawText.match(/Status\s*:\s*(\w+)/i);
+  d.status = statusMatch ? statusMatch[1].toLowerCase() : 'regular';
+
+  // Grau
+  d.grau = d.exaltacao ? '3' : d.elevacao ? '2' : '1';
+
+  // ══ Data Nascimento ══
+  // No GOB: valor aparece ANTES do rótulo "Data Nascimento:"
+  d.nascimento = '';
+  const nascLabelIdx = findLine(/^Data\s*Nascimento\s*:$/i);
+  if (nascLabelIdx > -1 && nascLabelIdx > 0) {
+    // Valor na linha anterior
+    const prevLine = lines[nascLabelIdx - 1];
+    const dm = prevLine.match(/(\d{2}\/\d{2}\/\d{4})/);
+    if (dm) d.nascimento = parseDate(dm[1]);
+  }
+  if (!d.nascimento) {
+    // Tentar formato inline
+    const nm = rawText.match(/Data\s*Nascimento\s*:\s*(\d{2}\/\d{2}\/\d{4})/i);
+    if (nm) d.nascimento = parseDate(nm[1]);
+  }
+
+  // ══ Naturalidade ══
+  const natMatch = rawText.match(/Naturalidade\s*:\s*(.+?)(?:\n|$)/i);
+  d.naturalidade = natMatch ? natMatch[1].trim() : '';
+
+  // ══ CPF ══
+  // Valor pode estar na linha após "CPF:"
+  d.cpf = '';
+  const cpfInline = rawText.match(/CPF\s*:\s*([\d.\-]+)/i);
+  if (cpfInline) {
+    d.cpf = cpfInline[1];
+  } else {
+    const cpfIdx = findLine(/^CPF\s*:$/i);
+    if (cpfIdx > -1 && cpfIdx + 1 < lines.length) {
+      const v = lines[cpfIdx + 1].match(/([\d.\-]+)/);
+      if (v) d.cpf = v[1];
+    }
+  }
+
+  // ══ RG ══
+  const rgMatch = rawText.match(/RG\s*:\s*(\d+)/i);
+  d.rg = rgMatch ? rgMatch[1] : '';
+
+  // ══ Email ══
+  const emailMatch = rawText.match(/E-mail\s*:\s*([\w.\-+]+@[\w.\-]+)/i);
+  d.email = emailMatch ? emailMatch[1] : '';
+
+  // ══ Telefone (pessoal, com operadora) ══
+  const telMatch = rawText.match(/Telefone\s*:\s*([\d\-]+\s*-\s*OPERADORA\s*:\s*\w+)/i);
+  d.telefone = telMatch ? telMatch[1].trim() : '';
+  if (!d.telefone) {
+    const tel2 = rawText.match(/Telefone\s*:\s*([\d\-\s]+)/i);
+    d.telefone = tel2 ? tel2[1].trim() : '';
+  }
+
+  // ══ Tipo Sanguíneo ══
+  // Valor na linha após "Tipo Sanguíneo:"
+  d.sangue = '';
+  const sangueInline = rawText.match(/Tipo\s*Sangu[ií]neo\s*:\s*(\S+)/i);
+  if (sangueInline && sangueInline[1] !== '') {
+    d.sangue = sangueInline[1];
+  } else {
+    const sangIdx = findLine(/^Tipo\s*Sangu[ií]neo\s*:$/i);
+    if (sangIdx > -1 && sangIdx + 1 < lines.length) {
+      d.sangue = lines[sangIdx + 1].trim();
+    }
+  }
+
+  // ══ Estado Civil ══
+  const ecMatch = rawText.match(/Estado\s*Civil\s*:\s*(.+?)(?:\n|$)/i);
+  d.estadoCivil = ecMatch ? ecMatch[1].trim() : '';
+  if (d.estadoCivil === 'União') d.estadoCivil = 'União Estável';
+
+  // ══ Profissão ══
+  // Valor pode estar na linha anterior a "Profissão:"
+  d.profissao = '';
+  const profInline = rawText.match(/Profiss[aã]o\s*:\s*(.+?)(?:\n|$)/i);
+  if (profInline && profInline[1].trim()) {
+    d.profissao = profInline[1].trim();
+  } else {
+    const profIdx = findLine(/^Profiss[aã]o\s*:$/i);
+    if (profIdx > -1 && profIdx > 0) {
+      d.profissao = lines[profIdx - 1].trim();
+    }
+  }
+
+  // ══ Grau de Instrução ══
+  const instrMatch = rawText.match(/Grau\s*de\s*Instru[cç][aã]o\s*:\s*(.+?)(?:\n|$)/i);
+  d.instrucao = instrMatch ? instrMatch[1].trim() : '';
+
+  // ══════════════════════════════════════════════
+  // ══ ENDEREÇO PESSOAL ══
+  // Estrutura no GOB:
+  //   ENDEREÇO
+  //   11772-588          ← CEP (ANTES do rótulo)
+  //   Cep:
+  //   Cidade:            ← rótulos agrupados
+  //   Bairro:
+  //   Complemento:
+  //   PERUÍBE            ← valores agrupados
+  //   PARQUE BALNEÁRIO OASIS
+  //   APTO 306
+  //   ...
+  //   Endereço:          ← rótulo sozinho (pessoal)
+  //   Número:
+  //   AVENIDA PADRE ANCHIETA  ← rua
+  //   5725                    ← número
+  // ══════════════════════════════════════════════
+
+  const enderecoSecIdx = findLine(/^ENDEREÇO$/i);
+
+  // CEP: valor na linha ANTES de "Cep:" ou logo após "ENDEREÇO"
+  d.cep = '';
+  const cepLabelIdx = findLine(/^Cep\s*:$/i);
+  if (cepLabelIdx > -1 && cepLabelIdx > 0) {
+    const prevLine = lines[cepLabelIdx - 1];
+    if (/^\d{5}-?\d{3}$/.test(prevLine)) {
+      d.cep = prevLine;
+    }
+  }
+  if (!d.cep) {
+    // Tentar inline
+    const cepInline = rawText.match(/Cep\s*:\s*([\d\-]+)/i);
+    d.cep = cepInline ? cepInline[1] : '';
+  }
+  if (!d.cep && enderecoSecIdx > -1) {
+    // Logo após ENDEREÇO
+    for (let i = enderecoSecIdx + 1; i < Math.min(enderecoSecIdx + 3, lines.length); i++) {
+      if (/^\d{5}-?\d{3}$/.test(lines[i])) { d.cep = lines[i]; break; }
+    }
+  }
+
+  // Cidade, Bairro, Complemento: valores após bloco de rótulos
+  d.cidade = ''; d.bairro = ''; d.complemento = '';
+  const compLabelIdx = findLine(/^Complemento\s*:$/i);
+  if (compLabelIdx > -1) {
+    // Os valores vêm nas linhas seguintes (mesma ordem: Cidade, Bairro, Complemento)
+    const vals = [];
+    for (let i = compLabelIdx + 1; i < Math.min(compLabelIdx + 6, lines.length); i++) {
+      // Parar se encontrar rótulo de outra seção
+      if (/^(Pai|Mãe|FILIA|DADOS|Profiss|JOSE|CONCEICAO)\s*:?/i.test(lines[i]) && !/^[A-ZÀ-Ú\s]{3,}$/.test(lines[i])) break;
+      // Aceitar valores que são texto em maiúsculas ou alfanuméricos
+      if (lines[i] && !/\s*:$/.test(lines[i])) {
+        vals.push(lines[i]);
+      }
+    }
+    d.cidade = vals[0] || '';
+    d.bairro = vals[1] || '';
+    d.complemento = vals[2] || '';
+  }
+
+  // Endereço (rua) e Número pessoal
+  // Buscar "Endereço:" que está SOZINHO (sem valor na mesma linha) = endereço pessoal
+  // Diferente de "Endereço: RUA BRIGADEIRO..." que é profissional
+  d.endereco = ''; d.numero = '';
+
+  for (let i = 0; i < lines.length; i++) {
+    // Rótulo "Endereço:" sozinho na linha (sem valor)
+    if (/^Endere[çc]o\s*:$/i.test(lines[i])) {
+      // Pular "Número:" se vier logo após, e pegar o valor depois
+      let j = i + 1;
+      // Pode ter "Número:" entre o rótulo e o valor
+      if (j < lines.length && /^N[uú]mero\s*:$/i.test(lines[j])) {
+        j++;
+      }
+      // Próxima linha com texto é o endereço
+      if (j < lines.length && /^[A-ZÀ-Ú]/.test(lines[j])) {
+        d.endereco = lines[j];
+        // Número na linha seguinte
+        if (j + 1 < lines.length && /^\d+$/.test(lines[j + 1])) {
+          d.numero = lines[j + 1];
+        }
+      }
+    }
+  }
+
+  // ══ Filiação ══
+  d.pai = ''; d.mae = '';
+  const paiLabelIdx = findLine(/^Pai\s*:$/i);
+  if (paiLabelIdx > -1 && paiLabelIdx > 0) {
+    // Valor na linha anterior
+    d.pai = lines[paiLabelIdx - 1];
+  }
+  if (!d.pai) {
+    const paiInline = rawText.match(/Pai\s*:\s*([A-ZÀ-Ú\s]+?)(?:\n|$)/i);
+    d.pai = paiInline ? paiInline[1].trim() : '';
+  }
+
+  const maeLabelIdx = findLine(/^M[aã]e\s*:$/i);
+  if (maeLabelIdx > -1 && maeLabelIdx + 1 < lines.length) {
+    // Valor na próxima linha
+    d.mae = lines[maeLabelIdx + 1];
+  }
+  if (!d.mae) {
+    const maeInline = rawText.match(/M[aã]e\s*:\s*([A-ZÀ-Ú\s]+?)(?:\n|$)/i);
+    d.mae = maeInline ? maeInline[1].trim() : '';
+  }
+
+  // ══ Dependentes ══
+  d.dependentes = [];
+  const depIdx = findLine(/^DEPENDENTES$/i);
+  const histIdx = findLine(/^HIST[OÓ]RICO$/i);
+  if (depIdx > -1) {
+    const depEnd = histIdx > depIdx ? histIdx : lines.length;
+    for (let i = depIdx + 1; i < depEnd; i++) {
+      // Pular cabeçalhos
+      if (/^(Nome|Parentesco|Data)/i.test(lines[i])) continue;
+      // Nome em maiúsculas seguido de FILHA/FILHO/ESPOSA na próxima linha
+      if (/^[A-ZÀ-Ú\s]{5,}$/.test(lines[i]) && i + 1 < depEnd) {
+        const parent = lines[i + 1];
+        if (/^(FILH[AO]|ESPOS[AO]|CÔNJUGE)$/i.test(parent) && i + 2 < depEnd) {
+          const dateM = lines[i + 2].match(/(\d{2}\/\d{2}\/\d{4})/);
+          if (dateM) {
+            d.dependentes.push({ nome: lines[i], parentesco: parent, nascimento: dateM[1] });
+            i += 2;
+          }
+        }
+      }
+    }
+  }
+
+  // ══ Histórico ══
+  d.historico = [];
+  if (histIdx > -1) {
+    let currentDate = '';
+    let currentText = '';
+    for (let i = histIdx + 1; i < lines.length; i++) {
+      if (/^(Data|Hist[oó]rico)$/i.test(lines[i])) continue;
+      // Linha é só uma data
+      if (/^\d{2}\/\d{2}\/\d{4}$/.test(lines[i])) {
+        if (currentDate && currentText) {
+          d.historico.push({ data: currentDate, texto: currentText.trim() });
+        }
+        currentDate = lines[i];
+        currentText = '';
+      } else if (currentDate && lines[i] && !/^\d+$/.test(lines[i])) {
+        currentText += (currentText ? ' ' : '') + lines[i];
+      }
+    }
+    if (currentDate && currentText) {
+      d.historico.push({ data: currentDate, texto: currentText.trim() });
+    }
+  }
+
+  console.log('=== DADOS EXTRAÍDOS ===', JSON.stringify(d, null, 2));
+  return d;
+}
+
+// ── Fill form ──
+function fillForm(d) {
+  document.getElementById('f-cim').value = d.cim || '';
+  document.getElementById('f-nome').value = d.nome || '';
+  document.getElementById('f-grau').value = d.grau || '1';
+  document.getElementById('f-status').value = d.status || 'regular';
+  document.getElementById('f-iniciacao').value = d.iniciacao || '';
+  document.getElementById('f-elevacao').value = d.elevacao || '';
+  document.getElementById('f-exaltacao').value = d.exaltacao || '';
+  document.getElementById('f-instalacao').value = d.instalacao || '';
+  document.getElementById('f-nascimento').value = d.nascimento || '';
+  document.getElementById('f-naturalidade').value = d.naturalidade || '';
+  document.getElementById('f-cpf').value = d.cpf || '';
+  document.getElementById('f-rg').value = d.rg || '';
+  document.getElementById('f-email').value = d.email || '';
+  document.getElementById('f-telefone').value = d.telefone || '';
+  document.getElementById('f-estado-civil').value = d.estadoCivil || '';
+  document.getElementById('f-sangue').value = d.sangue || '';
+  document.getElementById('f-profissao').value = d.profissao || '';
+  document.getElementById('f-instrucao').value = d.instrucao || '';
+  document.getElementById('f-cep').value = d.cep || '';
+  document.getElementById('f-cidade').value = d.cidade || '';
+  document.getElementById('f-endereco').value = d.endereco || '';
+  document.getElementById('f-numero').value = d.numero || '';
+  document.getElementById('f-bairro').value = d.bairro || '';
+  document.getElementById('f-complemento').value = d.complemento || '';
+  document.getElementById('f-pai').value = d.pai || '';
+  document.getElementById('f-mae').value = d.mae || '';
+
+  // Dependentes
+  const depBody = document.getElementById('dep-body');
+  depBody.innerHTML = '';
+  if (d.dependentes.length) {
+    d.dependentes.forEach(dep => {
+      depBody.innerHTML += `<tr>
+        <td>${dep.nome}</td>
+        <td>${dep.parentesco}</td>
+        <td>${dep.nascimento}</td>
+      </tr>`;
+    });
+    document.getElementById('badge-dep').textContent = d.dependentes.length + ' encontrados';
+  } else {
+    depBody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--blue-soft);font-style:italic">Nenhum dependente encontrado</td></tr>';
+    document.getElementById('badge-dep').textContent = '0 encontrados';
+  }
+
+  // Histórico
+  const histBody = document.getElementById('hist-body');
+  histBody.innerHTML = '';
+  if (d.historico.length) {
+    d.historico.forEach(h => {
+      histBody.innerHTML += `<tr>
+        <td style="white-space:nowrap;color:var(--gold)">${h.data}</td>
+        <td>${h.texto}</td>
+      </tr>`;
+    });
+    document.getElementById('badge-hist').textContent = d.historico.length + ' registros';
+  } else {
+    histBody.innerHTML = '<tr><td colspan="2" style="text-align:center;color:var(--blue-soft);font-style:italic">Nenhum registro encontrado</td></tr>';
+    document.getElementById('badge-hist').textContent = '0 registros';
+  }
+
+  // Mark empty fields
+  document.querySelectorAll('.field-input').forEach(input => {
+    if (input.tagName === 'SELECT') return;
+    if (!input.value) input.classList.add('empty');
+    input.addEventListener('input', function() {
+      this.classList.remove('empty');
+      if (this.dataset.original && this.value !== this.dataset.original) {
+        this.classList.add('modified');
+      } else {
+        this.classList.remove('modified');
+      }
+    });
+    input.dataset.original = input.value;
+  });
+}
+
+// ── UI helpers ──
+function setStep(n) {
+  for (let i = 1; i <= 3; i++) {
+    const circle = document.getElementById('s' + i);
+    const label = document.getElementById('sl' + i);
+    circle.className = 'step-circle';
+    label.className = 'step-label';
+    if (i < n) { circle.classList.add('done'); circle.textContent = '✓'; label.classList.add('done'); }
+    else if (i === n) { circle.classList.add('active'); label.classList.add('active'); }
+  }
+  if (n >= 2) document.getElementById('line1').classList.add('done');
+  if (n >= 3) document.getElementById('line2').classList.add('done');
+}
+
+function toggleSection(header) {
+  const body = header.nextElementSibling;
+  body.style.display = body.style.display === 'none' ? 'block' : 'none';
+}
+
+function salvarMembro() {
+  const nome = document.getElementById('f-nome').value;
+  document.getElementById('step-review').style.display = 'none';
+  document.getElementById('step-success').style.display = 'block';
+  document.getElementById('success-name').textContent = nome + ' foi adicionado ao cadastro de membros da Loja.';
+  setStep(3);
+}
+
+function resetAll() {
+  document.getElementById('step-upload').style.display = 'block';
+  document.getElementById('step-processing').style.display = 'none';
+  document.getElementById('step-review').style.display = 'none';
+  document.getElementById('step-success').style.display = 'none';
+  document.getElementById('fileInput').value = '';
+  setStep(1);
+  // Reset step indicators
+  for (let i = 1; i <= 3; i++) {
+    document.getElementById('s' + i).textContent = i;
+  }
+  document.getElementById('line1').classList.remove('done');
+  document.getElementById('line2').classList.remove('done');
+}
+</script>
+
+</body>
+</html>
