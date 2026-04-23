@@ -2086,6 +2086,7 @@ function abrirPainelRecuperarSenha() {
 
 // Recuperar senha
 async function doRecuperarSenha() {
+  try {
   const email = document.getElementById('rec-email')?.value.trim();
   const okEl  = document.getElementById('rec-ok');
   if (!email) { toast('Preencha o e-mail'); return; }
@@ -2096,6 +2097,10 @@ async function doRecuperarSenha() {
   if (okEl) {
     okEl.textContent = '✅ Link de recuperação enviado! Verifique seu e-mail.';
     okEl.style.display = 'block';
+  }
+  } catch(e) {
+    console.error('[doRecuperarSenha]', e);
+    toast('❌ Erro inesperado. Tente novamente.');
   }
 }
 
@@ -2583,6 +2588,7 @@ async function verificarLinkRecuperacao() {
 }
 
 async function salvarNovaSenha() {
+  try {
   const senha  = document.getElementById('nova-senha')?.value;
   const senha2 = document.getElementById('nova-senha2')?.value;
   const erroEl = document.getElementById('nova-senha-erro');
@@ -2603,6 +2609,10 @@ async function salvarNovaSenha() {
   document.getElementById('modal-nova-senha')?.remove();
   toast('✅ Senha atualizada com sucesso! Faça login com sua nova senha.');
   await sb.auth.signOut();
+  } catch(e) {
+    console.error('[salvarNovaSenha]', e);
+    toast('❌ Erro inesperado. Tente novamente.');
+  }
 }
 
 async function verificarSessaoAtiva() {
@@ -3011,6 +3021,7 @@ async function renderConfSenhas() {
 
 // Resetar senha — envia email de recuperação
 async function resetarSenhaMembro(email, nome) {
+  try {
   email = (email||'').toLowerCase().trim();
   if (!confirm(`Enviar link de reset de senha para:\n\n${nome}\n${email}\n\nConfirmar?`)) return;
   toast('⏳ Enviando link de recuperação...');
@@ -3019,6 +3030,10 @@ async function resetarSenhaMembro(email, nome) {
   });
   if (error) { toast('❌ Erro: ' + error.message); return; }
   toast(`✅ Link de recuperação enviado para ${email}`);
+  } catch(e) {
+    console.error('[resetarSenhaMembro]', e);
+    toast('❌ Erro inesperado. Tente novamente.');
+  }
 }
 
 // Definir senha temporária via SQL (só funciona com service_role — mostra instrução)
@@ -4506,6 +4521,7 @@ function salvarLojaNoDatalist(nomeL) {
 }
 
 async function confirmarSalvarMembro(id) {
+  try {
   const nome = document.getElementById('f-nome-civil')?.value.trim();
   const sobrenome = document.getElementById('f-sobrenome')?.value.trim();
   const tipoMembro = document.getElementById('f-tipo-membro')?.value || 'membro';
@@ -4583,6 +4599,10 @@ async function confirmarSalvarMembro(id) {
 
   fecharModal();
   await salvarMembro(dados, membroId);
+  } catch(e) {
+    console.error('[confirmarSalvarMembro]', e);
+    toast('❌ Erro inesperado. Tente novamente.');
+  }
 }
 
 
@@ -6428,6 +6448,7 @@ function _ofertaCertificadoAuto(visData, sessaoData, sessaoId) {
 
 
 async function salvarVisitante(sessaoId) {
+  try {
   const nome  = document.getElementById('vis-nome')?.value.trim();
   const loja  = document.getElementById('vis-loja')?.value.trim();
   const cim   = document.getElementById('vis-cim')?.value.trim();
@@ -6456,6 +6477,10 @@ async function salvarVisitante(sessaoId) {
   await loadAllData();
   // Mostrar banner automático APÓS o carregamento (500ms para o DOM estabilizar)
   setTimeout(() => _ofertaCertificadoAuto(window._certAutoVis, window._certAutoSessao, sessaoId), 500);
+  } catch(e) {
+    console.error('[salvarVisitante]', e);
+    toast('❌ Erro inesperado. Tente novamente.');
+  }
 }
 
 // ===================== FINANÇAS =====================
@@ -6611,6 +6636,7 @@ async function confirmarPagamentoAgendado(lancId) {
 }
 
 async function executarPagamentoAgendado(lancId) {
+  try {
   const dataPag = document.getElementById('pag-data-confirm')?.value;
   if (!dataPag) { toast('Informe a data do pagamento'); return; }
   const res = await sb.from('financas').update({ status: 'pago', data: dataPag }).eq('id', lancId);
@@ -6621,6 +6647,10 @@ async function executarPagamentoAgendado(lancId) {
   document.getElementById('alerta-agendados')?.remove();
   verificarAgendadosVencidos();
   renderFinancas('full');
+  } catch(e) {
+    console.error('[executarPagamentoAgendado]', e);
+    toast('❌ Erro inesperado. Tente novamente.');
+  }
 }
 
 function adiarAgendado(lancId) {
@@ -6648,6 +6678,7 @@ function adiarAgendado(lancId) {
 }
 
 async function confirmarAdiarAgendado(lancId) {
+  try {
   const novaData = document.getElementById('adiar-data')?.value;
   if (!novaData) { toast('Selecione uma data'); return; }
   const res = await sb.from('financas').update({ data: novaData }).eq('id', lancId);
@@ -6656,6 +6687,10 @@ async function confirmarAdiarAgendado(lancId) {
   fecharModal();
   await _reloadFinancas();
   renderFinancas('full');
+  } catch(e) {
+    console.error('[confirmarAdiarAgendado]', e);
+    toast('❌ Erro inesperado. Tente novamente.');
+  }
 }
 
 // ── EDITAR / EXCLUIR LANÇAMENTO ──
@@ -6712,6 +6747,7 @@ function lbl() { return "font-family:'Cinzel',serif;font-size:9px;font-weight:70
 function inp() { return "width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"; }
 
 async function salvarEdicaoLancamento(lancId) {
+  try {
   const lancObj = DATA.financas.find(l => l.id === lancId);
   if (lancObj?.data && _mesFechado(lancObj.data)) {
     toast('⛔ Lançamento de mês encerrado — edição bloqueada.');
@@ -6731,9 +6767,14 @@ async function salvarEdicaoLancamento(lancId) {
   fecharModal();
   await _reloadFinancas();
   renderFinancas('full');
+  } catch(e) {
+    console.error('[salvarEdicaoLancamento]', e);
+    toast('❌ Erro inesperado. Tente novamente.');
+  }
 }
 
 async function excluirLancamento(lancId) {
+  try {
   const l = DATA.financas.find(x => x.id === lancId);
   if (!confirm(`Excluir "${l?.descricao||'lançamento'}" de ${fmtVal(l?.valor)}?\nEsta ação não pode ser desfeita.`)) return;
   const res = await sb.from('financas').delete().eq('id', lancId);
@@ -6742,6 +6783,10 @@ async function excluirLancamento(lancId) {
   fecharModal();
   await _reloadFinancas();
   renderFinancas('full');
+  } catch(e) {
+    console.error('[excluirLancamento]', e);
+    toast('❌ Erro inesperado. Tente novamente.');
+  }
 }
 
 
@@ -7806,6 +7851,7 @@ function atualizarDataTronco() {
 }
 
 async function salvarTronco() {
+  try {
   const tipo   = document.getElementById('tronco-tipo')?.value || 'entrada';
   const sessId = document.getElementById('tronco-sessao')?.value || null;
   const data   = document.getElementById('tronco-data')?.value;
@@ -7843,6 +7889,10 @@ async function salvarTronco() {
   fecharModal();
   await _reloadFinancas();
   renderFinancas(ROLES[currentRole].access['financas']||'full');
+  } catch(e) {
+    console.error('[salvarTronco]', e);
+    toast('❌ Erro inesperado. Tente novamente.');
+  }
 }
 
 function abrirModalFecharMes() {
@@ -8245,6 +8295,7 @@ function calcularRateio() {
 }
 
 async function lancarAgape() {
+  try {
   const tipo = document.getElementById('agape-tipo')?.value || 'sessao';
   const valor = parseFloat(document.getElementById('agape-valor')?.value);
   const descricao = document.getElementById('agape-desc')?.value.trim() || 'Ágape';
@@ -8283,6 +8334,10 @@ async function lancarAgape() {
   fecharModal();
   await _reloadFinancas();
   renderFinancas('full');
+  } catch(e) {
+    console.error('[lancarAgape]', e);
+    toast('❌ Erro inesperado. Tente novamente.');
+  }
 }
 
 // Editar Agape ja lancado - corrigir valor sem excluir um por um
@@ -8332,6 +8387,7 @@ function verArredondamentosPendentes() {
 
 // Confirmar que a transferencia bancaria foi feita
 async function confirmarTransferenciaTronco() {
+  try {
   const pendentes = DATA.financas.filter(l => l.categoria==='tronco' && l.tipo==='receita' && l.status==='aberto' && l.descricao?.includes('rredondamento'));
   const total = pendentes.reduce((s,l)=>s+parseFloat(l.valor||0),0);
 
@@ -8348,6 +8404,10 @@ async function confirmarTransferenciaTronco() {
 
   toast(`Transferencia confirmada! ${ok} lancamento(s) marcados como pagos.`);
   await loadAllData();
+  } catch(e) {
+    console.error('[confirmarTransferenciaTronco]', e);
+    toast('❌ Erro inesperado. Tente novamente.');
+  }
 }
 
 function abrirModalEditarAgape() {
@@ -8406,6 +8466,7 @@ function previewEditAgape() {
 }
 
 async function salvarEditAgape() {
+  try {
   const sel = document.getElementById('edit-agape-sel');
   const opt = sel?.selectedOptions[0];
   if (!opt) return;
@@ -8429,9 +8490,14 @@ async function salvarEditAgape() {
   toast('Agape atualizado!');
   fecharModal();
   await loadAllData();
+  } catch(e) {
+    console.error('[salvarEditAgape]', e);
+    toast('❌ Erro inesperado. Tente novamente.');
+  }
 }
 
 async function excluirAgape() {
+  try {
   const sel = document.getElementById('edit-agape-sel');
   const opt = sel?.selectedOptions[0];
   if (!opt) return;
@@ -8450,6 +8516,10 @@ async function excluirAgape() {
   toast('Agape excluido!');
   fecharModal();
   await loadAllData();
+  } catch(e) {
+    console.error('[excluirAgape]', e);
+    toast('❌ Erro inesperado. Tente novamente.');
+  }
 }
 
 function abrirModalMensalidadeAuto() {
@@ -8503,6 +8573,7 @@ function abrirModalMensalidadeAuto() {
 }
 
 async function lancarMensalidadesAuto() {
+  try {
   const mesNomes = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   const hoje = new Date();
   const mes = hoje.getMonth();
@@ -8536,6 +8607,10 @@ async function lancarMensalidadesAuto() {
   toast(`✦ ${inserts.length} mensalidades lançadas com vencimento em ${diaReal}/${mes+1}!`);
   fecharModal();
   await loadAllData();
+  } catch(e) {
+    console.error('[lancarMensalidadesAuto]', e);
+    toast('❌ Erro inesperado. Tente novamente.');
+  }
 }
 
 
@@ -8585,6 +8660,7 @@ function abrirModalEditarSessao(id) {
 }
 
 async function salvarEdicaoSessao(id) {
+  try {
   const data = document.getElementById('ed-sess-data')?.value;
   const tipo = document.getElementById('ed-sess-tipo')?.value;
   const grau = parseInt(document.getElementById('ed-sess-grau')?.value)||3;
@@ -8595,9 +8671,14 @@ async function salvarEdicaoSessao(id) {
   toast('Sessão atualizada ✦');
   fecharModal();
   await loadAllData();
+  } catch(e) {
+    console.error('[salvarEdicaoSessao]', e);
+    toast('❌ Erro inesperado. Tente novamente.');
+  }
 }
 
 async function excluirSessao(id, tipo) {
+  try {
   if (!confirm(`Excluir a sessão "${tipo}"?\nIsso também excluirá os registros de presença.`)) return;
   await sb.from('presencas').delete().eq('sessao_id', id);
   const res = await sb.from('sessoes').delete().eq('id', id);
@@ -8605,6 +8686,10 @@ async function excluirSessao(id, tipo) {
   toast('Sessão excluída ✦');
   fecharModal();
   await loadAllData();
+  } catch(e) {
+    console.error('[excluirSessao]', e);
+    toast('❌ Erro inesperado. Tente novamente.');
+  }
 }
 
 // ===================== EDITAR/EXCLUIR EVENTO =====================
@@ -8658,6 +8743,7 @@ function abrirModalEditarEvento(id) {
 }
 
 async function salvarEdicaoEvento(id) {
+  try {
   const titulo = document.getElementById('ed-ev-titulo')?.value.trim();
   const data = document.getElementById('ed-ev-data')?.value;
   const hora = document.getElementById('ed-ev-hora')?.value;
@@ -8670,15 +8756,24 @@ async function salvarEdicaoEvento(id) {
   toast('Evento atualizado ✦');
   fecharModal();
   await loadAllData();
+  } catch(e) {
+    console.error('[salvarEdicaoEvento]', e);
+    toast('❌ Erro inesperado. Tente novamente.');
+  }
 }
 
 async function excluirEvento(id, titulo) {
+  try {
   if (!confirm(`Excluir o evento "${titulo}"?`)) return;
   const res = await sb.from('eventos').delete().eq('id', id);
   if (_sbErr('comissao', res.error)) return;
   toast('Evento excluído ✦');
   fecharModal();
   await loadAllData();
+  } catch(e) {
+    console.error('[excluirEvento]', e);
+    toast('❌ Erro inesperado. Tente novamente.');
+  }
 }
 
 // ===================== EVENTOS =====================
@@ -9200,6 +9295,7 @@ function removerArquivoAta() {
 }
 
 async function confirmarEditarAta(ataId, arquivoAtual) {
+  try {
   const sessao_id = document.getElementById('edit-ata-sessao')?.value || null;
   const titulo = document.getElementById('edit-ata-titulo')?.value.trim();
   const conteudo = document.getElementById('edit-ata-texto')?.value.trim();
@@ -9229,6 +9325,10 @@ async function confirmarEditarAta(ataId, arquivoAtual) {
   toast('Ata atualizada com sucesso ✦');
   fecharModal();
   await renderAtas();
+  } catch(e) {
+    console.error('[confirmarEditarAta]', e);
+    toast('❌ Erro inesperado. Tente novamente.');
+  }
 }
 
 function verAta(conteudo, data, titulo) {
@@ -9323,11 +9423,16 @@ async function renderAtas() {
 }
 
 async function excluirAta(id, titulo) {
+  try {
   if (!confirm(`Excluir a ata "${titulo}"?\nEsta ação não pode ser desfeita.`)) return;
   const res = await sb.from('atas').delete().eq('id', id);
   if (res.error) { toast('Erro: ' + res.error.message); return; }
   toast('Ata excluída ✦');
   await renderAtas();
+  } catch(e) {
+    console.error('[excluirAta]', e);
+    toast('❌ Erro inesperado. Tente novamente.');
+  }
 }
 
 // ===================== MINHA FREQUÊNCIA =====================
@@ -10043,6 +10148,7 @@ function calcularTroco() {
 }
 
 async function salvarPagamentoMembro(membroId, temDebitos) {
+  try {
   const valor = parseFloat(document.getElementById('pm-valor')?.value);
   const data = document.getElementById('pm-data')?.value;
   if (!valor || !data) { toast('Preencha valor e data'); return; }
@@ -10086,6 +10192,10 @@ async function salvarPagamentoMembro(membroId, temDebitos) {
 
   fecharModal();
   await loadAllData();
+  } catch(e) {
+    console.error('[salvarPagamentoMembro]', e);
+    toast('❌ Erro inesperado. Tente novamente.');
+  }
 }
 
 // ===================== RELATÓRIOS =====================
@@ -10872,6 +10982,7 @@ async function _uploadTrab(file) {
 }
 
 async function submeterTrabalho() {
+  try {
   const titulo = document.getElementById('trab-titulo')?.value.trim();
   const file   = document.getElementById('trab-file')?.files?.[0];
   if(!titulo) { toast('Informe o título'); return; }
@@ -10941,6 +11052,10 @@ async function submeterTrabalho() {
   await _recarregarTrabalhos();
   await renderTrabalhos(ROLES[currentRole].access['trabalhos']||'full');
   ativarAbaTrabalhos('meus');
+  } catch(e) {
+    console.error('[submeterTrabalho]', e);
+    toast('❌ Erro inesperado. Tente novamente.');
+  }
 }
 
 async function reenviarTrabalho(id) {
@@ -10962,6 +11077,7 @@ async function reenviarTrabalho(id) {
 }
 
 async function aprovarTrabalho(id, grauTrab) {
+  try {
   const ap  = _euPossoAprovar();
   const eu  = _eu();
 
@@ -10990,6 +11106,10 @@ async function aprovarTrabalho(id, grauTrab) {
   // Correção 4: permanecer na aba Gestão, não redirecionar para Biblioteca
   await renderTrabalhos(ROLES[currentRole].access['trabalhos']||'full');
   ativarAbaTrabalhos('gestao');
+  } catch(e) {
+    console.error('[aprovarTrabalho]', e);
+    toast('❌ Erro inesperado. Tente novamente.');
+  }
 }
 
 async function pedirRevisao(id, motivoExterno) {
@@ -11015,6 +11135,7 @@ async function pedirRevisao(id, motivoExterno) {
 }
 
 async function excluirTrabalho(id, titulo) {
+  try {
   if(!confirm(`Excluir "${titulo}"?`)) return;
   const doc = DATA.trabalhos.find(x=>x.id===id);
   if(doc?.url_arquivo) {
@@ -11026,6 +11147,10 @@ async function excluirTrabalho(id, titulo) {
   toast('🗑️ Trabalho excluído');
   await _recarregarTrabalhos();
   await renderTrabalhos(ROLES[currentRole].access['trabalhos']||'full');
+  } catch(e) {
+    console.error('[excluirTrabalho]', e);
+    toast('❌ Erro inesperado. Tente novamente.');
+  }
 }
 
 // ─── LEGISLAÇÃO & DECRETOS ───────────────────────────────────
@@ -13641,6 +13766,7 @@ function abrirModalLancamentoTronco() {
 }
 
 async function salvarLancamentoTronco() {
+  try {
   const tipo = document.getElementById('tronco-tipo')?.value;
   const descricao = document.getElementById('tronco-desc')?.value.trim();
   const valor = parseFloat(document.getElementById('tronco-valor')?.value);
@@ -13652,6 +13778,10 @@ async function salvarLancamentoTronco() {
   fecharModal();
   await loadAllData();
   mostrarRelTronco();
+  } catch(e) {
+    console.error('[salvarLancamentoTronco]', e);
+    toast('❌ Erro inesperado. Tente novamente.');
+  }
 }
 
 function imprimirRelTronco() {
