@@ -1052,6 +1052,16 @@ tr:hover td { background:rgba(184,134,11,0.03); }
   animation:fadeInUp 0.3s ease;
 }
 
+.offline-banner {
+  position:fixed; top:0; left:0; right:0;
+  background:#7A1F1F; color:#FFFFFF;
+  font-family:'Cinzel', serif; font-size:10px; font-weight:700;
+  letter-spacing:0.15em; text-transform:uppercase;
+  padding:10px 20px; text-align:center;
+  z-index:9999; display:none;
+  animation:fadeInUp 0.3s ease;
+}
+
 /* ── RELATÓRIOS ── */
 .rel-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; margin-bottom:24px; }
 .rel-card {
@@ -1637,6 +1647,9 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
 <!-- TOAST -->
 <div class="toast" id="toast">✦ Alterações salvas com sucesso</div>
 
+<!-- OFFLINE BANNER -->
+<div class="offline-banner" id="offline-banner">⚠ Sem conexão com a internet — as alterações não serão salvas</div>
+
 <script>
 // ===================== SUPABASE =====================
 const SUPABASE_URL = 'https://trwhvecssvbxklqsbzsc.supabase.co';
@@ -1934,6 +1947,15 @@ function _esc(str) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#x27;');
 }
+
+function _debounce(fn, ms) {
+  let t;
+  return function(...args) { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+}
+const _dRenderMembros       = _debounce((acc) => renderMembros(acc), 300);
+const _dFiltrarLegislacao   = _debounce(filtrarLegislacao, 300);
+const _dFiltrarMembrosCom   = _debounce(filtrarMembrosCom, 300);
+const _dFiltrarRelComissoes = _debounce(filtrarRelComissoes, 300);
 
 
 function reRenderActive() {
@@ -4705,7 +4727,7 @@ function renderMembros(access) {
       <div class="card-header">
         <div class="card-title">Quadro de Irmãos</div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <input id="filtro-membros-nome" type="text" placeholder="🔍 Nome..." oninput="renderMembros('${access}')"
+          <input id="filtro-membros-nome" type="text" placeholder="🔍 Nome..." oninput="_dRenderMembros('${access}')"
             style="border:1px solid var(--border-mid);border-radius:3px;padding:5px 10px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--cream);color:var(--text);width:130px">
           <select id="filtro-membros-status" onchange="renderMembros('${access}')"
             style="border:1px solid var(--border-mid);border-radius:3px;padding:5px 10px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--cream);color:var(--text)">
@@ -4716,7 +4738,7 @@ function renderMembros(access) {
             <option value="adormecido">Adormecido</option>
             <option value="profano">Em Iniciação</option>
           </select>
-          <input id="filtro-membros-loja" type="text" placeholder="Loja..." oninput="renderMembros('${access}')"
+          <input id="filtro-membros-loja" type="text" placeholder="Loja..." oninput="_dRenderMembros('${access}')"
             style="border:1px solid var(--border-mid);border-radius:3px;padding:5px 10px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--cream);color:var(--text);width:110px">
           ${canEdit?`<button class="btn btn-solid" onclick="abrirModalMembro()">+ Novo</button>
           <button class="btn" onclick="enviarConvitesTodos()" style="border-color:var(--green);color:var(--green)" title="Enviar convite para todos sem login">📧 Convidar Todos</button>
@@ -11027,7 +11049,7 @@ function renderLegislacao(access) {
           <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
         </svg>
         <input id="leg-busca" type="text" placeholder="Pesquisar documento..."
-          oninput="filtrarLegislacao()"
+          oninput="_dFiltrarLegislacao()"
           style="width:100%;padding:9px 12px 9px 36px;border:1px solid var(--border-mid);border-radius:4px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--white);color:var(--text)">
       </div>
       ${canEdit ? `<button class="btn btn-solid" onclick="abrirModalLegislacao(null)" style="white-space:nowrap;padding:9px 18px">+ Novo Documento</button>` : ''}
@@ -11578,7 +11600,7 @@ function abrirModalComissao(tipoInicial='permanente', comissaoExistente=null) {
               ${lb('Membros da Comissão', 'cargo específico por membro')}
               <!-- Barra de busca + filtros de tipo -->
               <div style="display:flex;gap:6px;margin-bottom:0;align-items:center">
-                <input type="text" id="busca-membros-com" placeholder="🔍 Buscar..." oninput="filtrarMembrosCom()"
+                <input type="text" id="busca-membros-com" placeholder="🔍 Buscar..." oninput="_dFiltrarMembrosCom()"
                   style="flex:1;border:1px solid var(--border-mid);border-radius:3px 3px 0 0;padding:7px 12px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--cream);color:var(--text);border-bottom:none;min-width:0">
                 <div style="display:flex;gap:4px;padding-bottom:0">
                   ${[
@@ -13508,7 +13530,7 @@ function mostrarRelComissoes() {
             <option value="inativa">❌ Inativas</option>
             <option value="encerrada">⏰ Encerradas</option>
           </select>
-          <input id="rf-com-nome" type="text" placeholder="🔍 Buscar..." oninput="filtrarRelComissoes()"
+          <input id="rf-com-nome" type="text" placeholder="🔍 Buscar..." oninput="_dFiltrarRelComissoes()"
             style="border:1px solid var(--border-mid);border-radius:3px;padding:5px 10px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--cream);color:var(--text);width:150px">
           <button class="btn" onclick="exportarComissoesExcel()">📊 Excel</button>
           <button class="btn" onclick="imprimirRelComissoes()">🖨️ Imprimir</button>
@@ -13679,6 +13701,18 @@ const months = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','A
 const daysW = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
 const now = new Date();
 document.getElementById('topbarDate').textContent = `${daysW[now.getDay()]}, ${now.getDate()} de ${months[now.getMonth()]} de ${now.getFullYear()}`;
+
+// ===================== OFFLINE DETECTION =====================
+function _setupOfflineDetection() {
+  const banner = document.getElementById('offline-banner');
+  window.addEventListener('offline', () => { banner.style.display = 'block'; });
+  window.addEventListener('online',  () => {
+    banner.style.display = 'none';
+    toast('Conexão restaurada ✦');
+  });
+  if (!navigator.onLine) banner.style.display = 'block';
+}
+_setupOfflineDetection();
 </script>
 </body>
 </html>
