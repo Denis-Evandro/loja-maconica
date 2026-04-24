@@ -2144,8 +2144,9 @@ async function doCadastro() {
 
   try {
     // 1. Buscar membro correspondente ANTES de criar auth
-    const { data: membros } = await sb.from('membros')
+    const { data: membros, error: errMembros } = await sb.from('membros')
       .select('id,nome_maconico,email,telefone,auth_user_id,cargo,grau');
+    if (errMembros) { console.error(errMembros); toast('❌ Erro ao buscar membros: ' + errMembros.message); if (btn) { btn.textContent = 'Entrar na Loja ✦'; btn.disabled = false; } return; }
 
     const nomeLower = nome.toLowerCase().replace(/^ir\.\s*/i,'').trim();
     let membroEncontrado = null;
@@ -2275,7 +2276,8 @@ async function doLogin() {
       if (btn) { btn.textContent = 'Entrar na Loja ✦'; btn.disabled = false; }
       return;
     }
-    const { data: membros } = await sb.from('membros').select('email,telefone,auth_user_id');
+    const { data: membros, error: errMembrosTel } = await sb.from('membros').select('email,telefone,auth_user_id');
+    if (errMembrosTel) { console.error(errMembrosTel); toast('❌ Erro ao buscar membros: ' + errMembrosTel.message); if (btn) { btn.textContent = 'Entrar na Loja ✦'; btn.disabled = false; } return; }
     const membroTel = membros?.find(m => {
       const tel = (m.telefone||'').replace(/[^0-9]/g,'');
       // Match exato ou parcial (últimos 8-11 dígitos)
@@ -2317,9 +2319,10 @@ async function doLogin() {
   let adminEmails = []; try { adminEmails = JSON.parse(localStorage.getItem('admin_emails') || '[]'); } catch(e) { adminEmails = []; }
   const userId = authData.user.id;
   // Verificar pela tabela usuarios — por auth_user_id ou email
-  const { data: usuarioAdmin } = await sb.from('usuarios')
+  const { data: usuarioAdmin, error: errUsuarioAdmin } = await sb.from('usuarios')
     .select('role,email').or(`auth_user_id.eq.${userId},email.eq.${email}`)
     .eq('role','admin').maybeSingle();
+  if (errUsuarioAdmin) { console.error(errUsuarioAdmin); toast('❌ Erro ao verificar permissões: ' + errUsuarioAdmin.message); if (btn) { btn.textContent = 'Entrar na Loja ✦'; btn.disabled = false; } return; }
 
   if (usuarioAdmin || adminEmails.includes(email.toLowerCase())) {
     _modoDemo = false;
@@ -2337,7 +2340,8 @@ async function doLogin() {
 
   // 3. Buscar membro pelo email ou auth_user_id
   let membro = null;
-  const { data: m1 } = await sb.from('membros').select('*').eq('email', email).maybeSingle();
+  const { data: m1, error: errM1 } = await sb.from('membros').select('*').eq('email', email).maybeSingle();
+  if (errM1) { console.error(errM1); toast('❌ Erro ao buscar cadastro: ' + errM1.message); if (btn) { btn.textContent = 'Entrar na Loja ✦'; btn.disabled = false; } return; }
   if (m1) {
     membro = m1;
     // Atualizar auth_user_id se ainda não estiver vinculado
@@ -2346,7 +2350,8 @@ async function doLogin() {
     }
   } else {
     // Tentar por auth_user_id
-    const { data: m2 } = await sb.from('membros').select('*').eq('auth_user_id', userId).maybeSingle();
+    const { data: m2, error: errM2 } = await sb.from('membros').select('*').eq('auth_user_id', userId).maybeSingle();
+    if (errM2) { console.error(errM2); toast('❌ Erro ao buscar cadastro: ' + errM2.message); if (btn) { btn.textContent = 'Entrar na Loja ✦'; btn.disabled = false; } return; }
     membro = m2;
   }
 
@@ -2620,7 +2625,8 @@ async function verificarSessaoAtiva() {
     const { data: { session } } = await sb.auth.getSession();
     if (!session?.user) return;
     const email = session.user.email;
-    const { data: membro } = await sb.from('membros').select('*').eq('email', email).maybeSingle();
+    const { data: membro, error: errMembro } = await sb.from('membros').select('*').eq('email', email).maybeSingle();
+    if (errMembro) { console.error(errMembro); return; }
     if (!membro) return;
     _modoDemo = false;
     _aplicarPorMembro(membro);
@@ -4588,11 +4594,12 @@ async function confirmarSalvarMembro(id) {
 
   // Gerar número sequencial automático — busca MAX do banco para garantir unicidade
   if (!membroId) {
-    const { data: maxData } = await sb.from('membros')
+    const { data: maxData, error: errMaxData } = await sb.from('membros')
       .select('numero_sequencial')
       .order('numero_sequencial', { ascending: false })
       .limit(1)
       .maybeSingle();
+    if (errMaxData) { console.error(errMaxData); toast('❌ Erro ao gerar numeração: ' + errMaxData.message); return; }
     const maxNum = maxData?.numero_sequencial || 0;
     dados.numero_sequencial = maxNum + 1;
   }
@@ -4612,10 +4619,11 @@ async function renumerarMembros() {
   if (!confirm('Renumerar todos os membros em sequência por data de ingresso?\n\nIsso corrigirá números duplicados ou zerados.')) return;
 
   // Buscar membros ordenados por data de ingresso e criação
-  const { data: membros } = await sb.from('membros')
+  const { data: membros, error: errMembrosRen } = await sb.from('membros')
     .select('id, nome_maconico, data_ingresso, criado_em')
     .order('data_ingresso', { ascending: true, nullsFirst: false })
     .order('criado_em', { ascending: true });
+  if (errMembrosRen) { console.error(errMembrosRen); toast('❌ Erro ao buscar membros: ' + errMembrosRen.message); return; }
 
   if (!membros?.length) { toast('Nenhum membro encontrado'); return; }
 
@@ -5892,10 +5900,11 @@ async function _recalcularAgapeSessao(sessaoId, membroIdsPresentes) {
     const dataSessao = sessao.data;
 
     // Recarregar finanças frescas do banco
-    const { data: financasFrescas } = await sb.from('financas')
+    const { data: financasFrescas, error: errFinancas } = await sb.from('financas')
       .select('*')
       .eq('data', dataSessao)
       .eq('categoria', 'agape');
+    if (errFinancas) { console.error(errFinancas); return; }
 
     if (!financasFrescas?.length) return;
 
@@ -6090,7 +6099,8 @@ async function salvarVinculacaoLogin(membroId) {
   if (!email) { toast('Preencha o e-mail'); return; }
 
   // Verificar se já existe usuário Auth com esse email
-  const { data: usuariosAuth } = await sb.from('membros').select('id,auth_user_id').eq('email', email);
+  const { data: usuariosAuth, error: errUsuariosAuth } = await sb.from('membros').select('id,auth_user_id').eq('email', email);
+  if (errUsuariosAuth) { console.error(errUsuariosAuth); toast('❌ Erro ao verificar e-mail: ' + errUsuariosAuth.message); return; }
 
   // Atualizar o membro com o email e status
   const { error } = await sb.from('membros').update({
@@ -6114,9 +6124,10 @@ async function abrirModalEdicaoPropriaConta() {
   if (!membro) { toast('Cadastro não encontrado.'); return; }
 
   // Verificar se já há edição pendente
-  const { data: pendentes } = await sb.from('solicitacoes_edicao')
+  const { data: pendentes, error: errPendentes } = await sb.from('solicitacoes_edicao')
     .select('id,status,criado_em').eq('membro_id', membro.id).eq('status','pendente');
-  
+  if (errPendentes) { console.error(errPendentes); toast('❌ Erro ao verificar solicitações: ' + errPendentes.message); return; }
+
   if (pendentes?.length > 0) {
     toast('⏳ Você já tem uma solicitação de edição pendente de aprovação.');
     return;
@@ -6219,8 +6230,9 @@ async function renderSolicitacoesEdicao(el) {
   const canApprove = ROLES[currentRole]?.access['membros'] === 'full';
   if (!canApprove) { el.innerHTML = ''; return; }
 
-  const { data: sols } = await sb.from('solicitacoes_edicao')
+  const { data: sols, error: errSols } = await sb.from('solicitacoes_edicao')
     .select('*,membros(nome_maconico)').eq('status','pendente').order('criado_em',{ascending:false});
+  if (errSols) { console.error(errSols); toast('❌ Erro ao carregar solicitações: ' + errSols.message); return; }
 
   if (!sols?.length) { el.innerHTML = ''; return; }
 
@@ -6255,7 +6267,8 @@ async function renderSolicitacoesEdicao(el) {
 }
 
 async function aprovarEdicao(solId) {
-  const { data: sol } = await sb.from('solicitacoes_edicao').select('*').eq('id', solId).single();
+  const { data: sol, error: errSol } = await sb.from('solicitacoes_edicao').select('*').eq('id', solId).single();
+  if (errSol) { console.error(errSol); toast('❌ Erro ao buscar solicitação: ' + errSol.message); return; }
   if (!sol) return;
 
   const eu = _eu();
@@ -6300,7 +6313,8 @@ async function rejeitarEdicao(solId) {
 
 
 async function abrirModalVisitante(sessaoId) {
-  const { data: lojasSalvas } = await sb.from('lojas_visitantes').select('nome').order('nome');
+  const { data: lojasSalvas, error: errLojas } = await sb.from('lojas_visitantes').select('nome').order('nome');
+  if (errLojas) { console.error(errLojas); toast('❌ Erro ao carregar lojas: ' + errLojas.message); return; }
   const datalistOps = (lojasSalvas||[]).map(l => `<option value="${l.nome}">`).join('');
 
   // Membros visitantes cadastrados (tipo_membro = visitante)
@@ -11007,7 +11021,8 @@ async function submeterTrabalho() {
   // Resolver autor_id pelo nome no banco
   let autorId = _membroLogado?.id || null;
   if(!autorId) {
-    const {data:m} = await sb.from('membros').select('id').eq('nome_maconico', eu.nome).maybeSingle();
+    const {data:m, error:errM} = await sb.from('membros').select('id').eq('nome_maconico', eu.nome).maybeSingle();
+    if (errM) { console.error(errM); }
     autorId = m?.id || null;
   }
 
@@ -11463,7 +11478,8 @@ async function salvarLegislacao(id) {
 
   toast('✅ Documento salvo com sucesso!');
   fecharModal();
-  const { data } = await sb.from('legislacao').select('*').order('ano', { ascending: false });
+  const { data, error: errLeg } = await sb.from('legislacao').select('*').order('ano', { ascending: false });
+  if (errLeg) { console.error(errLeg); toast('❌ Erro ao recarregar legislação: ' + errLeg.message); return; }
   DATA.legislacao = data || [];
   renderLegislacao(ROLES[currentRole].access['legislacao'] || 'read');
   } catch(e) {
@@ -11519,7 +11535,8 @@ async function loadComissoes() {
           ativa: c.ativa !== false,
           data_criacao: c.data_criacao || new Date().toISOString().split('T')[0]
         }));
-        const { data: migradas } = await sb.from('comissoes').insert(rows).select();
+        const { data: migradas, error: errMigradas } = await sb.from('comissoes').insert(rows).select();
+        if (errMigradas) { console.error(errMigradas); toast('❌ Erro ao migrar comissões: ' + errMigradas.message); return; }
         localStorage.removeItem('comissoes_loja');
         toast(`✅ ${rows.length} comissão(ões) migradas para o banco!`);
         DATA.comissoes = _parseComissoes(migradas || []);
