@@ -649,6 +649,10 @@ body {
   color: var(--gold-dark);
   text-transform:uppercase;
 }
+/* FORM LABELS */
+.lbl, .lbl-fin { font-family:'Cinzel',serif; font-size:9px; font-weight:700; letter-spacing:0.15em; text-transform:uppercase; display:block; margin-bottom:5px; }
+.lbl { color:var(--text-muted); }
+.lbl-fin { color:#7A4A00; }
 
 /* BUTTONS */
 .btn {
@@ -1919,7 +1923,7 @@ function _esc(str) {
     .replace(/'/g, '&#x27;');
 }
 function lb(t, op='') {
-  return `<label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">${t}${op?` <span style="font-weight:400;text-transform:none">(${op})</span>`:''}</label>`;
+  return `<label class="lbl">${t}${op?` <span style="font-weight:400;text-transform:none">(${op})</span>`:''}</label>`;
 }
 
 function _debounce(fn, ms) {
@@ -3034,7 +3038,7 @@ function definirSenhaTemp(membroId, email, nome) {
           <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;color:var(--navy);margin-bottom:4px">🔧 Definir Senha Temporária</div>
           <div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-bottom:16px">${safeNome} — ${safeEmail}</div>
 
-          <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">Nova Senha Temporária</label>
+          <label class="lbl">Nova Senha Temporária</label>
           <div style="display:flex;gap:8px;margin-bottom:8px">
             <input id="tmp-senha-input" type="password" placeholder="Mínimo 6 caracteres"
               style="flex:1;border:1px solid var(--border-mid);border-radius:3px;padding:9px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"
@@ -3188,7 +3192,6 @@ function renderConfigLoja() {
   const d = _getDadosLoja();
   const logo = d.logo_url || '';
   const inp = `style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:9px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"`;
-  const lb  = (t) => `<label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">${t}</label>`;
 
   el.innerHTML = `
     <div class="card" style="margin-bottom:16px">
@@ -4975,17 +4978,17 @@ function abrirModalSessao() {
         <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gold-dark),var(--gold-rich),var(--gold-light),var(--gold-dark));border-radius:6px 6px 0 0"></div>
         <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);margin-bottom:24px">+ Nova Sessão</div>
         <div style="display:grid;gap:14px">
-          <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Data</label>
+          <div><label class="lbl">Data</label>
             <input id="nova-sessao-data" type="date" value="${hoje}" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"></div>
-          <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Tipo</label>
+          <div><label class="lbl">Tipo</label>
             <select id="nova-sessao-tipo" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)">
               <option>Sessão Ordinária</option><option>Sessão de Instrução</option><option>Sessão de Instalação</option>
               <option>Cerimônia de Iniciação</option><option>Cerimônia de Elevação</option><option>Conferência Filosófica</option></select></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Grau</label>
+            <div><label class="lbl">Grau</label>
               <select id="nova-sessao-grau" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)">
                 <option value="1">1º Grau</option><option value="2">2º Grau</option><option value="3" selected>3º Grau</option></select></div>
-            <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Local</label>
+            <div><label class="lbl">Local</label>
               <input id="nova-sessao-local" value="Templo" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"></div>
           </div>
         </div>
@@ -6617,7 +6620,7 @@ async function confirmarPagamentoAgendado(lancId) {
           <div style="font-size:12px;color:var(--text-muted);margin-top:4px">${membro?_esc(membro.nome_maconico):'(Loja)'} · Venc: ${fmtData(lanc.data)} · ${fmtVal(lanc.valor)}</div>
         </div>
         <div style="margin-bottom:16px">
-          <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Data do Pagamento</label>
+          <label class="lbl">Data do Pagamento</label>
           <input id="pag-data-confirm" type="date" value="${hoje}" ${inp}>
         </div>
         <div style="display:flex;gap:10px;justify-content:flex-end">
@@ -6656,7 +6659,7 @@ function adiarAgendado(lancId) {
         <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gold-dark),var(--gold-rich),var(--gold-light),var(--gold-dark));border-radius:6px 6px 0 0"></div>
         <div style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);margin-bottom:6px">📅 Adiar Agendamento</div>
         <div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-bottom:20px">${lanc.descricao||'Lançamento'} — ${fmtVal(lanc.valor)}</div>
-        <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:8px">Nova Data de Vencimento</label>
+        <label class="lbl" style="margin-bottom:8px">Nova Data de Vencimento</label>
         <input id="adiar-data" type="date" value="${lanc.data||''}"
           style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:9px 12px;font-family:'Cormorant Garamond',serif;font-size:15px;background:var(--cream);color:var(--text)">
         <div style="font-size:11px;color:var(--text-muted);margin-top:6px;font-style:italic">
@@ -6698,29 +6701,29 @@ function abrirModalEditarLancamento(lancId) {
         <div style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);margin-bottom:22px">✏️ Editar Lançamento</div>
         <div style="display:grid;gap:13px">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div><label style="${lbl()}">Tipo</label>
+            <div><label class="lbl">Tipo</label>
               <select id="ed-tipo" style="${inp()}">
                 <option value="receita" ${l.tipo==='receita'?'selected':''}>Receita ↑</option>
                 <option value="despesa" ${l.tipo==='despesa'?'selected':''}>Despesa ↓</option>
               </select></div>
-            <div><label style="${lbl()}">Status</label>
+            <div><label class="lbl">Status</label>
               <select id="ed-status" style="${inp()}">
                 <option value="pago" ${(l.status||'pago')==='pago'?'selected':''}>✅ Pago</option>
                 <option value="agendado" ${l.status==='agendado'?'selected':''}>📅 Agendado</option>
                 <option value="aberto" ${l.status==='aberto'?'selected':''}>⚠️ Em Aberto</option>
               </select></div>
           </div>
-          <div><label style="${lbl()}">Descrição *</label>
+          <div><label class="lbl">Descrição *</label>
             <input id="ed-desc" value="${(l.descricao||'').replace(/"/g,'&quot;')}" style="${inp()}"></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div><label style="${lbl()}">Valor (R$) *</label>
+            <div><label class="lbl">Valor (R$) *</label>
               <input id="ed-valor" type="number" step="0.01" value="${l.valor||''}" style="${inp()}"></div>
-            <div><label style="${lbl()}">Data *</label>
+            <div><label class="lbl">Data *</label>
               <input id="ed-data" type="date" value="${l.data||''}" style="${inp()}"></div>
           </div>
-          <div><label style="${lbl()}">Categoria</label>
+          <div><label class="lbl">Categoria</label>
             <select id="ed-cat" style="${inp()}">${buildCatOptions(l.categoria)}</select></div>
-          <div><label style="${lbl()}">Irmão (opcional)</label>
+          <div><label class="lbl">Irmão (opcional)</label>
             <select id="ed-membro" style="${inp()}">
               <option value="">— Sem vínculo —</option>${opsMembros}</select></div>
         </div>
@@ -6736,7 +6739,6 @@ function abrirModalEditarLancamento(lancId) {
     </div>`);
 }
 
-function lbl() { return "font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px"; }
 function inp() { return "width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"; }
 
 async function salvarEdicaoLancamento(lancId) {
@@ -6813,19 +6815,19 @@ function abrirModalLancamento(prefCat='') {
         <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gold-dark),var(--gold-rich),var(--gold-light),var(--gold-dark));border-radius:6px 6px 0 0"></div>
         <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);margin-bottom:24px">+ Novo Lançamento</div>
         <div style="display:grid;gap:14px">
-          <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Tipo</label>
+          <div><label class="lbl">Tipo</label>
             <select id="f-tipo" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)">
               <option value="receita">Receita ↑</option><option value="despesa">Despesa ↓</option></select></div>
-          <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Descrição *</label>
+          <div><label class="lbl">Descrição *</label>
             <input id="f-desc" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)" placeholder="Ex: Mensalidade de março"></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Valor (R$) *</label>
+            <div><label class="lbl">Valor (R$) *</label>
               <input id="f-valor" type="number" step="0.01" min="0" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"></div>
-            <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Data *</label>
+            <div><label class="lbl">Data *</label>
               <input id="f-data-fin" type="date" value="${hoje}" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"></div>
           </div>
           <div>
-            <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Categoria</label>
+            <label class="lbl">Categoria</label>
             <div style="display:flex;gap:6px">
               <select id="f-cat" onchange="toggleCampoSessaoTronco()" style="flex:1;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)">
                 ${buildCatOptions(prefCat)}
@@ -6856,7 +6858,7 @@ function abrirModalLancamento(prefCat='') {
             </div>
           </div>
 
-          <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Status</label>
+          <div><label class="lbl">Status</label>
             <select id="f-status-fin" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)">
               <option value="pago">✅ Pago</option>
               <option value="agendado">📅 Agendado</option>
@@ -6870,7 +6872,7 @@ function abrirModalLancamento(prefCat='') {
               <label for="f-parcelado" style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--navy);text-transform:uppercase;cursor:pointer">💳 Parcelamento</label>
             </div>
             <div id="campos-parcelamento" style="display:none;display:grid;grid-template-columns:1fr 1fr;gap:12px">
-              <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">Nº de Parcelas</label>
+              <div><label class="lbl">Nº de Parcelas</label>
                 <div style="display:flex;align-items:center;gap:4px">
                   <button type="button" onclick="ajustarParcelas(-1)" style="width:32px;height:36px;border:1px solid var(--border-mid);border-radius:3px 0 0 3px;background:var(--cream);cursor:pointer;font-size:16px;font-weight:700;color:var(--navy)">−</button>
                   <input id="f-parcelas" type="number" min="2" max="48" value="2" onchange="calcularParcelas()" oninput="calcularParcelas()"
@@ -6878,13 +6880,13 @@ function abrirModalLancamento(prefCat='') {
                   <button type="button" onclick="ajustarParcelas(1)" style="width:32px;height:36px;border:1px solid var(--border-mid);border-radius:0 3px 3px 0;background:var(--cream);cursor:pointer;font-size:16px;font-weight:700;color:var(--navy)">+</button>
                   <span style="font-size:13px;color:var(--text-muted);margin-left:4px">parcelas</span>
                 </div></div>
-              <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">Valor por Parcela</label>
+              <div><label class="lbl">Valor por Parcela</label>
                 <div id="label-parcela" style="border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:#f5f5f5;color:var(--text-muted)">—</div></div>
             </div>
             <div id="hint-parcelas" style="display:none;font-size:10px;color:var(--text-muted);font-style:italic;margin-top:8px">Serão criadas parcelas mensais a partir da data selecionada.</div>
           </div>
 
-          <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Irmão (opcional)</label>
+          <div><label class="lbl">Irmão (opcional)</label>
             <select id="f-membro" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)">
               <option value="">— Sem vínculo específico —</option>${opsMembros}</select></div>
         </div>
@@ -7483,7 +7485,7 @@ Tesouraria – ${nomeLoja}.`;
         <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;letter-spacing:0.1em;color:#128C7E;margin-bottom:4px">📱 Mensagem de Cobrança</div>
         <div style="font-family:'Cormorant Garamond',serif;font-size:13px;color:var(--text-muted);font-style:italic;margin-bottom:14px">${nome} — ${valorFmt}</div>
         <div style="margin-bottom:8px">
-          <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">Chave PIX da Loja</label>
+          <label class="lbl">Chave PIX da Loja</label>
           <input id="pix-loja-input" value="${pixLoja}" oninput="localStorage.setItem('pix_loja',this.value);atualizarMsgCobranca(this.value,'${nome}',${valor})"
             style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:6px 10px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--cream);color:var(--text)">
         </div>
@@ -7707,7 +7709,7 @@ function imprimirRelInadimplencia() {
 function abrirModalTronco() {
   const hoje = new Date().toISOString().split('T')[0];
   const inp = `style="width:100%;border:1px solid rgba(160,117,42,0.4);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:#FFFDF5;color:var(--text)"`;
-  const lb = (t,op='') => `<label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:#7A4A00;text-transform:uppercase;display:block;margin-bottom:5px">${t}${op?` <span style="font-weight:400;text-transform:none;color:var(--text-muted)">(${op})</span>`:''}</label>`;
+  const lb = (t,op='') => `<label class="lbl-fin">${t}${op?` <span style="font-weight:400;text-transform:none;color:var(--text-muted)">(${op})</span>`:''}</label>`;
 
   // Buscar sessões ordenadas — mais recente primeiro
   const sessoes = [...DATA.sessoes].sort((a,b)=>b.data.localeCompare(a.data));
@@ -7917,7 +7919,7 @@ function abrirModalFecharMes() {
         <div style="height:3px;background:linear-gradient(90deg,#3A006B,#6A2AAC);border-radius:6px 6px 0 0;position:absolute;top:0;left:0;right:0"></div>
         <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;letter-spacing:0.1em;color:#3A006B;margin-bottom:20px">📦 Fechar Mês</div>
         <div style="margin-bottom:16px">
-          <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Selecionar Mês</label>
+          <label class="lbl">Selecionar Mês</label>
           <select id="fechar-mes-sel" onchange="atualizarResumoFechamento(this.value)"
             style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:9px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)">
             ${optsHtml}
@@ -8021,11 +8023,11 @@ function abrirModalOrcamento() {
         <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;letter-spacing:0.1em;color:#006B3A;margin-bottom:20px">🎯 Orçamento Anual — ${new Date().getFullYear()}</div>
         <div style="display:grid;gap:14px">
           <div>
-            <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">Meta de Receitas (R$)</label>
+            <label class="lbl">Meta de Receitas (R$)</label>
             <input id="orc-rec" type="number" min="0" step="100" value="${orcamento.metaRec||0}" ${inp} placeholder="Ex: 12000">
           </div>
           <div>
-            <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">Limite de Despesas (R$)</label>
+            <label class="lbl">Limite de Despesas (R$)</label>
             <input id="orc-desp" type="number" min="0" step="100" value="${orcamento.metaDesp||0}" ${inp} placeholder="Ex: 8000">
           </div>
         </div>
@@ -8186,7 +8188,7 @@ function abrirModalAgape() {
           <div style="display:grid;gap:14px">
             <!-- Tipo de rateio -->
             <div>
-              <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Tipo de Rateio</label>
+              <label class="lbl">Tipo de Rateio</label>
               <div style="display:flex;gap:8px">
                 <button type="button" id="btn-agape-sessao" onclick="setTipoAgape('sessao')"
                   style="flex:1;padding:10px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.08em;cursor:pointer;border-radius:3px;border:2px solid var(--navy);background:rgba(27,58,107,0.12);color:var(--navy)">
@@ -8200,23 +8202,23 @@ function abrirModalAgape() {
 
             <!-- Sessão (visível no modo ágape) -->
             <div id="campo-agape-sessao">
-              <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Sessão de Referência</label>
+              <label class="lbl">Sessão de Referência</label>
               <select id="agape-sessao-id" onchange="calcularRateio()" ${inp}>${opsSessoes}</select>
             </div>
 
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
               <div>
-                <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Descrição *</label>
+                <label class="lbl">Descrição *</label>
                 <input id="agape-desc" value="Ágape" ${inp}>
               </div>
               <div>
-                <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Valor Total (R$) *</label>
+                <label class="lbl">Valor Total (R$) *</label>
                 <input id="agape-valor" type="number" step="0.01" min="0" oninput="calcularRateio()" ${inp} placeholder="Ex: 450.00">
               </div>
             </div>
 
             <div>
-              <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Data</label>
+              <label class="lbl">Data</label>
               <input id="agape-data" type="date" value="${hoje}" ${inp}>
             </div>
 
@@ -8418,16 +8420,16 @@ function abrirModalEditarAgape() {
         <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#6B3A00,#A05A00);border-radius:6px 6px 0 0"></div>
         <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;letter-spacing:0.1em;color:#6B3A00;margin-bottom:20px">Editar Agape</div>
         <div style="margin-bottom:14px">
-          <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Selecione o Agape</label>
+          <label class="lbl">Selecione o Agape</label>
           <select id="edit-agape-sel" onchange="previewEditAgape()" ${inp}>${opsAgape}</select>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
           <div>
-            <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Novo Valor Total (R$)</label>
+            <label class="lbl">Novo Valor Total (R$)</label>
             <input id="edit-agape-valor" type="number" step="0.01" ${inp}>
           </div>
           <div>
-            <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Participantes</label>
+            <label class="lbl">Participantes</label>
             <div id="edit-agape-qtd" style="padding:8px 12px;font-size:14px;color:var(--text-muted)">--</div>
           </div>
         </div>
@@ -8624,9 +8626,9 @@ function abrirModalEditarSessao(id) {
         <div style="height:3px;background:linear-gradient(90deg,var(--gold-dark),var(--gold-rich),var(--gold-light),var(--gold-dark));border-radius:6px 6px 0 0;position:absolute;top:0;left:0;right:0"></div>
         <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);margin-bottom:20px">✎ Editar Sessão</div>
         <div style="display:grid;gap:14px">
-          <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">Data</label>
+          <div><label class="lbl">Data</label>
             <input id="ed-sess-data" type="date" value="${s.data||''}" ${inp}></div>
-          <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">Tipo</label>
+          <div><label class="lbl">Tipo</label>
             <select id="ed-sess-tipo" ${inp}>
               <option ${s.tipo==='Sessão Ordinária'?'selected':''}>Sessão Ordinária</option>
               <option ${s.tipo==='Sessão de Instrução'?'selected':''}>Sessão de Instrução</option>
@@ -8636,13 +8638,13 @@ function abrirModalEditarSessao(id) {
               <option ${s.tipo==='Conferência Filosófica'?'selected':''}>Conferência Filosófica</option>
             </select></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">Grau</label>
+            <div><label class="lbl">Grau</label>
               <select id="ed-sess-grau" ${inp}>
                 <option value="1" ${s.grau==1?'selected':''}>1º Grau</option>
                 <option value="2" ${s.grau==2?'selected':''}>2º Grau</option>
                 <option value="3" ${s.grau==3?'selected':''}>3º Grau</option>
               </select></div>
-            <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">Local</label>
+            <div><label class="lbl">Local</label>
               <input id="ed-sess-local" value="${s.descricao_local||s.local||'Templo'}" ${inp}></div>
           </div>
         </div>
@@ -8702,16 +8704,16 @@ function abrirModalEditarEvento(id) {
         <div style="height:3px;background:linear-gradient(90deg,var(--gold-dark),var(--gold-rich),var(--gold-light),var(--gold-dark));border-radius:6px 6px 0 0;position:absolute;top:0;left:0;right:0"></div>
         <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);margin-bottom:20px">✎ Editar Evento</div>
         <div style="display:grid;gap:14px">
-          <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">Título *</label>
+          <div><label class="lbl">Título *</label>
             <input id="ed-ev-titulo" value="${(e.titulo||e.descricao||'').replace(/"/g,'&quot;')}" ${inp}></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">Data *</label>
+            <div><label class="lbl">Data *</label>
               <input id="ed-ev-data" type="date" value="${e.data||''}" ${inp}></div>
-            <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">Horário</label>
+            <div><label class="lbl">Horário</label>
               <input id="ed-ev-hora" type="time" value="${e.hora||'19:30'}" ${inp}></div>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">Tipo</label>
+            <div><label class="lbl">Tipo</label>
               <select id="ed-ev-tipo" ${inp}>
                 <option value="ordinaria" ${e.tipo==='ordinaria'?'selected':''}>Sessão Ordinária</option>
                 <option value="instrucao" ${e.tipo==='instrucao'?'selected':''}>Sessão de Instrução</option>
@@ -8720,14 +8722,14 @@ function abrirModalEditarEvento(id) {
                 <option value="exaltacao" ${e.tipo==='exaltacao'?'selected':''}>Cerimônia de Exaltação</option>
                 <option value="social" ${e.tipo==='social'?'selected':''}>Evento Social</option>
               </select></div>
-            <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">Grau</label>
+            <div><label class="lbl">Grau</label>
               <select id="ed-ev-grau" ${inp}>
                 <option value="1" ${e.grau==1?'selected':''}>1º Grau</option>
                 <option value="2" ${e.grau==2?'selected':''}>2º Grau</option>
                 <option value="3" ${e.grau==3?'selected':''}>3º Grau</option>
               </select></div>
           </div>
-          <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">Local</label>
+          <div><label class="lbl">Local</label>
             <input id="ed-ev-local" value="${(e.local||'Templo').replace(/"/g,'&quot;')}" ${inp}></div>
         </div>
         <div style="display:flex;justify-content:space-between;margin-top:24px">
@@ -9208,10 +9210,10 @@ function abrirModalAta() {
         <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gold-dark),var(--gold-rich),var(--gold-light),var(--gold-dark));border-radius:6px 6px 0 0"></div>
         <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);margin-bottom:24px">📄 Nova Ata</div>
         <div style="display:grid;gap:16px">
-          <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Sessão Referente</label>
+          <div><label class="lbl">Sessão Referente</label>
             <select id="ata-sessao" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)">
               <option value="">— Selecione a sessão —</option>${opsSessoes}</select></div>
-          <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Título da Ata</label>
+          <div><label class="lbl">Título da Ata</label>
             <input id="ata-titulo" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)" placeholder="Ex: Ata da Sessão Ordinária de Março/2026"></div>
 
           <div style="border:1px solid var(--border-mid);border-radius:4px;padding:16px;background:var(--cream)">
@@ -9228,7 +9230,7 @@ function abrirModalAta() {
           </div>
 
           <div>
-            <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Texto da Ata <span style="font-weight:400;text-transform:none;letter-spacing:0">(ou escreva aqui)</span></label>
+            <label class="lbl">Texto da Ata <span style="font-weight:400;text-transform:none;letter-spacing:0">(ou escreva aqui)</span></label>
             <textarea id="ata-texto" rows="10" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:10px 14px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text);resize:vertical;line-height:1.8" placeholder="Aos [data], reunidos em sessão ordinária na sede desta Respeitável Loja Simbólica, sob a presidência do Venerável Mestre..."></textarea>
           </div>
         </div>
@@ -9259,15 +9261,15 @@ function editarAta(ata) {
         <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gold-dark),var(--gold-rich),var(--gold-light),var(--gold-dark));border-radius:6px 6px 0 0"></div>
         <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);margin-bottom:24px">✎ Editar Ata</div>
         <div style="display:grid;gap:16px">
-          <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Sessão Referente</label>
+          <div><label class="lbl">Sessão Referente</label>
             <select id="edit-ata-sessao" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:15px;background:var(--cream);color:var(--text)">
               <option value="">— Selecione a sessão —</option>${opsSessoes}</select></div>
-          <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Título</label>
+          <div><label class="lbl">Título</label>
             <input id="edit-ata-titulo" value="${(ata.titulo||'').replace(/"/g,'&quot;')}" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:15px;background:var(--cream);color:var(--text)"></div>
-          <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Texto da Ata</label>
+          <div><label class="lbl">Texto da Ata</label>
             <textarea id="edit-ata-texto" rows="14" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:12px 16px;font-family:'Cormorant Garamond',serif;font-size:16px;background:var(--cream);color:var(--text);resize:vertical;line-height:1.9">${ata.conteudo||''}</textarea></div>
           <div>
-            <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">📎 Arquivo</label>
+            <label class="lbl">📎 Arquivo</label>
             ${ata.arquivo_url ? `
               <div id="arquivo-atual-box" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--cream);border:1px solid var(--border-mid);border-radius:3px;margin-bottom:8px">
                 <span style="font-size:13px;flex:1">📎 <a href="${ata.arquivo_url}" target="_blank" style="color:var(--gold-dark)">Ver arquivo atual</a></span>
@@ -10046,7 +10048,7 @@ function abrirModalLancamentoMembro(membroId, nomeM) {
 
   const listaDebitos = temDebitos ? `
     <div style="margin-bottom:16px">
-      <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:8px">Selecione os debitos a quitar</label>
+      <label class="lbl" style="margin-bottom:8px">Selecione os debitos a quitar</label>
       <div style="max-height:200px;overflow-y:auto;border:1px solid var(--border-mid);border-radius:4px">
         ${debitosAbertos.map((l,i) => {
           const vencido = l.data && l.data < hoje;
@@ -10074,9 +10076,9 @@ function abrirModalLancamentoMembro(membroId, nomeM) {
     </div>
     <div style="background:rgba(58,122,74,0.06);border:1px solid rgba(58,122,74,0.2);border-radius:4px;padding:10px 14px;margin-bottom:16px">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Valor Recebido (R$)</label>
+        <div><label class="lbl">Valor Recebido (R$)</label>
           <input id="pm-valor" type="number" step="0.01" value="${totalAberto.toFixed(2)}" oninput="calcularTroco()" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"></div>
-        <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Data do Pagamento</label>
+        <div><label class="lbl">Data do Pagamento</label>
           <input id="pm-data" type="date" value="${hoje}" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"></div>
       </div>
       <div id="pm-troco-info" style="display:none;margin-top:8px;font-size:12px;padding:6px 10px;border-radius:3px"></div>
@@ -10085,12 +10087,12 @@ function abrirModalLancamentoMembro(membroId, nomeM) {
       Nenhum debito em aberto para este irmao.
     </div>
     <div style="display:grid;gap:14px">
-      <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Descricao</label>
+      <div><label class="lbl">Descricao</label>
         <input id="pm-desc" value="Mensalidade" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Valor (R$)</label>
+        <div><label class="lbl">Valor (R$)</label>
           <input id="pm-valor" type="number" value="${mens}" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"></div>
-        <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Data</label>
+        <div><label class="lbl">Data</label>
           <input id="pm-data" type="date" value="${hoje}" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"></div>
       </div>
     </div>`;
@@ -10840,7 +10842,7 @@ function pedirAjusteTrabalho(id) {
             Descreva claramente o que precisa ser corrigido. O autor receberá este comentário e deverá reenviar o trabalho.
           </div>
           <div style="margin-bottom:4px">
-            <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">
+            <label class="lbl">
               Motivo da Revisão *
             </label>
             <textarea id="revisao-motivo" rows="4" ${inp} style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:9px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text);resize:vertical"
@@ -10931,7 +10933,7 @@ function abrirModalEnviarTrabalho() {
   // Selecionar automaticamente o grau do usuário
   const opts = opcoes
     .map(o=>`<option value="${o.v}"${o.v===eu.grau?' selected':''}>${o.l}</option>`).join('');
-  const lb  = (t,r='') => `<label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">${t}${r?` <span style="color:var(--red)">${r}</span>`:''}</label>`;
+  const lb  = (t,r='') => `<label class="lbl">${t}${r?` <span style="color:var(--red)">${r}</span>`:''}</label>`;
   const inp = `style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:9px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"`;
 
   document.body.insertAdjacentHTML('beforeend',`
@@ -11340,7 +11342,7 @@ function filtrarLegislacao(cat) {
 function abrirModalLegislacao(id) {
   const d = id ? (DATA.legislacao||[]).find(x => x.id === id) : null;
   const cats = CATEGORIAS_LEG.map(c => `<option value="${c}" ${d?.categoria===c?'selected':''}>${c}</option>`).join('');
-  const lb = (t, req='') => `<label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">${t}${req?` <span style="color:var(--red)">${req}</span>`:''}</label>`;
+  const lb = (t, req='') => `<label class="lbl">${t}${req?` <span style="color:var(--red)">${req}</span>`:''}</label>`;
   const inp = `style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:9px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"`;
 
   document.body.insertAdjacentHTML('beforeend', `
@@ -12403,12 +12405,12 @@ function abrirRecorteManual() {
 
           <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:flex-end">
             <div style="flex:2;min-width:200px">
-              <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);display:block;margin-bottom:5px">IMAGEM / PDF</label>
+              <label class="lbl">IMAGEM / PDF</label>
               <input type="file" id="rc-file" accept="image/*,application/pdf" style="display:none" onchange="carregarImagemRecorte()">
               <button class="btn btn-solid" onclick="document.getElementById('rc-file').click()" style="width:100%;font-size:11px;padding:8px">📎 Escolher arquivo</button>
             </div>
             <div style="flex:1;min-width:160px">
-              <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);display:block;margin-bottom:5px">CARGO</label>
+              <label class="lbl">CARGO</label>
               <select id="rc-cargo" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 10px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--cream);color:var(--text)">${opsCargos}</select>
             </div>
           </div>
@@ -13754,15 +13756,15 @@ function abrirModalLancamentoTronco() {
         <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gold-dark),var(--gold-rich),var(--gold-light),var(--gold-dark));border-radius:6px 6px 0 0"></div>
         <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);margin-bottom:24px">🏺 Lançamento no Tronco de Beneficência</div>
         <div style="display:grid;gap:14px">
-          <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Tipo</label>
+          <div><label class="lbl">Tipo</label>
             <select id="tronco-tipo" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)">
               <option value="receita">Arrecadação ↑</option><option value="despesa">Benefício concedido ↓</option></select></div>
-          <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Descrição</label>
+          <div><label class="lbl">Descrição</label>
             <input id="tronco-desc" value="Tronco de Beneficência" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Valor (R$)</label>
+            <div><label class="lbl">Valor (R$)</label>
               <input id="tronco-valor" type="number" step="0.01" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"></div>
-            <div><label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Data</label>
+            <div><label class="lbl">Data</label>
               <input id="tronco-data" type="date" value="${hoje}" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"></div>
           </div>
         </div>
