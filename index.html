@@ -631,33 +631,9 @@ body {
 }
 
 /* BADGES */
-.degree-badge {
-  display:inline-flex; align-items:center; justify-content:center;
-  width:24px; height:24px; border-radius:50%;
-  font-family:'Cinzel', serif;
-  font-size:10px; font-weight:700; border:1px solid;
-}
-
 .d1 { color:#FFFFFF; border-color:#1E4A7A; background:#1E4A7A; } /* 1º Grau — Azul sólido */
 .d2 { color:#FFFFFF; border-color:#8B4513; background:#8B4513; } /* 2º Grau — Marrom sólido */
 .d3 { color:#1B3A6B; border-color:#B8860B; background:#D4A843; } /* 3º Grau — Dourado sólido */
-
-.badge {
-  display:inline-block; padding:4px 10px; border-radius:2px;
-  font-family:'Cinzel', serif;
-  font-size:9px; font-weight:700;
-  letter-spacing:0.08em; text-transform:uppercase;
-}
-
-/* CARDS */
-.card {
-  background:var(--white);
-  border:1px solid var(--border);
-  border-radius:4px;
-  overflow:hidden;
-  margin-bottom:20px;
-  box-shadow:var(--shadow);
-}
 
 .card-header {
   padding:15px 22px;
@@ -761,10 +737,6 @@ tr:hover td { background:rgba(184,134,11,0.03); }
   font-family:'Cinzel', serif;
   font-size:9px; font-weight:700; border:1px solid;
 }
-
-.d1 { color:#FFFFFF; border-color:#1E4A7A; background:#1E4A7A; } /* 1º Grau — Azul sólido */
-.d2 { color:#FFFFFF; border-color:#8B4513; background:#8B4513; } /* 2º Grau — Marrom sólido */
-.d3 { color:#1B3A6B; border-color:#B8860B; background:#D4A843; } /* 3º Grau — Dourado sólido */
 
 .badge {
   display:inline-block; padding:3px 9px; border-radius:2px;
@@ -1907,7 +1879,6 @@ async function _autoFixNumeracaoMembros() {
     sb.from('membros').update({ numero_sequencial: maxNum }).eq('id', m.id)
       .then(({ error }) => { if (error) console.warn('Auto-fix numeração:', m.id, error); });
   }
-  console.log(`[Auto-fix] ${semNumero.length} membro(s) renumerado(s)`);
 }
 async function _reloadSessoes()   { const d = await _rl('sessoes',   { orderDesc:'data'          }); if (d) DATA.sessoes   = d; }
 async function _reloadPresencas() { const d = await _rl('presencas', { limit:2000                }); if (d) DATA.presencas = d; }
@@ -1946,6 +1917,9 @@ function _esc(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#x27;');
+}
+function lb(t, op='') {
+  return `<label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">${t}${op?` <span style="font-weight:400;text-transform:none">(${op})</span>`:''}</label>`;
 }
 
 function _debounce(fn, ms) {
@@ -4108,7 +4082,6 @@ function abrirModalMembro(membro=null) {
   const mid = membro?.id || null;
   const tipoAtual = membro?.tipo_membro || 'membro';
   const inp = `style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"`;
-  const lb = (t) => `<label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">${t}</label>`;
 
   // Histórico e familiares guardados em memória local durante edição
   window._membroHistorico = ed ? (JSON.parse(membro._historico||'[]')) : [];
@@ -5941,7 +5914,6 @@ async function _recalcularAgapeSessao(sessaoId, membroIdsPresentes) {
     const mesmoValor = agapeDebitos.length > 0 && Math.abs(parseFloat(agapeDebitos[0].valor) - novoValor) < 0.01;
     const mesmosIds = mesmaQtd && agapeDebitos.every(d => participantes.some(p => p.id === d.membro_id));
     if (mesmaQtd && mesmoValor && mesmosIds) {
-      console.log('[Ágape] Sem alteração necessária');
       return;
     }
 
@@ -5966,7 +5938,6 @@ async function _recalcularAgapeSessao(sessaoId, membroIdsPresentes) {
     if (resIns.error) { console.error('[Ágape] Erro insert:', resIns.error); return; }
 
     toast(`🍽️ Ágape recalculado: ${participantes.length} irmãos × ${fmtVal(novoValor)}`);
-    console.log(`[Ágape] Recalculado: ${participantes.length} participantes × ${novoValor}`);
   } catch(e) {
     console.warn('[_recalcularAgapeSessao]', e);
   }
@@ -6333,7 +6304,6 @@ async function abrirModalVisitante(sessaoId) {
   ).join('');
 
   const inp = `style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"`;
-  const lb = (t, op='') => `<label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">${t}${op?` <span style="font-weight:400;text-transform:none">(${op})</span>`:''}</label>`;
 
   document.body.insertAdjacentHTML('beforeend', `
     <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center">
@@ -8880,7 +8850,6 @@ async function salvarEvento() {
 function abrirModalEvento() {
   const hoje = new Date().toISOString().split('T')[0];
   const inp = `style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"`;
-  const lb = (t,op='') => `<label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">${t}${op?` <span style="font-weight:400;text-transform:none;letter-spacing:0">(${op})</span>`:''}</label>`;
   document.body.insertAdjacentHTML('beforeend', `
     <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px">
       <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:8px;width:560px;max-height:92vh;overflow-y:auto;position:relative">
@@ -9839,7 +9808,6 @@ async function excluirVisitaExterna(id) {
 function abrirModalCadastrarVisita(membroId) {
   const hoje = new Date().toISOString().split('T')[0];
   const inp = `style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"`;
-  const lb = (t,op='') => `<label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">${t}${op?` <span style="font-weight:400;text-transform:none">(${op})</span>`:''}</label>`;
   document.body.insertAdjacentHTML('beforeend', `
     <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px">
       <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;width:520px;max-height:92vh;overflow-y:auto;position:relative">
@@ -11656,7 +11624,6 @@ function abrirModalComissao(tipoInicial='permanente', comissaoExistente=null) {
   const c = comissaoExistente || {};
   const tipo = ed ? c.tipo : tipoInicial;
   const inp = `style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"`;
-  const lb = (t,op='') => `<label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">${t}${op?` <span style="font-weight:400;text-transform:none;font-size:10px">(${op})</span>`:''}</label>`;
 
   // Presidente options
   const opsPres = `<option value="">— Selecionar —</option>`+DATA.membros.map(m=>`<option value="${m.nome_maconico}" ${c.presidente===m.nome_maconico?'selected':''}>${m.nome_maconico}</option>`).join('');
