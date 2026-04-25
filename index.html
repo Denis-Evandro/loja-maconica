@@ -4937,6 +4937,7 @@ async function salvarSessao() {
 
   // Buscar a sessão recém-criada para obter o ID
   const resSessao = await sb.from('sessoes').select('*').eq('data', data).eq('tipo', tipo).order('criado_em', {ascending: false}).limit(1);
+  if (resSessao.error) { console.error(resSessao.error); toast('❌ Erro ao buscar sessão criada: ' + resSessao.error.message); return; }
   const sessaoNova = resSessao.data?.[0];
   const sessaoId = sessaoNova?.id;
 
@@ -8850,6 +8851,7 @@ async function salvarEvento() {
 
     // Buscar ID da sessão recém-criada
     const resBusca = await sb.from('sessoes').select('*').eq('data',data).eq('tipo',tipoSessao).order('criado_em',{ascending:false}).limit(1);
+    if (resBusca.error) { console.error(resBusca.error); toast('❌ Erro ao buscar sessão criada: ' + resBusca.error.message); return; }
     const sessaoNova = resBusca.data?.[0];
     const sessaoId = sessaoNova?.id;
     if (sessaoNova && !DATA.sessoes.find(s=>s.id===sessaoId)) DATA.sessoes.unshift(sessaoNova);
@@ -9377,6 +9379,7 @@ function verAta(conteudo, data, titulo) {
 
 async function renderAtas() {
   const res = await sb.from('atas').select('*').order('criado_em', {ascending:false});
+  if (res.error) { console.error(res.error); toast('❌ Erro ao carregar atas: ' + res.error.message); return; }
   const atas = res.data || [];
   const hoje = new Date().toISOString().split('T')[0];
   const proxSessoes = DATA.sessoes.filter(s => s.data >= hoje).sort((a,b)=>a.data.localeCompare(b.data)).slice(0,5);
@@ -9621,8 +9624,9 @@ async function renderMinhaFrequencia() {
     let visitasPend = [];
     try {
       const res = await sb.from('visitas_externas').select('*,membros(nome_maconico)').eq('status_aprovacao','pendente').order('criado_em',{ascending:false});
+      if (res.error) throw res.error;
       visitasPend = res.data || [];
-    } catch(e){}
+    } catch(e){ console.error('Erro ao buscar visitas pendentes:', e); }
 
     const membros = DATA.membros.filter(m => m.status==='ativo'||m.status==='iniciado');
     const sessoes = DATA.sessoes;
@@ -9708,17 +9712,19 @@ async function renderMinhaFrequencia() {
   let visitasAprov = [];
   try {
     const res = await sb.from('visitas_externas').select('*').eq('membro_id', membro.id).eq('status_aprovacao','aprovado').order('data',{ascending:false});
+    if (res.error) throw res.error;
     visitasAprov = res.data || [];
     if (fDe)  visitasAprov = visitasAprov.filter(v=>v.data>=fDe);
     if (fAte) visitasAprov = visitasAprov.filter(v=>v.data<=fAte);
-  } catch(e){}
+  } catch(e){ console.error('Erro ao buscar visitas aprovadas:', e); }
 
   // Visitas pendentes do próprio irmão
   let visitasPend = [];
   try {
     const res2 = await sb.from('visitas_externas').select('*').eq('membro_id', membro.id).neq('status_aprovacao','aprovado').order('data',{ascending:false});
+    if (res2.error) throw res2.error;
     visitasPend = res2.data || [];
-  } catch(e){}
+  } catch(e){ console.error('Erro ao buscar visitas pendentes do membro:', e); }
 
   const totalPresencas = sessoesPresente.length + visitasAprov.length;
   const hojeFreqP = new Date().toISOString().split('T')[0];
@@ -9825,7 +9831,8 @@ async function aprovarVisita(id, aprovar) {
 
 async function excluirVisitaExterna(id) {
   if (!confirm('Excluir este registro de visita?')) return;
-  await sb.from('visitas_externas').delete().eq('id',id);
+  const { error: errDelVisita } = await sb.from('visitas_externas').delete().eq('id',id);
+  if (errDelVisita) { console.error(errDelVisita); toast('❌ Erro ao excluir visita: ' + errDelVisita.message); return; }
   renderMinhaFrequencia();
 }
 
