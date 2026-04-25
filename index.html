@@ -413,7 +413,14 @@ body {
 
   /* Topbar com botão hamburguer */
   .topbar { padding: 0 16px; }
-  #btn-hamburger { display: flex !important; }
+  #btn-hamburger {
+    display: flex !important;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 11px 11px 11px 0 !important;
+    align-items: center;
+    justify-content: center;
+  }
 
   /* Bottom Navigation Bar */
   #bottom-nav {
@@ -1211,7 +1218,7 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
         <input class="field-input" id="loginPass" type="password" placeholder="••••••••" autocomplete="current-password"
           onkeydown="if(event.key==='Enter') doLogin()" style="padding-right:40px">
         <button type="button" onclick="const p=document.getElementById('loginPass');p.type=p.type==='password'?'text':'password';this.textContent=p.type==='password'?'👁️':'🙈'"
-          style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:transparent;border:none;cursor:pointer;font-size:16px;color:#5A7AAF;padding:0">
+          style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:transparent;border:none;cursor:pointer;font-size:16px;color:#5A7AAF;padding:14px 10px">
           👁️
         </button>
       </div>
@@ -3080,7 +3087,7 @@ function definirSenhaTemp(membroId, email, nome) {
               style="flex:1;border:1px solid var(--border-mid);border-radius:3px;padding:9px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"
               onkeydown="if(event.key==='Enter')gerarSqlSenhaTemp()">
             <button type="button" onclick="const p=document.getElementById('tmp-senha-input');p.type=p.type==='password'?'text':'password';this.textContent=p.type==='password'?'👁️':'🙈'"
-              style="border:1px solid var(--border-mid);border-radius:3px;background:var(--cream);cursor:pointer;padding:0 10px;font-size:14px">👁️</button>
+              style="border:1px solid var(--border-mid);border-radius:3px;background:var(--cream);cursor:pointer;padding:9px 10px;font-size:14px">👁️</button>
             <button onclick="document.getElementById('tmp-senha-input').value=_gerarSenhaAleatoria();document.getElementById('tmp-senha-input').type='text'"
               class="btn" style="padding:8px 12px;font-size:10px;white-space:nowrap" title="Gerar senha aleatória">🎲 Gerar</button>
           </div>
