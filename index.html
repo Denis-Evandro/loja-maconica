@@ -4338,7 +4338,7 @@ function abrirModalMembro(membro=null) {
 
         <!-- Footer fixo -->
         <div style="padding:16px 28px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-shrink:0;background:var(--white)">
-          ${ed?`<button class="btn" onclick="excluirMembro('${mid}','${membro.nome_maconico}')" style="color:var(--red);border-color:rgba(139,32,32,0.3)">🗑️ Excluir</button>`:'<div></div>'}
+          ${ed?`<button class="btn" data-id="${_esc(mid)}" data-nome="${_esc(membro.nome_maconico)}" onclick="excluirMembro(this.dataset.id,this.dataset.nome)" style="color:var(--red);border-color:rgba(139,32,32,0.3)">🗑️ Excluir</button>`:'<div></div>'}
           <div style="display:flex;gap:10px">
             <button class="btn" onclick="fecharModal()" style="padding:8px 22px">Cancelar</button>
             <button class="btn btn-solid" onclick="confirmarSalvarMembro(${ed?`'${mid}'`:'null'})" style="padding:8px 22px">${ed?'Salvar Alterações':'Cadastrar Irmão'}</button>
@@ -4715,9 +4715,9 @@ function renderMembros(access) {
               ${m.login_status==='ativo'?'🟢':m.login_status==='convite_enviado'?'🟡':'⚪'}
             </span>
             ${canEdit?`<button class="btn" style="padding:3px 9px;font-size:8px" onclick='abrirModalMembro(${JSON.stringify(m).replace(/'/g,"&#39;")})'>✏️</button>
-            <button class="btn" style="padding:3px 9px;font-size:8px;color:var(--red)" onclick="excluirMembro('${m.id}','${m.nome_maconico}')">✕</button>
+            <button class="btn" style="padding:3px 9px;font-size:8px;color:var(--red)" data-id="${_esc(m.id)}" data-nome="${_esc(m.nome_maconico)}" onclick="excluirMembro(this.dataset.id,this.dataset.nome)">✕</button>
             <button class="btn" title="Vincular Login" style="padding:3px 9px;font-size:8px;color:var(--navy)" onclick="abrirModalVincularLogin('${m.id}')">🔗</button>
-            ${m.email?`<button class="btn" title="Enviar Convite de Acesso" style="padding:3px 9px;font-size:8px;color:var(--green);border-color:var(--green)" onclick="enviarConviteMembro('${m.id}','${m.email}','${m.nome_maconico}')">📧</button>`:''}`:''}
+            ${m.email?`<button class="btn" title="Enviar Convite de Acesso" style="padding:3px 9px;font-size:8px;color:var(--green);border-color:var(--green)" data-id="${_esc(m.id)}" data-email="${_esc(m.email)}" data-nome="${_esc(m.nome_maconico)}" onclick="enviarConviteMembro(this.dataset.id,this.dataset.email,this.dataset.nome)">📧</button>`:''}`:''}
           </td>
         </tr>`;
       }).join('');
@@ -7187,7 +7187,7 @@ function renderFinancas(access) {
               </div>
               <div style="display:flex;align-items:center;gap:8px">
                 <span style="font-size:14px;font-weight:700;color:var(--red);font-family:'Cinzel',serif">${fmtVal(devia)}</span>
-                ${canEdit?`<button class="btn" style="padding:3px 8px;font-size:9px;background:linear-gradient(135deg,#25D366,#128C7E);color:#fff;border-color:#128C7E" onclick="cobrarWhatsapp('${m.nome_maconico.replace(/'/g,'')}','${m.telefone||''}',${devia},0)">📱</button>`:''}
+                ${canEdit?`<button class="btn" style="padding:3px 8px;font-size:9px;background:linear-gradient(135deg,#25D366,#128C7E);color:#fff;border-color:#128C7E" data-nome="${_esc(m.nome_maconico)}" data-tel="${_esc(m.telefone||'')}" data-valor="${devia}" data-meses="0" onclick="cobrarWhatsapp(this.dataset.nome,this.dataset.tel,parseFloat(this.dataset.valor),parseInt(this.dataset.meses))">📱</button>`:''}
               </div>
             </div>`).join('')}
         ${inadimplentes.length>6?`<div style="padding:7px 22px;font-size:12px;color:var(--text-muted);border-top:1px solid var(--border);font-style:italic">+ ${inadimplentes.length-6} outros — clique em 📊 Inadimplência para ver todos</div>`:''}
@@ -7377,8 +7377,8 @@ function renderFinancas(access) {
           <td style="display:flex;gap:4px;flex-wrap:wrap">
             ${d.lancId?`<button class="btn" style="padding:2px 8px;font-size:8px;background:var(--green);color:#fff;border-color:var(--green)" onclick="confirmarPagamentoAgendado('${d.lancId}')">Pago</button>
               <button class="btn" style="padding:2px 8px;font-size:8px" onclick="adiarAgendado('${d.lancId}')">Adiar</button>`:''}
-            ${d.id?`<button class="btn" style="padding:2px 8px;font-size:8px" onclick="cobrarWhatsapp('${d.nome}','',${d.valor},0)">WhatsApp</button>`:''}
-            ${d.id?`<button class="btn" style="padding:2px 8px;font-size:8px" onclick="abrirModalLancamentoMembro('${d.id}','${d.nome}')">+ Registrar Pag.</button>`:''}
+            ${d.id?`<button class="btn" style="padding:2px 8px;font-size:8px" data-nome="${_esc(d.nome)}" data-valor="${d.valor}" onclick="cobrarWhatsapp(this.dataset.nome,'',parseFloat(this.dataset.valor),0)">WhatsApp</button>`:''}
+            ${d.id?`<button class="btn" style="padding:2px 8px;font-size:8px" data-id="${_esc(d.id)}" data-nome="${_esc(d.nome)}" onclick="abrirModalLancamentoMembro(this.dataset.id,this.dataset.nome)">+ Registrar Pag.</button>`:''}
             ${d.lancId?`<button class="btn" style="padding:2px 7px;font-size:10px" onclick="abrirModalEditarLancamento('${d.lancId}')">✏️</button>`:''}
           </td>
         </tr>`;
@@ -7572,7 +7572,7 @@ function gerarMsgCobrancaGeral() {
             </div>
             <div style="display:flex;align-items:center;gap:8px">
               <span style="font-weight:700;color:var(--red);font-size:13px">${fmtVal(devia)}</span>
-              <button class="btn" style="padding:3px 10px;font-size:9px;background:linear-gradient(135deg,#25D366,#128C7E);color:#fff;border-color:#128C7E" onclick="fecharModal();cobrarWhatsapp('${m.nome_maconico.replace(/'/g,'')}','${m.telefone||''}',${devia},${mesesDev})">📱 Cobrar</button>
+              <button class="btn" style="padding:3px 10px;font-size:9px;background:linear-gradient(135deg,#25D366,#128C7E);color:#fff;border-color:#128C7E" data-nome="${_esc(m.nome_maconico)}" data-tel="${_esc(m.telefone||'')}" data-valor="${devia}" data-meses="${mesesDev}" onclick="fecharModal();cobrarWhatsapp(this.dataset.nome,this.dataset.tel,parseFloat(this.dataset.valor),parseInt(this.dataset.meses))">📱 Cobrar</button>
             </div>
           </div>`).join('')}
         <div style="display:flex;justify-content:flex-end;margin-top:16px">
@@ -8761,7 +8761,7 @@ function abrirModalEditarEvento(id) {
             <input id="ed-ev-local" value="${(e.local||'Templo').replace(/"/g,'&quot;')}" ${inp}></div>
         </div>
         <div style="display:flex;justify-content:space-between;margin-top:24px">
-          <button class="btn" onclick="excluirEvento('${id}','${(e.titulo||e.descricao||'').replace(/'/g,'')}')" style="color:var(--red);border-color:rgba(139,32,32,0.3)">🗑️ Excluir</button>
+          <button class="btn" data-id="${_esc(id)}" data-titulo="${_esc(e.titulo||e.descricao||'')}" onclick="excluirEvento(this.dataset.id,this.dataset.titulo)" style="color:var(--red);border-color:rgba(139,32,32,0.3)">🗑️ Excluir</button>
           <div style="display:flex;gap:10px">
             <button class="btn" onclick="fecharModal()" style="padding:8px 20px">Cancelar</button>
             <button class="btn btn-solid" onclick="salvarEdicaoEvento('${id}')" style="padding:8px 20px">Salvar</button>
@@ -9019,9 +9019,9 @@ function renderEventos(access) {
         const corTexto = ev.isSessao ? 'var(--navy)' : ev.isConvite ? 'var(--gold-dark)' : '#1B5EA0';
         const editBtn = ev.isSessao
           ? (canEdit ? `<button class="btn" style="padding:2px 8px;font-size:8px" onclick="abrirModalEditarSessao('${ev.id}')">✏️</button>
-              <button class="btn" style="padding:2px 8px;font-size:8px;color:var(--red)" onclick="excluirSessao('${ev.id}','${ev.titulo.replace(/'/g,'')}')">🗑️</button>` : '')
+              <button class="btn" style="padding:2px 8px;font-size:8px;color:var(--red)" data-id="${_esc(ev.id)}" data-titulo="${_esc(ev.titulo)}" onclick="excluirSessao(this.dataset.id,this.dataset.titulo)">🗑️</button>` : '')
           : (canEdit ? `<button class="btn" style="padding:2px 8px;font-size:8px" onclick="abrirModalEditarEvento('${ev.id}')">✏️</button>
-              <button class="btn" style="padding:2px 8px;font-size:8px;color:var(--red)" onclick="excluirEvento('${ev.id}','${ev.titulo.replace(/'/g,'')}')">🗑️</button>` : '');
+              <button class="btn" style="padding:2px 8px;font-size:8px;color:var(--red)" data-id="${_esc(ev.id)}" data-titulo="${_esc(ev.titulo)}" onclick="excluirEvento(this.dataset.id,this.dataset.titulo)">🗑️</button>` : '');
         return `<div class="ev-card">
           <div class="ev-date"><div class="ev-month">${mes}</div><div class="ev-day">${dia}</div></div>
           <div class="ev-body">
@@ -9431,10 +9431,10 @@ async function renderAtas() {
             </div>
             <!-- Botões -->
             <div style="display:flex;gap:6px;padding:12px 14px;flex-shrink:0;align-items:center">
-              ${temTexto ? `<button class="btn" style="padding:5px 12px;font-size:9px;font-family:'Cinzel',serif;letter-spacing:0.06em" onclick='verAta(${JSON.stringify(a.conteudo||"")}, "${dataRef}", ${JSON.stringify(a.titulo||"")})'>📄 Ver</button>` : ''}
+              ${temTexto ? `<button class="btn" style="padding:5px 12px;font-size:9px;font-family:'Cinzel',serif;letter-spacing:0.06em" data-conteudo="${_esc(a.conteudo||'')}" data-data="${_esc(dataRef)}" data-titulo="${_esc(a.titulo||'')}" onclick="verAta(this.dataset.conteudo,this.dataset.data,this.dataset.titulo)">📄 Ver</button>` : ''}
               ${temArquivo ? `<a href="${a.arquivo_url}" target="_blank" class="btn" style="padding:5px 12px;font-size:9px;font-family:'Cinzel',serif;letter-spacing:0.06em;text-decoration:none">📎 Arquivo</a>` : ''}
               ${canEdit ? `<button class="btn" style="padding:5px 12px;font-size:9px;font-family:'Cinzel',serif;letter-spacing:0.06em;color:var(--gold-dark);border-color:rgba(184,134,11,0.3)" onclick='editarAta(${ataJSON})'>✎ Editar</button>` : ''}
-              ${canEdit ? `<button class="btn" style="padding:5px 12px;font-size:9px;font-family:'Cinzel',serif;letter-spacing:0.06em;color:var(--red);border-color:rgba(139,32,32,0.3)" onclick="excluirAta('${a.id}','${(a.titulo||'esta ata').replace(/'/g,'')}')">🗑️ Excluir</button>` : ''}
+              ${canEdit ? `<button class="btn" style="padding:5px 12px;font-size:9px;font-family:'Cinzel',serif;letter-spacing:0.06em;color:var(--red);border-color:rgba(139,32,32,0.3)" data-id="${_esc(a.id)}" data-titulo="${_esc(a.titulo||'esta ata')}" onclick="excluirAta(this.dataset.id,this.dataset.titulo)">🗑️ Excluir</button>` : ''}
             </div>
           </div>`;
       }).join('');
@@ -9500,7 +9500,7 @@ function abrirModalInadimplenciaDetalhada() {
               <td style="padding:7px 14px;font-family:'Cormorant Garamond',serif;font-size:15px;font-weight:${i===0?700:400}">${i===0?m.nome_maconico:''}</td>
               <td style="padding:7px 14px;font-family:'Cormorant Garamond',serif;font-size:14px;color:var(--text-muted)">${d.cat}${d.detalhe&&d.detalhe!==d.cat?' — '+d.detalhe:''}</td>
               <td style="padding:7px 14px;font-family:'Cinzel',serif;font-size:13px;color:var(--red);font-weight:700;text-align:right">${fmtVal(d.valor)}</td>
-              <td style="padding:7px 14px">${i===0&&canEdit?`<button class="btn" style="padding:3px 8px;font-size:9px;background:linear-gradient(135deg,#25D366,#128C7E);color:#fff;border-color:#128C7E;white-space:nowrap" onclick="cobrarWhatsapp('${m.nome_maconico.replace(/'/g,'')}','${m.telefone||''}',${devia},0)">📱</button>`:''}</td>
+              <td style="padding:7px 14px">${i===0&&canEdit?`<button class="btn" style="padding:3px 8px;font-size:9px;background:linear-gradient(135deg,#25D366,#128C7E);color:#fff;border-color:#128C7E;white-space:nowrap" data-nome="${_esc(m.nome_maconico)}" data-tel="${_esc(m.telefone||'')}" data-valor="${devia}" data-meses="0" onclick="cobrarWhatsapp(this.dataset.nome,this.dataset.tel,parseFloat(this.dataset.valor),parseInt(this.dataset.meses))">📱</button>`:''}</td>
             </tr>`).join('')}
             <tr style="background:rgba(139,32,32,0.05)">
               <td colspan="2" style="padding:8px 14px;font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:var(--red);letter-spacing:0.1em;text-transform:uppercase">Total Devido</td>
@@ -9604,7 +9604,7 @@ function _renderInadimplCorpo(filtroId, containerId) {
             <tr style="background:${i%2===0?'var(--white)':'var(--cream)'};border-bottom:1px solid var(--border)">
               <td style="padding:9px 14px;font-size:13px;color:var(--text-muted)">${d.cat}${d.detalhe&&d.detalhe!==d.cat?' — '+d.detalhe:''}</td>
               <td style="padding:9px 14px;font-family:'Cinzel',serif;font-size:13px;font-weight:700;color:var(--red);text-align:right">${fmtVal(d.valor)}</td>
-              ${canEdit?`<td style="padding:9px 14px;text-align:center">${i===0?`<button class="btn" style="padding:3px 8px;font-size:9px;background:linear-gradient(135deg,#25D366,#128C7E);color:#fff;border-color:#128C7E" onclick="cobrarWhatsapp('${m.nome_maconico.replace(/'/g,'')}','${m.telefone||''}',${devia},0)">📱</button>`:''}
+              ${canEdit?`<td style="padding:9px 14px;text-align:center">${i===0?`<button class="btn" style="padding:3px 8px;font-size:9px;background:linear-gradient(135deg,#25D366,#128C7E);color:#fff;border-color:#128C7E" data-nome="${_esc(m.nome_maconico)}" data-tel="${_esc(m.telefone||'')}" data-valor="${devia}" data-meses="0" onclick="cobrarWhatsapp(this.dataset.nome,this.dataset.tel,parseFloat(this.dataset.valor),parseInt(this.dataset.meses))">📱</button>`:''}
               </td>`:''}
             </tr>`).join('')}
           </tbody>
