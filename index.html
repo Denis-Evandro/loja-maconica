@@ -430,6 +430,14 @@ body {
   /* Paineis com padding menor */
   .panel-content { padding: 16px !important; }
   .section-header { padding: 16px 16px 0 !important; }
+
+  /* Modais: limitar largura em mobile */
+  #modal-overlay > div,
+  [id^="modal-overlay"] > div,
+  #modal-nova-senha > div {
+    width: 92vw !important;
+    max-width: 92vw !important;
+  }
 }
 
 /* Desktop — esconder elementos mobile */
