@@ -4149,15 +4149,15 @@ function abrirModalMembro(membro=null) {
                   <input type="file" accept="image/*" onchange="previewFotoMembro(this)" style="display:none">
                   <span style="font-family:'Cinzel',serif;font-size:8px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);border:1px solid var(--gold-dark);border-radius:3px;padding:4px 8px;white-space:nowrap">📷 Foto</span>
                 </label>
-                <input type="hidden" id="f-foto-url" value="${membro?.foto_url||''}">
+                <input type="hidden" id="f-foto-url" value="${_esc(membro?.foto_url||'')}">
               </div>
               <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:12px">
                 <div style="grid-column:1/-1">${lb('Nome Maçônico *')}
-                  <input id="f-nome-mac" value="${membro?.nome_maconico||''}" ${inp} placeholder="Ir. Nome da Virtude"></div>
+                  <input id="f-nome-mac" value="${_esc(membro?.nome_maconico||'')}" ${inp} placeholder="Ir. Nome da Virtude"></div>
                 <div>${lb('Nome *')}
-                  <input id="f-nome-civil" value="${(membro?.nome_civil||'').split(' ')[0]||''}" ${inp} placeholder="Primeiro nome"></div>
+                  <input id="f-nome-civil" value="${_esc((membro?.nome_civil||'').split(' ')[0]||'')}" ${inp} placeholder="Primeiro nome"></div>
                 <div>${lb('Sobrenome *')}
-                  <input id="f-sobrenome" value="${(membro?.nome_civil||'').split(' ').slice(1).join(' ')||''}" ${inp} placeholder="Sobrenome completo"></div>
+                  <input id="f-sobrenome" value="${_esc((membro?.nome_civil||'').split(' ').slice(1).join(' ')||'')}" ${inp} placeholder="Sobrenome completo"></div>
               </div>
             </div>
 
@@ -4183,11 +4183,11 @@ function abrirModalMembro(membro=null) {
 
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px">
               <div>${lb('CPF')}
-                <input id="f-cpf" value="${membro?.cpf||''}" ${inp} placeholder="000.000.000-00"></div>
+                <input id="f-cpf" value="${_esc(membro?.cpf||'')}" ${inp} placeholder="000.000.000-00"></div>
               <div>${lb('RG')}
-                <input id="f-rg" value="${membro?.rg||''}" ${inp} placeholder="00.000.000-0"></div>
+                <input id="f-rg" value="${_esc(membro?.rg||'')}" ${inp} placeholder="00.000.000-0"></div>
               <div>${lb('CIM / Doc. Maçônico')}
-                <input id="f-cim" value="${membro?.cim||''}" ${inp} placeholder="Ex: 331739"></div>
+                <input id="f-cim" value="${_esc(membro?.cim||'')}" ${inp} placeholder="Ex: 331739"></div>
             </div>
 
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px">
@@ -4201,7 +4201,7 @@ function abrirModalMembro(membro=null) {
                   <option value="nao" ${!membro?.mestre_instalado?'selected':''}>Não</option>
                   <option value="sim" ${membro?.mestre_instalado?'selected':''}>Sim</option></select></div>
               <div>${lb('Cargo')}
-                <input id="f-cargo" value="${membro?.cargo||''}" ${inp} placeholder="Selecione ou digite o cargo" list="lista-cargos">
+                <input id="f-cargo" value="${_esc(membro?.cargo||'')}" ${inp} placeholder="Selecione ou digite o cargo" list="lista-cargos">
                 <datalist id="lista-cargos">
                   <option value="Venerável Mestre">
                   <option value="1º Vigilante">
@@ -4242,19 +4242,19 @@ function abrirModalMembro(membro=null) {
 
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
               <div>${lb(`E-mail${tipoAtual==='visitante'?'':' *'}`)}
-                <input id="f-email" type="email" value="${membro?.email||''}" ${inp} placeholder="email@exemplo.com"></div>
+                <input id="f-email" type="email" value="${_esc(membro?.email||'')}" ${inp} placeholder="email@exemplo.com"></div>
               <div>${lb('Telefone')}
-                <input id="f-telefone" value="${membro?.telefone||''}" ${inp} placeholder="(11) 99999-9999"></div>
+                <input id="f-telefone" value="${_esc(membro?.telefone||'')}" ${inp} placeholder="(11) 99999-9999"></div>
             </div>
 
             <div id="campo-loja" style="margin-bottom:14px;${tipoAtual==='membro'?'opacity:0.4;pointer-events:none':''}">
               ${lb('Loja de Origem')}
-              <input id="f-loja-origem" value="${membro?.loja_origem||''}" ${inp}
+              <input id="f-loja-origem" value="${_esc(membro?.loja_origem||'')}" ${inp}
                 list="lojas-datalist"
                 placeholder="Ex: A.R.L.S. União Nº 10 — GOB/SP"
                 oninput="atualizarLojaDatalist(this.value)">
               <datalist id="lojas-datalist">
-                ${(JSON.parse(localStorage.getItem('lojas_cadastradas')||'[]')).map(l=>`<option value="${l}">`).join('')}
+                ${(JSON.parse(localStorage.getItem('lojas_cadastradas')||'[]')).map(l=>`<option value="${_esc(l)}">`).join('')}
               </datalist>
             </div>
 
@@ -4267,7 +4267,7 @@ function abrirModalMembro(membro=null) {
                 ${tipoAtual==='filiado'?'<div style="font-size:10px;color:#1B5EA0;font-style:italic;margin-top:3px">🔗 Filiado: valor reduzido — contribui com outra loja também.</div>':''}
               </div>
               <div>${lb('Nome de tratamento')}
-                <input id="f-apelido" value="${membro?.apelido||''}" ${inp} placeholder="Como prefere ser chamado"></div>
+                <input id="f-apelido" value="${_esc(membro?.apelido||'')}" ${inp} placeholder="Como prefere ser chamado"></div>
             </div>
 
             <!-- Endereço -->
@@ -4275,21 +4275,21 @@ function abrirModalMembro(membro=null) {
               <div style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.12em;color:var(--text-muted);margin-bottom:12px">Endereço</div>
               <div style="display:grid;grid-template-columns:120px 1fr 80px 1fr;gap:12px;margin-bottom:12px">
                 <div>${lb('CEP')}
-                  <input id="f-cep" value="${membro?.cep||''}" ${inp} placeholder="00000-000" oninput="buscarCep(this.value)"></div>
+                  <input id="f-cep" value="${_esc(membro?.cep||'')}" ${inp} placeholder="00000-000" oninput="buscarCep(this.value)"></div>
                 <div>${lb('Endereço')}
-                  <input id="f-endereco" value="${membro?.endereco||''}" ${inp} placeholder="Rua, Av..."></div>
+                  <input id="f-endereco" value="${_esc(membro?.endereco||'')}" ${inp} placeholder="Rua, Av..."></div>
                 <div>${lb('Número')}
-                  <input id="f-numero" value="${membro?.numero||''}" ${inp}></div>
+                  <input id="f-numero" value="${_esc(membro?.numero||'')}" ${inp}></div>
                 <div>${lb('Complemento')}
-                  <input id="f-complemento" value="${membro?.complemento||''}" ${inp} placeholder="Apto, Bloco..."></div>
+                  <input id="f-complemento" value="${_esc(membro?.complemento||'')}" ${inp} placeholder="Apto, Bloco..."></div>
               </div>
               <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
                 <div>${lb('Cidade')}
-                  <input id="f-cidade" value="${membro?.cidade||''}" ${inp}></div>
+                  <input id="f-cidade" value="${_esc(membro?.cidade||'')}" ${inp}></div>
                 <div>${lb('Estado')}
-                  <input id="f-estado" value="${membro?.estado||''}" ${inp} placeholder="SP"></div>
+                  <input id="f-estado" value="${_esc(membro?.estado||'')}" ${inp} placeholder="SP"></div>
                 <div>${lb('País')}
-                  <input id="f-pais" value="${membro?.pais||'Brasil'}" ${inp}></div>
+                  <input id="f-pais" value="${_esc(membro?.pais||'Brasil')}" ${inp}></div>
               </div>
             </div>
           </div>
@@ -5176,7 +5176,7 @@ function _htmlCertificado(vis, sessao) {
   const serie    = `${(sessao.data||'').replace(/-/g,'')}-${Math.random().toString(36).substr(2,6).toUpperCase()}`;
 
   return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
-<title>Certificado — ${vis.nome}</title>
+<title>Certificado — ${_esc(vis.nome)}</title>
 <style>
   @page { size: A4; margin: 10mm 12mm; }
   * { margin:0; padding:0; box-sizing:border-box; }
@@ -5249,8 +5249,8 @@ function _htmlCertificado(vis, sessao) {
 
   <!-- Nome em destaque -->
   <div style="text-align:center;margin:2.5mm 0;position:relative;z-index:1;padding:2mm 0;border-top:0.5px solid rgba(212,168,67,0.35);border-bottom:0.5px solid rgba(212,168,67,0.35)">
-    <div style="font-size:14.5pt;font-weight:bold;color:#1B3A6B;font-style:italic;letter-spacing:0.04em">${vis.nome}</div>
-    ${vis.cargo?`<div style="font-size:8pt;color:#D4A843;margin-top:1mm;letter-spacing:0.08em">${vis.cargo}</div>`:''}
+    <div style="font-size:14.5pt;font-weight:bold;color:#1B3A6B;font-style:italic;letter-spacing:0.04em">${_esc(vis.nome)}</div>
+    ${vis.cargo?`<div style="font-size:8pt;color:#D4A843;margin-top:1mm;letter-spacing:0.08em">${_esc(vis.cargo)}</div>`:''}
   </div>
 
   <div class="body-text" style="position:relative;z-index:1">
@@ -5262,8 +5262,8 @@ function _htmlCertificado(vis, sessao) {
   <!-- Dados do visitante -->
   <div class="highlight-box" style="position:relative;z-index:1">
     ${[
-      vis.loja     ? `<div><b>Loja:</b> ${vis.loja}${vis.cim?' · CIM: '+vis.cim:''}</div>` : '',
-      vis.potencia ? `<div><b>Potência:</b> ${vis.potencia}</div>` : '',
+      vis.loja     ? `<div><b>Loja:</b> ${_esc(vis.loja)}${vis.cim?' · CIM: '+_esc(vis.cim):''}</div>` : '',
+      vis.potencia ? `<div><b>Potência:</b> ${_esc(vis.potencia)}</div>` : '',
       vis.grau     ? `<div><b>Grau:</b> ${vis.grau}º Grau</div>` : '',
     ].filter(Boolean).join('')}
   </div>
@@ -6441,7 +6441,7 @@ function _ofertaCertificadoAuto(visData, sessaoData, sessaoId) {
       <div style="font-size:24px;flex-shrink:0">🎖️</div>
       <div style="flex:1">
         <div style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.1em;margin-bottom:4px">CERTIFICADO DE VISITA</div>
-        <div style="font-size:12px;opacity:0.85;margin-bottom:10px">Ir. <strong>${visData.nome}</strong> foi registrado. Emitir certificado agora?</div>
+        <div style="font-size:12px;opacity:0.85;margin-bottom:10px">Ir. <strong>${_esc(visData.nome)}</strong> foi registrado. Emitir certificado agora?</div>
         <div style="display:flex;gap:8px">
           <button onclick="emitirCertificadoVisita(window._certAutoVis,window._certAutoSessao);document.getElementById('cert-auto-banner').remove()"
             style="padding:6px 14px;background:#D4A843;color:#1B3A6B;border:none;border-radius:4px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;cursor:pointer;white-space:nowrap">
@@ -11256,7 +11256,7 @@ function _legRow(d, canEdit, idx) {
   const isExt = !!d.url_externa;
   const rowBg = idx%2===0 ? 'var(--white)' : 'var(--cream)';
   return `
-    <tr class="leg-row" data-titulo="${(d.titulo||'').toLowerCase()}" data-cat="${d.categoria||'Outro'}"
+    <tr class="leg-row" data-titulo="${_esc((d.titulo||'').toLowerCase())}" data-cat="${d.categoria||'Outro'}"
       style="background:${rowBg};border-bottom:1px solid var(--border)">
       <td style="padding:11px 14px">
         <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:var(--text)">${_esc(d.titulo)||'Sem título'}</div>
@@ -11276,7 +11276,8 @@ function _legRow(d, canEdit, idx) {
         <div style="display:flex;gap:4px;justify-content:center">
           <button onclick="abrirModalLegislacao('${d.id}')" title="Editar"
             style="padding:5px 8px;border:1px solid var(--border-mid);border-radius:3px;background:none;cursor:pointer;font-size:12px">✏️</button>
-          <button onclick="excluirLegislacao('${d.id}','${(d.titulo||'').replace(/'/g,'')}')" title="Excluir"
+          <button data-id="${d.id}" data-titulo="${_esc(d.titulo||'')}"
+            onclick="excluirLegislacao(this.dataset.id,this.dataset.titulo)" title="Excluir"
             style="padding:5px 8px;border:1px solid rgba(139,32,32,0.3);border-radius:3px;background:none;cursor:pointer;font-size:12px;color:var(--red)">🗑️</button>
         </div>
       </td>`:''}
@@ -11383,7 +11384,7 @@ function abrirModalLegislacao(id) {
             ${d ? '✏️ Editar Documento' : '📚 Novo Documento'}
           </div>
           <div style="display:grid;gap:14px">
-            <div>${lb('Título','*')}<input id="leg-titulo" ${inp} value="${d?.titulo||''}" placeholder="Ex: Regulamento Geral da Maçonaria"></div>
+            <div>${lb('Título','*')}<input id="leg-titulo" ${inp} value="${_esc(d?.titulo||'')}" placeholder="Ex: Regulamento Geral da Maçonaria"></div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
               <div>${lb('Categoria','*')}<select id="leg-cat" ${inp}>${cats}</select></div>
               <div>${lb('Ano')}<input id="leg-ano" type="number" ${inp} value="${d?.ano||new Date().getFullYear()}" min="1700" max="2100" placeholder="${new Date().getFullYear()}"></div>
@@ -11757,7 +11758,7 @@ function abrirModalComissao(tipoInicial='permanente', comissaoExistente=null) {
 
           <div style="display:grid;gap:13px">
             <div>${lb('Nome da Comissão *')}
-              <input id="com-nome" value="${c.nome||''}" ${inp} placeholder="Ex: Comissão de Finanças, Comissão de Instalação..."></div>
+              <input id="com-nome" value="${_esc(c.nome||'')}" ${inp} placeholder="Ex: Comissão de Finanças, Comissão de Instalação..."></div>
 
             <div>${lb('Presidente *')}
               <select id="com-presidente" ${inp}>${opsPres}</select></div>
