@@ -2995,10 +2995,10 @@ async function renderConfSenhas() {
                   return `
                   <tr style="background:${rowBg};border-bottom:1px solid var(--border)">
                     <td style="padding:10px 14px">
-                      <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:var(--navy)">${m.nome_maconico||'—'}</div>
-                      <div style="font-size:11px;color:var(--text-muted)">${m.cargo||'Membro'}</div>
+                      <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:var(--navy)">${_esc(m.nome_maconico)||'—'}</div>
+                      <div style="font-size:11px;color:var(--text-muted)">${_esc(m.cargo)||'Membro'}</div>
                     </td>
-                    <td style="padding:10px 14px;font-size:12px;color:var(--text)">${m.email}</td>
+                    <td style="padding:10px 14px;font-size:12px;color:var(--text)">${_esc(m.email)}</td>
                     <td style="padding:10px 14px;text-align:center">
                       <span title="${statusTxt(st)}" style="font-size:16px">${statusIcon(st)}</span>
                       <div style="font-size:10px;color:var(--text-muted);margin-top:2px">${statusTxt(st)}</div>
@@ -3402,8 +3402,8 @@ function renderLogAcessos() {
           <tbody>
             ${log.slice().reverse().slice(0,10).map(r => `
               <tr>
-                <td style="font-weight:600">${r.nome||'—'}</td>
-                <td style="font-size:12px;color:var(--text-muted)">${r.cargo||'—'}</td>
+                <td style="font-weight:600">${_esc(r.nome)||'—'}</td>
+                <td style="font-size:12px;color:var(--text-muted)">${_esc(r.cargo)||'—'}</td>
                 <td><span class="badge b-active" style="font-size:9px">${r.perfil||'irmao'}</span></td>
                 <td style="font-family:'Cormorant Garamond',serif;font-size:13px">${r.data||'—'}</td>
                 <td><span style="font-size:11px">${r.tipo==='demo'?'🧪 Demo':'🔐 Login'}</span></td>
@@ -3428,9 +3428,9 @@ function renderLogAcessos() {
               ? acessosMembro.sort((a,b) => (b.iso||b.data||'').localeCompare(a.iso||a.data||'')).at(0)
               : null;
             return `<tr>
-              <td style="font-weight:600">${m.nome_maconico}</td>
+              <td style="font-weight:600">${_esc(m.nome_maconico)}</td>
               <td>${m.grau ? `${m.grau}º Grau` : '—'}</td>
-              <td style="font-size:12px;color:var(--text-muted)">${m.cargo||'—'}</td>
+              <td style="font-size:12px;color:var(--text-muted)">${_esc(m.cargo)||'—'}</td>
               <td style="font-family:'Cormorant Garamond',serif;font-size:13px;color:${ultimo?'var(--text)':'var(--text-muted)'}">
                 ${ultimo ? ultimo.data : '<em>Nunca registrado</em>'}
               </td>
@@ -3649,8 +3649,8 @@ async function renderDashboardIrmao(el) {
     <div style="display:flex;align-items:center;gap:16px;background:linear-gradient(135deg,rgba(27,58,107,0.08),rgba(27,58,107,0.02));border:1px solid rgba(27,58,107,0.15);border-radius:6px;padding:18px 24px;margin-bottom:16px">
       <div style="width:56px;height:56px;border-radius:50%;background:#1B3A6B;display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-size:22px;color:#fff;font-weight:700;flex-shrink:0">${(membro?.nome_maconico||'?').charAt(0)}</div>
       <div style="flex:1">
-        <div style="font-family:'Cinzel',serif;font-size:17px;font-weight:700;color:var(--navy)">Bem-vindo, ${membro?.nome_maconico||name}!</div>
-        <div style="font-size:14px;color:var(--text-muted);font-style:italic;margin-top:2px">${membro?.cargo||'Membro da Loja'} · ${degreeBadge(membro?.grau||3)} · ${meses[hoje.getMonth()]} de ${anoAtual}</div>
+        <div style="font-family:'Cinzel',serif;font-size:17px;font-weight:700;color:var(--navy)">Bem-vindo, ${_esc(membro?.nome_maconico||name)}!</div>
+        <div style="font-size:14px;color:var(--text-muted);font-style:italic;margin-top:2px">${_esc(membro?.cargo)||'Membro da Loja'} · ${degreeBadge(membro?.grau||3)} · ${meses[hoje.getMonth()]} de ${anoAtual}</div>
       </div>
       <div style="text-align:right;flex-shrink:0">
         <div style="font-size:11px;color:var(--text-muted);font-family:'Cinzel',serif;letter-spacing:0.1em">SITUAÇÃO</div>
@@ -3761,8 +3761,8 @@ async function renderDashboardIrmao(el) {
                   <div style="font-family:'Cinzel',serif;font-size:21px;font-weight:700;line-height:1;color:#fff">${dia}</div>
                 </div>
                 <div style="flex:1;padding:7px 12px;font-family:'Cormorant Garamond',serif;border-left:2px solid rgba(27,58,107,0.15)">
-                  <div style="font-size:14px;font-weight:700;color:var(--text)">${ev.titulo}</div>
-                  <div style="font-size:11px;color:var(--text-muted)">📍 ${ev.local}</div>
+                  <div style="font-size:14px;font-weight:700;color:var(--text)">${_esc(ev.titulo)}</div>
+                  <div style="font-size:11px;color:var(--text-muted)">📍 ${_esc(ev.local)}</div>
                 </div>
                 <div style="padding:0 10px;flex-shrink:0">
                   <span style="font-family:'Cinzel',serif;font-size:8px;font-weight:700;padding:3px 7px;border-radius:3px;background:${corB};color:${corT};white-space:nowrap">${badge}</span>
@@ -3790,8 +3790,8 @@ async function renderDashboardIrmao(el) {
                 <div style="font-family:'Cinzel',serif;font-size:28px;font-weight:700;line-height:1;color:#fff">${dia}</div>
               </div>
               <div style="flex:1;padding:10px 18px;font-family:'Cormorant Garamond',serif;border-left:3px solid rgba(212,168,67,0.3)">
-                <span style="font-size:17px;font-weight:700;color:var(--text)">${a.nome}</span>
-                <span style="font-size:13px;color:var(--text-muted);margin-left:12px">${a.tipo}</span>
+                <span style="font-size:17px;font-weight:700;color:var(--text)">${_esc(a.nome)}</span>
+                <span style="font-size:13px;color:var(--text-muted);margin-left:12px">${_esc(a.tipo)}</span>
               </div>
               ${a.isFamiliar?'':`<div style="padding:0 16px"><span class="badge b-active" style="font-size:9px">🏛️ Irmão</span></div>`}
             </div>`;
@@ -4695,17 +4695,17 @@ function renderMembros(access) {
         const eh = m.data_nascimento?.slice(5,7)===mesAtual;
         const tipo = m.tipo_membro||'membro';
         const tipoBadge = tipo==='visitante'
-          ? `<span class="badge" style="color:#7A3E00;background:rgba(212,130,0,0.1);border-color:#C9A84C33;font-size:9px">🤝 Visitante</span>${m.loja_origem?`<br><span style="font-size:9px;color:var(--text-muted)">${m.loja_origem}</span>`:''}`
+          ? `<span class="badge" style="color:#7A3E00;background:rgba(212,130,0,0.1);border-color:#C9A84C33;font-size:9px">🤝 Visitante</span>${m.loja_origem?`<br><span style="font-size:9px;color:var(--text-muted)">${_esc(m.loja_origem)}</span>`:''}`
           : tipo==='filiado'
-          ? `<span class="badge" style="color:#1B5EA0;background:rgba(27,94,160,0.1);border-color:#1B5EA033;font-size:9px">🔗 Filiado</span>${m.loja_origem?`<br><span style="font-size:9px;color:var(--text-muted)">${m.loja_origem}</span>`:''}`
+          ? `<span class="badge" style="color:#1B5EA0;background:rgba(27,94,160,0.1);border-color:#1B5EA033;font-size:9px">🔗 Filiado</span>${m.loja_origem?`<br><span style="font-size:9px;color:var(--text-muted)">${_esc(m.loja_origem)}</span>`:''}`
           : `<span class="badge b-active" style="font-size:9px">🏛️ Membro</span>`;
         const numSeq = m.numero_sequencial && m.numero_sequencial > 0 ? m.numero_sequencial : (idx + 1);
         return `<tr${eh?' style="background:rgba(212,168,67,0.06)"':''}>
           <td>${String(numSeq).padStart(3,'0')}</td>
-          <td>${m.nome_maconico||'—'}${eh?' 🎂':''}</td>
-          <td>${m.nome_civil||'—'}</td>
+          <td>${_esc(m.nome_maconico)||'—'}${eh?' 🎂':''}</td>
+          <td>${_esc(m.nome_civil)||'—'}</td>
           <td>${degreeBadge(m.grau)}</td>
-          <td>${m.cargo||'—'}</td>
+          <td>${_esc(m.cargo)||'—'}</td>
           <td>${fmtData(m.data_nascimento)}</td>
           <td>${tipoBadge}</td>
           <td>${statusBadge(m.status)}</td>
@@ -4737,8 +4737,8 @@ function renderMembros(access) {
               <div style="font-family:'Cinzel',serif;font-size:28px;font-weight:700;line-height:1;color:#ffffff">${diaN}</div>
             </div>
             <div style="flex:1;padding:10px 18px;font-family:'Cormorant Garamond',serif;border-left:3px solid rgba(212,168,67,0.3)">
-              <span style="font-size:18px;font-weight:700;color:var(--text)">${a.nome}</span>
-              <span style="font-size:13px;color:var(--text-muted);margin-left:12px">${a.tipo}</span>
+              <span style="font-size:18px;font-weight:700;color:var(--text)">${_esc(a.nome)}</span>
+              <span style="font-size:13px;color:var(--text-muted);margin-left:12px">${_esc(a.tipo)}</span>
             </div>
             <div style="padding:0 16px;flex-shrink:0">
               ${a.isFamiliar
@@ -5099,8 +5099,8 @@ function _renderHistoricoFreqLoja(membrosAtivos, sessoes, presencas) {
 
   const rows = dados.map(({m, presM, pct, cor}, i) => `
     <tr style="background:${i%2===0?'var(--white)':'var(--cream)'};border-bottom:1px solid var(--border)">
-      <td style="padding:10px 14px;font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:var(--text)">${m.nome_maconico}</td>
-      <td style="padding:10px 14px;font-size:12px;color:var(--text-muted)">${m.cargo||'—'}</td>
+      <td style="padding:10px 14px;font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:var(--text)">${_esc(m.nome_maconico)}</td>
+      <td style="padding:10px 14px;font-size:12px;color:var(--text-muted)">${_esc(m.cargo)||'—'}</td>
       <td style="padding:10px 14px">${degreeBadge(m.grau||3)}</td>
       <td style="padding:10px 14px;font-family:'Cinzel',serif;font-size:13px;color:var(--text)">${presM} / ${totalSessoes}</td>
       <td style="padding:10px 14px">
@@ -5617,8 +5617,8 @@ function verListaPresenca(sessaoId, data, tipo) {
   const rowsPres = membrosPres.map((m,i)=>`
     <tr>
       <td style="width:32px;text-align:center;font-size:13px;color:var(--text-muted)">${i+1}</td>
-      <td style="font-size:15px;font-family:'Cormorant Garamond',serif;font-weight:700">${m.nome_maconico}</td>
-      <td style="font-size:13px;color:var(--text-muted)">${m.cargo||'—'}</td>
+      <td style="font-size:15px;font-family:'Cormorant Garamond',serif;font-weight:700">${_esc(m.nome_maconico)}</td>
+      <td style="font-size:13px;color:var(--text-muted)">${_esc(m.cargo)||'—'}</td>
       <td>${degreeBadge(m.grau||3)}</td>
       <td style="text-align:center"><span style="color:var(--green);font-weight:700;font-size:15px">✓</span></td>
     </tr>`).join('');
@@ -5632,10 +5632,10 @@ function verListaPresenca(sessaoId, data, tipo) {
     const cargo = parts['Cargo'] || '';
     return `<tr style="background:rgba(212,168,67,0.02)">
       <td style="text-align:center;font-size:16px">🤝</td>
-      <td style="font-family:'Cormorant Garamond',serif;font-size:14px;font-weight:700;padding:7px 8px">${nome}</td>
-      <td style="font-size:12px;color:var(--text-muted);padding:7px 8px">${loja}${cim&&cim!=='—'?' · CIM: '+cim:''}</td>
+      <td style="font-family:'Cormorant Garamond',serif;font-size:14px;font-weight:700;padding:7px 8px">${_esc(nome)}</td>
+      <td style="font-size:12px;color:var(--text-muted);padding:7px 8px">${_esc(loja)}${cim&&cim!=='—'?' · CIM: '+_esc(cim):''}</td>
       <td colspan="2" style="padding:7px 8px">
-        ${cargo?`<span style="background:rgba(27,58,107,0.1);border:1px solid rgba(27,58,107,0.25);border-radius:20px;padding:2px 10px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.06em;color:var(--navy)">${cargo}</span>`:''}
+        ${cargo?`<span style="background:rgba(27,58,107,0.1);border:1px solid rgba(27,58,107,0.25);border-radius:20px;padding:2px 10px;font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.06em;color:var(--navy)">${_esc(cargo)}</span>`:''}
       </td>
     </tr>`;
   }).join('');
@@ -6643,8 +6643,8 @@ async function confirmarPagamentoAgendado(lancId) {
         <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--green),#2A7A3A);border-radius:6px 6px 0 0"></div>
         <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;letter-spacing:0.1em;color:var(--green);margin-bottom:16px">Confirmar Pagamento</div>
         <div style="background:rgba(27,58,107,0.04);border:1px solid rgba(27,58,107,0.15);border-radius:4px;padding:10px 14px;margin-bottom:16px;font-size:13px">
-          <div style="font-weight:600;color:var(--text)">${lanc.descricao||'--'}</div>
-          <div style="font-size:12px;color:var(--text-muted);margin-top:4px">${membro?membro.nome_maconico:'(Loja)'} · Venc: ${fmtData(lanc.data)} · ${fmtVal(lanc.valor)}</div>
+          <div style="font-weight:600;color:var(--text)">${_esc(lanc.descricao)||'--'}</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:4px">${membro?_esc(membro.nome_maconico):'(Loja)'} · Venc: ${fmtData(lanc.data)} · ${fmtVal(lanc.valor)}</div>
         </div>
         <div style="margin-bottom:16px">
           <label style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:6px">Data do Pagamento</label>
@@ -7182,8 +7182,8 @@ function renderFinancas(access) {
           : inadimplentes.slice(0,6).map(({m,devia})=>`
             <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 22px;border-top:1px solid var(--border)">
               <div>
-                <span style="font-size:15px;font-weight:700;font-family:'Cormorant Garamond',serif;color:var(--text)">${m.nome_maconico}</span>
-                <span style="font-size:12px;color:var(--text-muted);margin-left:10px">${m.cargo||''}</span>
+                <span style="font-size:15px;font-weight:700;font-family:'Cormorant Garamond',serif;color:var(--text)">${_esc(m.nome_maconico)}</span>
+                <span style="font-size:12px;color:var(--text-muted);margin-left:10px">${_esc(m.cargo)||''}</span>
               </div>
               <div style="display:flex;align-items:center;gap:8px">
                 <span style="font-size:14px;font-weight:700;color:var(--red);font-family:'Cinzel',serif">${fmtVal(devia)}</span>
@@ -7567,8 +7567,8 @@ function gerarMsgCobrancaGeral() {
         ${inadimplentes.map(({m,devia,mesesDev})=>`
           <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-family:'Cormorant Garamond',serif">
             <div>
-              <div style="font-size:14px;font-weight:700;color:var(--text)">${m.nome_maconico}</div>
-              <div style="font-size:11px;color:var(--text-muted)">${mesesDev} mês(es) · ${m.telefone||'sem telefone'}</div>
+              <div style="font-size:14px;font-weight:700;color:var(--text)">${_esc(m.nome_maconico)}</div>
+              <div style="font-size:11px;color:var(--text-muted)">${mesesDev} mês(es) · ${_esc(m.telefone)||'sem telefone'}</div>
             </div>
             <div style="display:flex;align-items:center;gap:8px">
               <span style="font-weight:700;color:var(--red);font-size:13px">${fmtVal(devia)}</span>
@@ -8313,7 +8313,7 @@ function calcularRateio() {
       📊 ${participantes.length} participante(s) · ${fmtVal(valPorCabeca)} por irmão
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:4px;max-height:120px;overflow-y:auto">
-      ${participantes.map(m=>`<span style="background:var(--white);border:1px solid rgba(107,58,0,0.2);border-radius:3px;padding:2px 8px;font-size:10px">${m.nome_maconico}</span>`).join('')}
+      ${participantes.map(m=>`<span style="background:var(--white);border:1px solid rgba(107,58,0,0.2);border-radius:3px;padding:2px 8px;font-size:10px">${_esc(m.nome_maconico)}</span>`).join('')}
     </div>`;
 }
 
@@ -8374,8 +8374,8 @@ function verArredondamentosPendentes() {
     const membro = DATA.membros.find(m=>m.id===l.membro_id);
     return `<tr>
       <td style="font-size:12px">${fmtData(l.data)}</td>
-      <td style="font-size:12px">${membro?.nome_maconico||'--'}</td>
-      <td style="font-size:12px">${l.descricao||'--'}</td>
+      <td style="font-size:12px">${_esc(membro?.nome_maconico)||'--'}</td>
+      <td style="font-size:12px">${_esc(l.descricao)||'--'}</td>
       <td style="font-size:13px;font-weight:700;color:#6B3A00;text-align:right">${fmtVal(l.valor)}</td>
     </tr>`;
   }).join('');
@@ -9025,9 +9025,9 @@ function renderEventos(access) {
         return `<div class="ev-card">
           <div class="ev-date"><div class="ev-month">${mes}</div><div class="ev-day">${dia}</div></div>
           <div class="ev-body">
-            <div class="ev-name" style="font-size:15px">${ev.titulo}${ev.subtitulo&&ev.subtitulo!==ev.titulo?` <span style="font-size:12px;color:var(--text-muted);font-weight:400">— ${ev.subtitulo}</span>`:''}
+            <div class="ev-name" style="font-size:15px">${_esc(ev.titulo)}${ev.subtitulo&&ev.subtitulo!==ev.titulo?` <span style="font-size:12px;color:var(--text-muted);font-weight:400">— ${_esc(ev.subtitulo)}</span>`:''}
             </div>
-            <div class="ev-meta" style="font-size:12px">📍 ${ev.local}${ev.hora&&ev.hora!=='--'?' · ⏰ '+ev.hora:''}</div>
+            <div class="ev-meta" style="font-size:12px">📍 ${_esc(ev.local)}${ev.hora&&ev.hora!=='--'?' · ⏰ '+_esc(ev.hora):''}</div>
           </div>
           <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;min-width:110px">
             <span style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;padding:4px 10px;border-radius:3px;background:${corBg};border:1px solid ${corBorda};color:${corTexto};white-space:nowrap">${badge}</span>
@@ -9393,8 +9393,8 @@ async function renderAtas() {
         return `<div class="ev-card" style="margin-bottom:8px">
           <div class="ev-date"><div class="ev-month">${mes}</div><div class="ev-day">${dia}</div></div>
           <div class="ev-body">
-            <div class="ev-name">${s.tipo||'Sessão'}</div>
-            <div class="ev-meta">${s.descricao_local||'Templo'}</div>
+            <div class="ev-name">${_esc(s.tipo)||'Sessão'}</div>
+            <div class="ev-meta">${_esc(s.descricao_local)||'Templo'}</div>
           </div>
         </div>`;
       }).join('');
@@ -9425,8 +9425,8 @@ async function renderAtas() {
             </div>
             <!-- Título -->
             <div style="flex:1;padding:12px 18px;font-family:'Cormorant Garamond',serif;display:flex;flex-direction:column;justify-content:center;min-width:0">
-              <div style="font-size:15px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.titulo || (sessao ? sessao.tipo : 'Sessão')}</div>
-              ${sessao?`<div style="font-size:11px;color:var(--text-muted);margin-top:3px">${sessao.tipo||''} · ${sessao.descricao_local||'Templo'}</div>`:''}
+              <div style="font-size:15px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_esc(a.titulo || (sessao ? sessao.tipo : 'Sessão'))}</div>
+              ${sessao?`<div style="font-size:11px;color:var(--text-muted);margin-top:3px">${_esc(sessao.tipo)||''} · ${_esc(sessao.descricao_local)||'Templo'}</div>`:''}
               ${!temTexto && !temArquivo ? `<div style="font-size:11px;color:var(--gold-dark);font-style:italic;margin-top:3px">✏️ Aguardando texto da ata…</div>` : ''}
             </div>
             <!-- Botões -->
@@ -9748,8 +9748,8 @@ async function renderMinhaFrequencia() {
     ? `<tr><td colspan="5" style="text-align:center;padding:16px;font-style:italic;color:var(--text-muted)">Nenhuma visita aprovada no período.</td></tr>`
     : visitasAprov.map(v=>`<tr>
         <td>${fmtData(v.data)}</td>
-        <td style="font-weight:600">${v.loja_nome||'—'} Nº ${v.loja_numero||'—'}</td>
-        <td>${v.potencia||'—'}</td>
+        <td style="font-weight:600">${_esc(v.loja_nome)||'—'} Nº ${_esc(v.loja_numero)||'—'}</td>
+        <td>${_esc(v.potencia)||'—'}</td>
         <td style="text-align:center">${v.grau||'—'}º</td>
         <td>${v.comprovante_url?`<a href="${v.comprovante_url}" target="_blank" style="color:var(--gold-dark);font-size:12px">📎 Ver</a>`:'—'}</td>
       </tr>`).join('');
@@ -9757,7 +9757,7 @@ async function renderMinhaFrequencia() {
   const rowsPend = visitasPend.length === 0 ? '' : visitasPend.map(v=>`
     <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
       <div>
-        <span style="font-size:14px;font-family:'Cormorant Garamond',serif">${fmtData(v.data)} · ${v.loja_nome||'—'} Nº${v.loja_numero||'—'} · ${v.potencia||'—'}</span>
+        <span style="font-size:14px;font-family:'Cormorant Garamond',serif">${fmtData(v.data)} · ${_esc(v.loja_nome)||'—'} Nº${_esc(v.loja_numero)||'—'} · ${_esc(v.potencia)||'—'}</span>
         <span style="margin-left:10px;font-size:11px;padding:2px 8px;border-radius:2px;${v.status_aprovacao==='pendente'?'background:rgba(212,168,67,0.15);color:var(--gold-dark)':'background:rgba(139,32,32,0.1);color:var(--red)'}">
           ${v.status_aprovacao==='pendente'?'⏳ Aguardando aprovação':'✗ Recusada'}
         </span>
@@ -9768,10 +9768,10 @@ async function renderMinhaFrequencia() {
   el.innerHTML = `
     <!-- Banner do irmão -->
     <div style="background:linear-gradient(135deg,rgba(27,58,107,0.06),rgba(27,58,107,0.02));border:1px solid rgba(27,58,107,0.15);border-radius:6px;padding:18px 24px;margin-bottom:16px;display:flex;align-items:center;gap:20px">
-      <div style="width:56px;height:56px;border-radius:50%;background:#1B3A6B;display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-size:22px;color:#fff;font-weight:700;flex-shrink:0">${membro.nome_maconico.charAt(0)}</div>
+      <div style="width:56px;height:56px;border-radius:50%;background:#1B3A6B;display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-size:22px;color:#fff;font-weight:700;flex-shrink:0">${_esc(membro.nome_maconico.charAt(0))}</div>
       <div>
-        <div style="font-family:'Cinzel',serif;font-size:16px;font-weight:700;color:var(--navy)">${membro.nome_maconico}</div>
-        <div style="font-size:13px;color:var(--text-muted);font-style:italic">${membro.cargo||'Membro da Loja'} · ${degreeBadge(membro.grau||3)}</div>
+        <div style="font-family:'Cinzel',serif;font-size:16px;font-weight:700;color:var(--navy)">${_esc(membro.nome_maconico)}</div>
+        <div style="font-size:13px;color:var(--text-muted);font-style:italic">${_esc(membro.cargo)||'Membro da Loja'} · ${degreeBadge(membro.grau||3)}</div>
       </div>
     </div>
 
@@ -10007,7 +10007,7 @@ async function renderMeuFinanceiro() {
           const isVencido = l.data && l.data < hojeStr;
           return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 22px;border-bottom:1px solid var(--border)">
             <div>
-              <div style="font-family:'Cormorant Garamond',serif;font-size:15px;font-weight:600;color:var(--text)">${l.descricao||'—'}</div>
+              <div style="font-family:'Cormorant Garamond',serif;font-size:15px;font-weight:600;color:var(--text)">${_esc(l.descricao)||'—'}</div>
               <div style="font-size:11px;color:${isVencido?'var(--red)':'var(--text-muted)'};margin-top:2px">
                 ${isVencido?'🔴 VENCIDO em ':'📅 Vence em '}${fmtData(l.data)} · ${getCatLabel(l.categoria)||'—'}
               </div>
@@ -10354,8 +10354,8 @@ function _widgetNotificacaoBiblioteca() {
           ${pendentesParaMim.slice(0,3).map(t => `
             <div style="background:rgba(255,255,255,0.8);border:1px solid rgba(27,107,58,0.15);border-radius:4px;padding:7px 12px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;gap:8px">
               <div>
-                <div style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:var(--text)">${t.titulo||'—'}</div>
-                <div style="font-size:10px;color:var(--text-muted);margin-top:1px">${_GL(_grauTrab(t))} · ${t.autor_nome||t.membros?.nome_maconico||'—'}</div>
+                <div style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;color:var(--text)">${_esc(t.titulo)||'—'}</div>
+                <div style="font-size:10px;color:var(--text-muted);margin-top:1px">${_GL(_grauTrab(t))} · ${_esc(t.autor_nome||t.membros?.nome_maconico||'—')}</div>
               </div>
               <span style="font-size:10px;font-family:'Cinzel',serif;font-weight:700;color:#1B6B3A;white-space:nowrap">Avaliar →</span>
             </div>`).join('')}
@@ -10586,8 +10586,8 @@ function _biblio(lista, isAdm) {
               const rowBg = i%2===0 ? 'var(--white)' : 'var(--cream)';
               return `
               <tr style="background:${rowBg};border-bottom:1px solid var(--border)">
-                <td style="padding:11px 14px;font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:var(--navy)">${t.titulo||'Sem título'}</td>
-                <td style="padding:11px 14px;font-size:13px;color:var(--navy)">Ir. ${autor}</td>
+                <td style="padding:11px 14px;font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:var(--navy)">${_esc(t.titulo)||'Sem título'}</td>
+                <td style="padding:11px 14px;font-size:13px;color:var(--navy)">Ir. ${_esc(autor)}</td>
                 <td style="padding:11px 14px;font-size:12px;color:var(--navy);white-space:nowrap">${t.data_postagem?new Date(t.data_postagem).toLocaleDateString('pt-BR'):'—'}</td>
                 <td style="padding:10px 14px;text-align:center">
                   <div style="display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap">
@@ -11259,8 +11259,8 @@ function _legRow(d, canEdit, idx) {
     <tr class="leg-row" data-titulo="${(d.titulo||'').toLowerCase()}" data-cat="${d.categoria||'Outro'}"
       style="background:${rowBg};border-bottom:1px solid var(--border)">
       <td style="padding:11px 14px">
-        <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:var(--text)">${d.titulo||'Sem título'}</div>
-        ${d.descricao?`<div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-top:2px">${d.descricao.slice(0,80)}${d.descricao.length>80?'…':''}</div>`:''}
+        <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:var(--text)">${_esc(d.titulo)||'Sem título'}</div>
+        ${d.descricao?`<div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-top:2px">${_esc(d.descricao.slice(0,80))}${d.descricao.length>80?'…':''}</div>`:''}
       </td>
       <td style="padding:11px 14px">
         <span style="background:${catCor}18;color:${catCor};border:1px solid ${catCor}30;border-radius:20px;padding:2px 10px;font-family:'Cinzel',serif;font-size:8px;font-weight:700;white-space:nowrap">${d.categoria||'Outro'}</span>
@@ -11618,13 +11618,13 @@ async function renderComissoes(access) {
             <th>Status</th>${canEdit?'<th></th>':''}
           </tr></thead>
           <tbody>${lista.map(c=>`<tr>
-            <td><strong style="font-family:'Cinzel',serif;font-size:11px">${c.nome}</strong>${c.missao?`<br><span style="font-size:10px;color:var(--text-muted);font-style:italic">${c.missao.substring(0,60)}${c.missao.length>60?'...':''}</span>`:''}
+            <td><strong style="font-family:'Cinzel',serif;font-size:11px">${_esc(c.nome)}</strong>${c.missao?`<br><span style="font-size:10px;color:var(--text-muted);font-style:italic">${_esc(c.missao.substring(0,60))}${c.missao.length>60?'...':''}</span>`:''}
             </td>
-            <td>${c.presidente||'—'}</td>
+            <td>${_esc(c.presidente)||'—'}</td>
             <td><div style="display:flex;flex-wrap:wrap;gap:4px">${(c.membros_cargos||((c.membros||[]).map(m=>({nome:m,cargo_com:''})))).map(mc=>`
               <span style="background:rgba(27,58,107,0.07);border:1px solid rgba(27,58,107,0.15);border-radius:20px;padding:2px 8px;font-size:11px;font-family:'Cormorant Garamond',serif;display:inline-flex;align-items:center;gap:5px">
-                ${mc.nome}
-                ${mc.cargo_com?`<span style="background:rgba(27,58,107,0.15);border-radius:10px;padding:1px 6px;font-size:9px;font-family:'Cinzel',serif;font-weight:700;letter-spacing:0.04em;color:var(--navy)">${mc.cargo_com}</span>`:''}
+                ${_esc(mc.nome)}
+                ${mc.cargo_com?`<span style="background:rgba(27,58,107,0.15);border-radius:10px;padding:1px 6px;font-size:9px;font-family:'Cinzel',serif;font-weight:700;letter-spacing:0.04em;color:var(--navy)">${_esc(mc.cargo_com)}</span>`:''}
               </span>`).join('')||'—'}</div></td>
             ${tipo==='temporaria'?`<td><div style="font-size:11px">${c.evento||'—'}</div>${c.data_inicio?`<div style="font-size:10px;color:var(--text-muted)">${fmtData(c.data_inicio)}${c.data_fim?' → '+fmtData(c.data_fim):''}</div>`:''}</td>`:''}
             <td>${statusComissao(c)}</td>
@@ -13085,12 +13085,12 @@ function gerarRelFreqSessao() {
 
   const linhasPresentes = presentes.map(p=>{
     const m = membros.find(mb=>mb.id===p.membro_id);
-    return `<tr><td>${m?.nome_maconico||'—'}</td><td>${m?.cargo||'—'}</td><td>${m?.grau||'—'}º</td><td style="color:var(--green);font-weight:600">✓ Presente</td></tr>`;
+    return `<tr><td>${_esc(m?.nome_maconico)||'—'}</td><td>${_esc(m?.cargo)||'—'}</td><td>${m?.grau||'—'}º</td><td style="color:var(--green);font-weight:600">✓ Presente</td></tr>`;
   }).join('');
-  const linhasAusentes = ausentes.map(m=>`<tr><td>${m.nome_maconico}</td><td>${m.cargo||'—'}</td><td>${m.grau}º</td><td style="color:var(--red)">✗ Ausente</td></tr>`).join('');
+  const linhasAusentes = ausentes.map(m=>`<tr><td>${_esc(m.nome_maconico)}</td><td>${_esc(m.cargo)||'—'}</td><td>${m.grau}º</td><td style="color:var(--red)">✗ Ausente</td></tr>`).join('');
   const linhasVisit = visitantes.map(p=>{
     const parts = (p.justificativa||'').split('|').reduce((acc,part)=>{const[k,v]=part.split(':').map(s=>s.trim());acc[k]=v;return acc;},{});
-    return `<tr><td>${parts['Nome']||'—'}</td><td>${parts['Loja']||'—'}</td><td>${parts['CIM']||'—'}</td><td style="color:var(--gold-dark)">🤝 Visitante</td></tr>`;
+    return `<tr><td>${_esc(parts['Nome'])||'—'}</td><td>${_esc(parts['Loja'])||'—'}</td><td>${_esc(parts['CIM'])||'—'}</td><td style="color:var(--gold-dark)">🤝 Visitante</td></tr>`;
   }).join('');
 
   document.getElementById('rel-freq-sessao-result').innerHTML = `
