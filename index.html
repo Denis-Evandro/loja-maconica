@@ -656,6 +656,8 @@ body {
 .lbl, .lbl-fin { font-family:'Cinzel',serif; font-size:9px; font-weight:700; letter-spacing:0.15em; text-transform:uppercase; display:block; margin-bottom:5px; }
 .lbl { color:var(--text-muted); }
 .lbl-fin { color:#7A4A00; }
+.fc-hdr { font-family:'Cinzel',serif; font-size:13px; font-weight:700; letter-spacing:0.1em; color:var(--gold-dark); }
+.lbl-fc { font-family:'Cinzel',serif; font-size:9px; font-weight:700; letter-spacing:0.12em; color:var(--text-muted); text-transform:uppercase; display:block; margin-bottom:5px; }
 
 /* BUTTONS */
 .btn {
@@ -4979,7 +4981,7 @@ function abrirModalSessao() {
     <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center">
       <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;padding:36px 40px;width:460px;position:relative">
         <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gold-dark),var(--gold-rich),var(--gold-light),var(--gold-dark));border-radius:6px 6px 0 0"></div>
-        <div class="fc" style="font-size:13px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);margin-bottom:24px">+ Nova Sessão</div>
+        <div class="fc-hdr" style="margin-bottom:24px">+ Nova Sessão</div>
         <div style="display:grid;gap:14px">
           <div><label class="lbl">Data</label>
             <input id="nova-sessao-data" type="date" value="${hoje}" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"></div>
@@ -5416,7 +5418,7 @@ Que a Fraternidade Universal continue unindo todos os Maçons na busca do Bem, d
           <div class="fc" style="font-size:12px;font-weight:700;color:#128C7E;margin-bottom:4px">📱 Enviar Certificado por WhatsApp</div>
           <div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-bottom:14px">Ir. ${vis.nome}</div>
           <div style="margin-bottom:12px">
-            <label class="fc" style="font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">Telefone do Visitante (com DDD)</label>
+            <label class="lbl-fc">Telefone do Visitante (com DDD)</label>
             <input id="cert-wa-tel" type="tel" value="${tel}" placeholder="Ex: 13999998888"
               style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)">
           </div>
@@ -5484,12 +5486,12 @@ Oriente de ${orient}`;
           <div class="fc" style="font-size:12px;font-weight:700;color:#1B5EA0;margin-bottom:4px">✉️ Enviar Certificado por E-mail</div>
           <div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-bottom:14px">Ir. ${vis.nome}</div>
           <div style="margin-bottom:12px">
-            <label class="fc" style="font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">E-mail do Visitante</label>
+            <label class="lbl-fc">E-mail do Visitante</label>
             <input id="cert-email-addr" type="email" value="${emailVis}" placeholder="email@exemplo.com"
               style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)">
           </div>
           <div style="margin-bottom:12px">
-            <label class="fc" style="font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">Assunto</label>
+            <label class="lbl-fc">Assunto</label>
             <input type="text" value="${assunto}"
               style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--cream);color:var(--text)" readonly>
           </div>
@@ -6059,7 +6061,7 @@ function abrirModalVincularLogin(membroId) {
           <div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-bottom:18px">${membro.nome_maconico}</div>
 
           <div style="margin-bottom:14px">
-            <label class="fc" style="font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">E-mail do novo login</label>
+            <label class="lbl-fc">E-mail do novo login</label>
             <input id="vincular-email" type="email" value="${membro.email||''}" placeholder="email@exemplo.com"
               style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-size:14px;background:var(--cream);color:var(--text)">
           </div>
@@ -6156,7 +6158,7 @@ async function abrirModalEdicaoPropriaConta() {
 function _campoEdicao(label, id, type, value, gridCol) {
   const gs = gridCol ? `grid-column:${gridCol};` : '';
   return `<div style="${gs}">
-    <label class="fc" style="font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px">${label}</label>
+    <label class="lbl-fc">${label}</label>
     <input id="${id}" type="${type}" value="${(value||'').replace(/"/g,'&quot;')}"
       style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-size:13px;background:var(--cream);color:var(--text)">
   </div>`;
@@ -6315,7 +6317,7 @@ async function abrirModalVisitante(sessaoId) {
     <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center">
       <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;padding:36px 40px;width:480px;position:relative">
         <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gold-dark),var(--gold-rich),var(--gold-light),var(--gold-dark));border-radius:6px 6px 0 0"></div>
-        <div class="fc" style="font-size:13px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);margin-bottom:20px">🤝 Registrar Irmão Visitante</div>
+        <div class="fc-hdr" style="margin-bottom:20px">🤝 Registrar Irmão Visitante</div>
         <datalist id="lojas-list">${datalistOps}</datalist>
 
         ${visitantesCad.length > 0 ? `
@@ -6816,7 +6818,7 @@ function abrirModalLancamento(prefCat='') {
     <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center">
       <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;padding:36px 40px;width:500px;position:relative">
         <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gold-dark),var(--gold-rich),var(--gold-light),var(--gold-dark));border-radius:6px 6px 0 0"></div>
-        <div class="fc" style="font-size:13px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);margin-bottom:24px">+ Novo Lançamento</div>
+        <div class="fc-hdr" style="margin-bottom:24px">+ Novo Lançamento</div>
         <div style="display:grid;gap:14px">
           <div><label class="lbl">Tipo</label>
             <select id="f-tipo" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)">
@@ -8627,7 +8629,7 @@ function abrirModalEditarSessao(id) {
     <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center">
       <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;padding:32px 36px;width:460px;position:relative">
         <div style="height:3px;background:linear-gradient(90deg,var(--gold-dark),var(--gold-rich),var(--gold-light),var(--gold-dark));border-radius:6px 6px 0 0;position:absolute;top:0;left:0;right:0"></div>
-        <div class="fc" style="font-size:13px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);margin-bottom:20px">✎ Editar Sessão</div>
+        <div class="fc-hdr" style="margin-bottom:20px">✎ Editar Sessão</div>
         <div style="display:grid;gap:14px">
           <div><label class="lbl">Data</label>
             <input id="ed-sess-data" type="date" value="${s.data||''}" ${inp}></div>
@@ -8705,7 +8707,7 @@ function abrirModalEditarEvento(id) {
     <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center">
       <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;padding:32px 36px;width:480px;position:relative">
         <div style="height:3px;background:linear-gradient(90deg,var(--gold-dark),var(--gold-rich),var(--gold-light),var(--gold-dark));border-radius:6px 6px 0 0;position:absolute;top:0;left:0;right:0"></div>
-        <div class="fc" style="font-size:13px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);margin-bottom:20px">✎ Editar Evento</div>
+        <div class="fc-hdr" style="margin-bottom:20px">✎ Editar Evento</div>
         <div style="display:grid;gap:14px">
           <div><label class="lbl">Título *</label>
             <input id="ed-ev-titulo" value="${(e.titulo||e.descricao||'').replace(/"/g,'&quot;')}" ${inp}></div>
@@ -8860,7 +8862,7 @@ function abrirModalEvento() {
       <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:8px;width:560px;max-height:92vh;overflow-y:auto;position:relative">
         <div style="height:3px;background:linear-gradient(90deg,var(--gold-dark),var(--gold-rich),var(--gold-light),var(--gold-dark));border-radius:8px 8px 0 0"></div>
         <div style="padding:28px 32px">
-          <div class="fc" style="font-size:13px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);margin-bottom:20px">📅 Novo Evento / Convite</div>
+          <div class="fc-hdr" style="margin-bottom:20px">📅 Novo Evento / Convite</div>
 
           <!-- Tipo de registro -->
           <div style="margin-bottom:18px">
@@ -9211,7 +9213,7 @@ function abrirModalAta() {
     <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px">
       <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;padding:36px 40px;width:600px;max-height:90vh;overflow-y:auto;position:relative">
         <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gold-dark),var(--gold-rich),var(--gold-light),var(--gold-dark));border-radius:6px 6px 0 0"></div>
-        <div class="fc" style="font-size:13px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);margin-bottom:24px">📄 Nova Ata</div>
+        <div class="fc-hdr" style="margin-bottom:24px">📄 Nova Ata</div>
         <div style="display:grid;gap:16px">
           <div><label class="lbl">Sessão Referente</label>
             <select id="ata-sessao" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)">
@@ -9262,7 +9264,7 @@ function editarAta(ata) {
     <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px">
       <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;padding:36px 40px;width:700px;max-height:90vh;overflow-y:auto;position:relative">
         <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gold-dark),var(--gold-rich),var(--gold-light),var(--gold-dark));border-radius:6px 6px 0 0"></div>
-        <div class="fc" style="font-size:13px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);margin-bottom:24px">✎ Editar Ata</div>
+        <div class="fc-hdr" style="margin-bottom:24px">✎ Editar Ata</div>
         <div style="display:grid;gap:16px">
           <div><label class="lbl">Sessão Referente</label>
             <select id="edit-ata-sessao" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:15px;background:var(--cream);color:var(--text)">
@@ -11353,7 +11355,7 @@ function abrirModalLegislacao(id) {
       <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:8px;width:520px;max-height:90vh;overflow-y:auto;position:relative">
         <div style="height:3px;background:linear-gradient(90deg,var(--gold-dark),var(--gold-rich),var(--gold-light),var(--gold-dark));border-radius:8px 8px 0 0"></div>
         <div style="padding:24px 28px">
-          <div class="fc" style="font-size:13px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);margin-bottom:20px">
+          <div class="fc-hdr" style="margin-bottom:20px">
             ${d ? '✏️ Editar Documento' : '📚 Novo Documento'}
           </div>
           <div style="display:grid;gap:14px">
@@ -13757,7 +13759,7 @@ function abrirModalLancamentoTronco() {
     <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center">
       <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;padding:36px 40px;width:440px;position:relative">
         <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gold-dark),var(--gold-rich),var(--gold-light),var(--gold-dark));border-radius:6px 6px 0 0"></div>
-        <div class="fc" style="font-size:13px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);margin-bottom:24px">🏺 Lançamento no Tronco de Beneficência</div>
+        <div class="fc-hdr" style="margin-bottom:24px">🏺 Lançamento no Tronco de Beneficência</div>
         <div style="display:grid;gap:14px">
           <div><label class="lbl">Tipo</label>
             <select id="tronco-tipo" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)">
