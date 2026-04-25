@@ -2209,23 +2209,25 @@ async function doCadastro() {
 
     if (membroEncontrado) {
       // 4a. Vincular ao cadastro existente
-      await sb.from('membros').update({
+      const { error: errVinculo } = await sb.from('membros').update({
         auth_user_id: userId,
         login_status: 'ativo',
         login_vinculado_em: new Date().toISOString(),
         ...(email ? { email } : {}),
         ...(tel    ? { telefone: tel } : {})
       }).eq('id', membroEncontrado.id);
+      if (errVinculo) { mostrarErro('Erro ao vincular conta: ' + errVinculo.message); return; }
 
       mostrarOk('✅ Conta criada e vinculada! Já pode fazer login.');
     } else {
       // 4b. Sem cadastro — criar pendência
-      await sb.from('solicitacoes_edicao').insert({
+      const { error: errSolPend } = await sb.from('solicitacoes_edicao').insert({
         membro_id: null,
         dados_novos: { nome_maconico: nome, email: emailAuth, telefone: tel, auth_user_id: userId },
         status: 'pendente',
         observacao: 'Auto-cadastro aguardando vinculação pelo Secretário'
       });
+      if (errSolPend) { mostrarErro('Erro ao criar solicitação: ' + errSolPend.message); return; }
       mostrarOk('✅ Conta criada! Aguarde o Secretário aprovar seu acesso. Você será notificado.');
     }
   } catch(e) {
@@ -2346,7 +2348,8 @@ async function doLogin() {
     membro = m1;
     // Atualizar auth_user_id se ainda não estiver vinculado
     if (!m1.auth_user_id) {
-      await sb.from('membros').update({ auth_user_id: userId, login_status: 'ativo' }).eq('id', m1.id);
+      const { error: errVinc } = await sb.from('membros').update({ auth_user_id: userId, login_status: 'ativo' }).eq('id', m1.id);
+      if (errVinc) console.error('Erro ao vincular auth_user_id:', errVinc);
     }
   } else {
     // Tentar por auth_user_id
@@ -3184,11 +3187,12 @@ function _salvarDadosLoja(dados) {
 async function _syncConfiguracoes(dados) {
   if (!sb) return;
   try {
-    await sb.from('configuracoes').upsert({
+    const { error: errConf } = await sb.from('configuracoes').upsert({
       id: 'loja_principal',
       dados: JSON.stringify(dados),
       atualizado_em: new Date().toISOString()
     }, { onConflict: 'id' });
+    if (errConf) throw errConf;
   } catch(e) { console.warn('_syncConfiguracoes:', e); }
 }
 async function _carregarConfiguracoes() {
@@ -4965,13 +4969,14 @@ async function salvarSessao() {
 
   // Criar ata vinculada automaticamente
   if (sessaoId) {
-    await sb.from('atas').insert({
+    const { error: errAta } = await sb.from('atas').insert({
       sessao_id: sessaoId,
       titulo: tipo + ' — ' + fmtData(data),
       data: data,
       conteudo: null,
       arquivo_url: null
     });
+    if (errAta) console.error('Erro ao criar ata vinculada:', errAta);
   }
 
   // Re-renderizar Frequência imediatamente com os dados já atualizados
@@ -5941,7 +5946,8 @@ async function _recalcularAgapeSessao(sessaoId, membroIdsPresentes) {
 
     // Apagar débitos antigos
     for (const d of agapeDebitos) {
-      await sb.from('financas').delete().eq('id', d.id);
+      const { error: errDelAgape } = await sb.from('financas').delete().eq('id', d.id);
+      if (errDelAgape) { console.error('Erro ao excluir débito ágape:', errDelAgape); }
     }
 
     // Inserir novos débitos para todos os presentes
@@ -6283,11 +6289,12 @@ async function aprovarEdicao(solId) {
     return;
   }
 
-  await sb.from('solicitacoes_edicao').update({
+  const { error: errAprovar } = await sb.from('solicitacoes_edicao').update({
     status: 'aprovado',
     resolvido_em: new Date().toISOString(),
     resolvido_por: eu.nome
   }).eq('id', solId);
+  if (errAprovar) { console.error(errAprovar); toast('❌ Erro ao aprovar solicitação: ' + errAprovar.message); return; }
 
   toast('✅ Alterações aprovadas e aplicadas!');
   await _reloadMembros();
@@ -6299,12 +6306,13 @@ async function rejeitarEdicao(solId) {
   const motivo = prompt('Motivo da rejeição (opcional):') ?? '';
   const eu = _eu();
 
-  await sb.from('solicitacoes_edicao').update({
+  const { error: errRejeitar } = await sb.from('solicitacoes_edicao').update({
     status: 'rejeitado',
     resolvido_em: new Date().toISOString(),
     resolvido_por: eu.nome,
     observacao: motivo || 'Rejeitado pelo administrador'
   }).eq('id', solId);
+  if (errRejeitar) { console.error(errRejeitar); toast('❌ Erro ao rejeitar solicitação: ' + errRejeitar.message); return; }
 
   toast('❌ Solicitação rejeitada.');
   const el = document.getElementById('sol-edicao-container');
@@ -6471,7 +6479,8 @@ async function salvarVisitante(sessaoId) {
   if (!nome || !loja) { toast('Preencha nome e loja'); return; }
 
   // Salvar a loja na tabela de lojas_visitantes para autocompletar depois
-  await sb.from('lojas_visitantes').upsert({ nome: loja }, { onConflict: 'nome', ignoreDuplicates: true });
+  const { error: errLojaUps } = await sb.from('lojas_visitantes').upsert({ nome: loja }, { onConflict: 'nome', ignoreDuplicates: true });
+  if (errLojaUps) console.error('Erro ao salvar loja visitante:', errLojaUps);
 
   // Registrar visitante na tabela presencas
   const res = await sb.from('presencas').insert({
@@ -8330,7 +8339,8 @@ async function lancarAgape() {
 
   const valPorCabeca = parseFloat((valor / participantes.length).toFixed(2));
   // Lançar a despesa total
-  await sb.from('financas').insert({ descricao, valor, tipo:'despesa', data, categoria:'agape', status:'pago' });
+  const { error: errDespAgape } = await sb.from('financas').insert({ descricao, valor, tipo:'despesa', data, categoria:'agape', status:'pago' });
+  if (errDespAgape) { console.error(errDespAgape); toast('❌ Erro ao registrar despesa: ' + errDespAgape.message); return; }
   // Lançar o débito individual para cada obreiro
   const debitos = participantes.map(m=>({
     descricao: `${descricao} — rateio`,
@@ -8489,14 +8499,16 @@ async function salvarEditAgape() {
   if (!novoValor) { toast('Informe o novo valor'); return; }
 
   // Atualizar despesa total
-  await sb.from('financas').update({ valor: novoValor }).eq('id', agapeId);
+  const { error: errUpdAgape } = await sb.from('financas').update({ valor: novoValor }).eq('id', agapeId);
+  if (errUpdAgape) { console.error(errUpdAgape); toast('❌ Erro ao atualizar ágape: ' + errUpdAgape.message); return; }
 
   // Recalcular debitos individuais
   const debitos = DATA.financas.filter(l => l.categoria==='agape' && l.tipo==='receita' && l.data===dataAgape && l.descricao?.includes('rateio'));
   if (debitos.length) {
     const novoValPP = parseFloat((novoValor / debitos.length).toFixed(2));
     for (const d of debitos) {
-      await sb.from('financas').update({ valor: novoValPP }).eq('id', d.id);
+      const { error: errUpdRateio } = await sb.from('financas').update({ valor: novoValPP }).eq('id', d.id);
+      if (errUpdRateio) console.error('Erro ao atualizar rateio:', errUpdRateio);
     }
   }
 
@@ -8519,11 +8531,13 @@ async function excluirAgape() {
   if (!confirm('Excluir este agape e todos os rateios individuais?')) return;
 
   // Excluir despesa
-  await sb.from('financas').delete().eq('id', agapeId);
+  const { error: errDelDesp } = await sb.from('financas').delete().eq('id', agapeId);
+  if (errDelDesp) { console.error(errDelDesp); toast('❌ Erro ao excluir ágape: ' + errDelDesp.message); return; }
   // Excluir debitos individuais
   const debitos = DATA.financas.filter(l => l.categoria==='agape' && l.tipo==='receita' && l.data===dataAgape && l.descricao?.includes('rateio'));
   for (const d of debitos) {
-    await sb.from('financas').delete().eq('id', d.id);
+    const { error: errDelRateio } = await sb.from('financas').delete().eq('id', d.id);
+    if (errDelRateio) console.error('Erro ao excluir rateio:', errDelRateio);
   }
 
   toast('Agape excluido!');
@@ -8693,7 +8707,8 @@ async function salvarEdicaoSessao(id) {
 async function excluirSessao(id, tipo) {
   try {
   if (!confirm(`Excluir a sessão "${tipo}"?\nIsso também excluirá os registros de presença.`)) return;
-  await sb.from('presencas').delete().eq('sessao_id', id);
+  const { error: errDelPresencas } = await sb.from('presencas').delete().eq('sessao_id', id);
+  if (errDelPresencas) { console.error(errDelPresencas); toast('❌ Erro ao excluir presenças: ' + errDelPresencas.message); return; }
   const res = await sb.from('sessoes').delete().eq('id', id);
   if (_sbErr('comissao', res.error)) return;
   toast('Sessão excluída ✦');
@@ -8847,7 +8862,8 @@ async function salvarEvento() {
         if (!resP.error && resP.data) DATA.presencas.push(...resP.data);
       }
       // Criar ata vazia vinculada
-      await sb.from('atas').insert({ sessao_id:sessaoId, titulo:`${titulo} — ${tipoSessao}`, data, conteudo:null, arquivo_url:null });
+      const { error: errAtaEvt } = await sb.from('atas').insert({ sessao_id:sessaoId, titulo:`${titulo} — ${tipoSessao}`, data, conteudo:null, arquivo_url:null });
+      if (errAtaEvt) console.error('Erro ao criar ata do evento:', errAtaEvt);
     }
     toast('🏛️ Sessão criada ✦ · Frequência e Ata abertas automaticamente');
   }
@@ -10184,9 +10200,11 @@ async function salvarPagamentoMembro(membroId, temDebitos) {
 
       // Se valor foi editado, atualizar no banco antes de marcar como pago
       if (Math.abs(valorEditado - valorOriginal) > 0.01) {
-        await sb.from('financas').update({ valor: valorEditado, status: 'pago' }).eq('id', cb.dataset.id);
+        const { error: errPagEdit } = await sb.from('financas').update({ valor: valorEditado, status: 'pago' }).eq('id', cb.dataset.id);
+        if (errPagEdit) { console.error(errPagEdit); toast('❌ Erro ao registrar pagamento: ' + errPagEdit.message); return; }
       } else {
-        await sb.from('financas').update({ status: 'pago' }).eq('id', cb.dataset.id);
+        const { error: errPag } = await sb.from('financas').update({ status: 'pago' }).eq('id', cb.dataset.id);
+        if (errPag) { console.error(errPag); toast('❌ Erro ao registrar pagamento: ' + errPag.message); return; }
       }
     }
 
