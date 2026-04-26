@@ -467,6 +467,71 @@ body {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
+
+  /* Letter-spacing: reduzir em mobile */
+  .field-label              { letter-spacing: 0.1em; }
+  .btn-login                { letter-spacing: 0.12em; }
+  .login-lodge              { letter-spacing: 0.1em; }
+  .page-title               { letter-spacing: 0.1em; }
+  .topbar-role              { letter-spacing: 0.08em; }
+  .stat-label               { letter-spacing: 0.1em; }
+  .nav-sec                  { letter-spacing: 0.1em; }
+  .lbl, .lbl-fin            { letter-spacing: 0.08em; }
+  .lbl-fc                   { letter-spacing: 0.06em; }
+  .btn                      { letter-spacing: 0.08em; }
+  th                        { letter-spacing: 0.08em; }
+}
+
+/* Telas muito pequenas (320–480px) */
+@media (max-width: 480px) {
+  .sidebar { width: 240px; }
+
+  .two-col,
+  .col-6040,
+  .rel-grid { grid-template-columns: 1fr; }
+
+  .page-title {
+    font-size: 11px;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .section-title { font-size: 18px; }
+}
+
+/* Tablet portrait (600–767px): sidebar permanente */
+@media (min-width: 600px) and (max-width: 768px) {
+  /* Sidebar permanente — como desktop */
+  .sidebar {
+    transform: translateX(0);
+    width: 252px;
+  }
+  .main {
+    margin-left: 252px;
+    padding-bottom: 0;
+  }
+
+  /* Ocultar elementos de navegação mobile */
+  #bottom-nav       { display: none !important; }
+  #btn-hamburger    { display: none !important; }
+  #sidebar-backdrop { display: none !important; }
+
+  /* Padding mais generoso com o espaço disponível */
+  .content        { padding: 20px 24px; }
+  .topbar         { padding: 0 24px; }
+  .section-header { padding: 20px 24px 0 !important; }
+
+  /* Modais: 80vw em vez de 92vw */
+  #modal-overlay > div,
+  [id^="modal-overlay"] > div,
+  #modal-nova-senha > div {
+    width: 80vw !important;
+    max-width: 80vw !important;
+    padding: 24px !important;
+  }
+  .modal-box { padding: 24px; }
 }
 
 /* Desktop — esconder elementos mobile */
