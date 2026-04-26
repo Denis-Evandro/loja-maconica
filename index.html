@@ -387,6 +387,144 @@ body {
 .main { margin-left:252px; min-height:100vh; background: linear-gradient(180deg, #DDE9F5 0%, #EEF4FB 300px); }
 
 /* ============================
+   WELCOME SCREEN
+   ============================ */
+#welcome-screen {
+  min-height:100vh;
+  background:#1B3A6B;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+}
+.wlc-hero {
+  width:100%;
+  padding:80px 24px 60px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  text-align:center;
+  background:linear-gradient(180deg,#0F2347 0%,#1B3A6B 100%);
+  border-bottom:1px solid rgba(212,168,67,0.3);
+}
+.wlc-symbol { font-size:56px; color:#D4A843; margin-bottom:20px; line-height:1; }
+.wlc-title {
+  font-family:'Georgia',serif;
+  font-size:36px; font-weight:700;
+  color:#FFFFFF;
+  letter-spacing:0.12em;
+  text-transform:uppercase;
+  margin:0 0 14px;
+}
+.wlc-subtitle {
+  font-family:'Georgia',serif;
+  font-size:16px; font-style:italic;
+  color:#D4A843;
+  margin:0 0 20px;
+}
+.wlc-lodge {
+  font-family:'Cinzel',serif;
+  font-size:11px;
+  color:#CADCFC;
+  letter-spacing:0.08em;
+  margin:0 0 36px;
+  max-width:520px;
+  line-height:1.7;
+}
+.wlc-btn {
+  background:#CADCFC;
+  color:#0F2347;
+  border:none;
+  border-radius:4px;
+  padding:14px 44px;
+  font-family:'Cinzel',serif;
+  font-size:12px; font-weight:700;
+  letter-spacing:0.16em;
+  text-transform:uppercase;
+  cursor:pointer;
+  margin-bottom:16px;
+  transition:opacity 0.2s;
+}
+.wlc-btn:hover { opacity:0.88; }
+.wlc-url {
+  font-family:'Cinzel',serif;
+  font-size:10px;
+  color:#CADCFC;
+  letter-spacing:0.1em;
+  margin:0;
+  opacity:0.65;
+}
+.wlc-modules {
+  width:100%;
+  max-width:960px;
+  padding:48px 24px 16px;
+  margin:0 auto;
+}
+.wlc-grid {
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:18px;
+  margin-bottom:18px;
+}
+.wlc-card {
+  background:rgba(255,255,255,0.06);
+  border:1px solid rgba(212,168,67,0.2);
+  border-radius:6px;
+  padding:22px 18px;
+  text-align:center;
+}
+.wlc-card-icon { font-size:26px; margin-bottom:10px; }
+.wlc-card-title {
+  font-family:'Cinzel',serif;
+  font-size:11px; font-weight:700;
+  color:#FFFFFF;
+  letter-spacing:0.1em;
+  text-transform:uppercase;
+  margin-bottom:7px;
+}
+.wlc-card-desc {
+  font-family:'Georgia',serif;
+  font-size:12px; font-style:italic;
+  color:rgba(202,220,252,0.75);
+  line-height:1.5;
+}
+.wlc-card-bib {
+  border-left:3px solid #D4A843;
+  background:rgba(212,168,67,0.06);
+  text-align:left;
+  display:flex;
+  align-items:center;
+  gap:20px;
+  padding:20px 24px;
+}
+.wlc-card-bib .wlc-card-icon { margin-bottom:0; flex-shrink:0; font-size:32px; }
+.wlc-card-bib .wlc-card-title { margin-bottom:4px; }
+.wlc-footer {
+  width:100%;
+  padding:18px 24px;
+  text-align:center;
+  font-family:'Cinzel',serif;
+  font-size:9px;
+  color:rgba(202,220,252,0.4);
+  letter-spacing:0.14em;
+  text-transform:uppercase;
+  border-top:1px solid rgba(212,168,67,0.15);
+  margin-top:auto;
+}
+@media (max-width:768px) {
+  .wlc-hero { padding:56px 20px 44px; }
+  .wlc-title { font-size:26px; }
+  .wlc-subtitle { font-size:14px; }
+  .wlc-lodge { font-size:10px; }
+  .wlc-grid { grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); }
+  .wlc-modules { padding:32px 16px 12px; }
+}
+@media (max-width:480px) {
+  .wlc-title { font-size:22px; letter-spacing:0.08em; }
+  .wlc-grid { grid-template-columns:1fr; }
+  .wlc-card-bib { flex-direction:column; text-align:center; }
+}
+
+/* ============================
    RESPONSIVO — MOBILE
    ============================ */
 @media (max-width: 768px) {
@@ -1221,8 +1359,67 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
 </head>
 <body>
 
+<!-- =================== WELCOME SCREEN =================== -->
+<div id="welcome-screen">
+
+  <div class="wlc-hero">
+    <div class="wlc-symbol">✦</div>
+    <h1 class="wlc-title">MESTRE VIRTUAL</h1>
+    <p class="wlc-subtitle">Sistema de Gestão para Lojas Maçônicas</p>
+    <p class="wlc-lodge">A.R.L.S. Fraternidade Acadêmica de Peruíbe · Nº 3524 — G.O.B./SP · Rito Moderno</p>
+    <button class="wlc-btn" onclick="irParaLogin()">Entrar na Loja ✦</button>
+    <p class="wlc-url">mestrevirtual.com.br</p>
+  </div>
+
+  <div class="wlc-modules">
+    <div class="wlc-grid">
+      <div class="wlc-card">
+        <div class="wlc-card-icon">👥</div>
+        <div class="wlc-card-title">Membros</div>
+        <div class="wlc-card-desc">Cadastro e perfil completo dos irmãos da loja</div>
+      </div>
+      <div class="wlc-card">
+        <div class="wlc-card-icon">💰</div>
+        <div class="wlc-card-title">Finanças</div>
+        <div class="wlc-card-desc">Controle de mensalidades e lançamentos</div>
+      </div>
+      <div class="wlc-card">
+        <div class="wlc-card-icon">🏛️</div>
+        <div class="wlc-card-title">Sessões</div>
+        <div class="wlc-card-desc">Registro e frequência nas sessões</div>
+      </div>
+      <div class="wlc-card">
+        <div class="wlc-card-icon">📅</div>
+        <div class="wlc-card-title">Eventos</div>
+        <div class="wlc-card-desc">Agenda e controle de eventos maçônicos</div>
+      </div>
+      <div class="wlc-card">
+        <div class="wlc-card-icon">✅</div>
+        <div class="wlc-card-title">Frequência</div>
+        <div class="wlc-card-desc">Relatórios de presença e pontualidade</div>
+      </div>
+      <div class="wlc-card">
+        <div class="wlc-card-icon">📜</div>
+        <div class="wlc-card-title">Legislação</div>
+        <div class="wlc-card-desc">Regulamentos, estatutos e atas</div>
+      </div>
+    </div>
+
+    <div class="wlc-card wlc-card-bib">
+      <div class="wlc-card-icon">📚</div>
+      <div>
+        <div class="wlc-card-title">Biblioteca de Estudos</div>
+        <div class="wlc-card-desc">Textos, trabalhos e referências maçônicas para aprofundamento ritual e filosófico</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="wlc-footer">Sistema restrito a membros regularizados</div>
+
+</div>
+
 <!-- =================== LOGIN SCREEN =================== -->
-<div id="login-screen">
+<div id="login-screen" style="display:none">
 
   <svg class="login-watermark" viewBox="0 0 200 200" fill="none">
     <path d="M20 160 L20 60 L120 60" stroke="#7A5C0A" stroke-width="7" fill="none" stroke-linecap="square"/>
@@ -2131,6 +2328,11 @@ function selecionarDemo(el) {
   el.style.background = 'rgba(212,168,67,0.12)';
   el.querySelectorAll('div').forEach((d,i) => { if(i===1) d.style.color='var(--gold-dark)'; });
   _demoSelecionado = el.dataset.demo;
+}
+
+function irParaLogin() {
+  document.getElementById('welcome-screen').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
 }
 
 function doLoginDemo() {
