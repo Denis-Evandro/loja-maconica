@@ -1953,17 +1953,17 @@ const ROLES = {
   secretario: {
     label:'Secretário', icon:'📜', badge:'Secretário',
     initials:'LS', name:'Ir. Luís da Sabedoria', color:'#1E4A7A',
-    access:{ dashboard:'full', membros:'full', frequencia:'full', financas:'read', eventos:'full', permissoes:'none', comissoes:'full', legislacao:'full', trabalhos:'full', 'minha-frequencia':'full', 'meu-financeiro':'full', atas:'full', relatorios:'full', configuracoes:'full' }
+    access:{ dashboard:'full', membros:'full', frequencia:'full', financas:'read', eventos:'full', permissoes:'none', comissoes:'full', legislacao:'full', trabalhos:'full', 'minha-frequencia':'full', 'meu-financeiro':'full', atas:'full', relatorios:'full', configuracoes:'none' }
   },
   tesoureiro: {
     label:'Tesoureiro', icon:'⚖️', badge:'Tesoureiro',
     initials:'RP', name:'Ir. Rafael da Paz', color:'#7A4A00',
-    access:{ dashboard:'full', membros:'read', frequencia:'read', financas:'full', eventos:'read', permissoes:'none', comissoes:'read', legislacao:'read', trabalhos:'read', 'minha-frequencia':'full', 'meu-financeiro':'full', atas:'full', relatorios:'full', configuracoes:'full' }
+    access:{ dashboard:'full', membros:'read', frequencia:'read', financas:'full', eventos:'read', permissoes:'none', comissoes:'read', legislacao:'read', trabalhos:'read', 'minha-frequencia':'full', 'meu-financeiro':'full', atas:'full', relatorios:'full', configuracoes:'none' }
   },
   chanceler: {
     label:'Chanceler', icon:'🗂️', badge:'Chanceler',
     initials:'FO', name:'Ir. Fernando da Ordem', color:'#4A3A7A',
-    access:{ dashboard:'full', membros:'full', frequencia:'full', financas:'none', eventos:'read', permissoes:'none', comissoes:'full', legislacao:'read', trabalhos:'read', 'minha-frequencia':'full', 'meu-financeiro':'full', atas:'full', relatorios:'full', configuracoes:'full' }
+    access:{ dashboard:'full', membros:'full', frequencia:'full', financas:'none', eventos:'read', permissoes:'none', comissoes:'full', legislacao:'read', trabalhos:'read', 'minha-frequencia':'full', 'meu-financeiro':'full', atas:'full', relatorios:'full', configuracoes:'none' }
   },
   irmao: {
     label:'Irmão', icon:'🔵', badge:'Irmão',
@@ -2980,9 +2980,9 @@ function renderNav() {
       ${item.label}${lockHtml}</button>`;
   });
 
-  // Configurações (engrenagem) no sistema — só venerável/admin
-  const podeConfig = ['veneravel','admin','secretario','tesoureiro','chanceler'].includes(currentRole);
-  if (podeConfig) {
+  // Configurações (engrenagem) no sistema — controlado por permissão de módulo
+  const accessConf = ROLES[currentRole].access['configuracoes'] || 'none';
+  if (accessConf !== 'none') {
     if (!inSistema) html += `<div class="nav-sec">Sistema</div>`;
     html += `<button class="nav-item" id="nav-configuracoes" onclick="abrirConfiguracoes()">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -3102,16 +3102,17 @@ const MODULOS_PERM = [
   { id:'legislacao', label:'📚 Legislação & Decretos',   desc:'Documentos e decretos maçônicos' },
   { id:'trabalhos',  label:'📖 Biblioteca de Instrução', desc:'Trabalhos e biblioteca de grau' },
   { id:'atas',       label:'📋 Atas & Eventos',          desc:'Atas de sessões e eventos' },
-  { id:'relatorios', label:'📊 Relatórios',              desc:'Relatórios de impressão' },
+  { id:'relatorios',    label:'📊 Relatórios',                              desc:'Relatórios de impressão' },
+  { id:'configuracoes', label:'⚙️ Configurações',                         desc:'Dados da loja, assinaturas e gestão de senhas' },
 ];
 
 const ROLES_PADRAO = {
-  veneravel:  { membros:'full', frequencia:'full', financas:'full',  eventos:'full', comissoes:'full', legislacao:'full', trabalhos:'full', atas:'full', relatorios:'full'  },
-  secretario: { membros:'full', frequencia:'full', financas:'read',  eventos:'full', comissoes:'full', legislacao:'full', trabalhos:'full', atas:'full', relatorios:'full'  },
-  tesoureiro: { membros:'read', frequencia:'read', financas:'full',  eventos:'read', comissoes:'read', legislacao:'read', trabalhos:'read', atas:'full', relatorios:'full'  },
-  chanceler:  { membros:'full', frequencia:'full', financas:'none',  eventos:'read', comissoes:'full', legislacao:'read', trabalhos:'read', atas:'full', relatorios:'full'  },
-  irmao:      { membros:'read', frequencia:'none', financas:'none',  eventos:'read', comissoes:'read', legislacao:'read', trabalhos:'full', atas:'full', relatorios:'none'  },
-  admin:      { membros:'full', frequencia:'full', financas:'full',  eventos:'full', comissoes:'full', legislacao:'full', trabalhos:'full', atas:'full', relatorios:'full'  },
+  veneravel:  { membros:'full', frequencia:'full', financas:'full',  eventos:'full', comissoes:'full', legislacao:'full', trabalhos:'full', atas:'full', relatorios:'full', configuracoes:'full' },
+  secretario: { membros:'full', frequencia:'full', financas:'read',  eventos:'full', comissoes:'full', legislacao:'full', trabalhos:'full', atas:'full', relatorios:'full', configuracoes:'none' },
+  tesoureiro: { membros:'read', frequencia:'read', financas:'full',  eventos:'read', comissoes:'read', legislacao:'read', trabalhos:'read', atas:'full', relatorios:'full', configuracoes:'none' },
+  chanceler:  { membros:'full', frequencia:'full', financas:'none',  eventos:'read', comissoes:'full', legislacao:'read', trabalhos:'read', atas:'full', relatorios:'full', configuracoes:'none' },
+  irmao:      { membros:'read', frequencia:'none', financas:'none',  eventos:'read', comissoes:'read', legislacao:'read', trabalhos:'full', atas:'full', relatorios:'none', configuracoes:'none' },
+  admin:      { membros:'full', frequencia:'full', financas:'full',  eventos:'full', comissoes:'full', legislacao:'full', trabalhos:'full', atas:'full', relatorios:'full', configuracoes:'full' },
 };
 
 // Aplicar permissões salvas sobre ROLES (chamada no startup e ao trocar perfil)
@@ -3420,6 +3421,10 @@ function copiarSqlSenhaTemp() {
 function renderConfiguracoes() {
   const el = document.getElementById('configuracoes-content');
   if (!el) return;
+  if ((ROLES[currentRole]?.access['configuracoes'] || 'none') === 'none') {
+    el.innerHTML = accessDenied('Configurações');
+    return;
+  }
   const abas = ['loja','assinaturas','acessos','senhas'];
   const isAdmin = currentRole === 'admin';
   el.innerHTML = `
