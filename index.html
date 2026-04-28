@@ -4376,6 +4376,7 @@ async function salvarMembro(dados, id=null) {
   if (res.error) { toast('Erro ao salvar: ' + res.error.message); return false; }
   toast('Irmão salvo com sucesso ✦');
   await _reloadMembros();
+  renderMembros(ROLES[currentRole].access['membros']);
   return true;
   } catch(e) {
     console.error("[salvarMembro]", e);
@@ -4390,6 +4391,7 @@ async function excluirMembro(id, nome) {
   if (res.error) { toast('Erro: ' + res.error.message); return; }
   toast('Membro excluído ✦');
   await _reloadMembros();
+  renderMembros(ROLES[currentRole].access['membros']);
   } catch(e) {
     console.error("[excluirMembro]", e);
     toast("❌ Erro inesperado. Tente novamente.");
@@ -6179,6 +6181,7 @@ async function confirmarPresencas(sessaoId) {
   toast('Presenças salvas ✦');
   fecharModal();
   await _reloadPresencas();
+  renderFrequencia(ROLES[currentRole].access['frequencia']);
   } catch(e) {
     console.error("[confirmarPresencas]", e);
     toast("❌ Erro inesperado. Tente novamente.");
@@ -6444,6 +6447,7 @@ async function salvarVinculacaoLogin(membroId) {
   toast('✅ E-mail de login atualizado! Quando o irmão criar a conta com este e-mail, será vinculado automaticamente.');
   fecharModal();
   await _reloadMembros();
+  renderMembros(ROLES[currentRole].access['membros']);
 }
 
 // ── Irmão editar o PRÓPRIO cadastro ─────────────────────────
@@ -6820,6 +6824,7 @@ async function salvarVisitante(sessaoId) {
   window._certAutoSessao = DATA.sessoes.find(s => s.id === sessaoId) || { id: sessaoId, data: '', tipo: '' };
   fecharModal();
   await _reloadPresencas();
+  renderFrequencia(ROLES[currentRole].access['frequencia']);
   // Mostrar banner automático APÓS o carregamento (500ms para o DOM estabilizar)
   setTimeout(() => _ofertaCertificadoAuto(window._certAutoVis, window._certAutoSessao, sessaoId), 500);
   } catch(e) {
@@ -8837,6 +8842,7 @@ async function salvarEditAgape() {
   toast('Agape atualizado!');
   fecharModal();
   await _reloadFinancas();
+  renderFinancas(ROLES[currentRole].access['financas'] || 'full');
   } catch(e) {
     console.error('[salvarEditAgape]', e);
     toast('❌ Erro inesperado. Tente novamente.');
@@ -8865,6 +8871,7 @@ async function excluirAgape() {
   toast('Agape excluido!');
   fecharModal();
   await _reloadFinancas();
+  renderFinancas(ROLES[currentRole].access['financas'] || 'full');
   } catch(e) {
     console.error('[excluirAgape]', e);
     toast('❌ Erro inesperado. Tente novamente.');
@@ -8956,6 +8963,7 @@ async function lancarMensalidadesAuto() {
   toast(`✦ ${inserts.length} mensalidades lançadas com vencimento em ${diaReal}/${mes+1}!`);
   fecharModal();
   await _reloadFinancas();
+  renderFinancas(ROLES[currentRole].access['financas'] || 'full');
   } catch(e) {
     console.error('[lancarMensalidadesAuto]', e);
     toast('❌ Erro inesperado. Tente novamente.');
@@ -9020,6 +9028,7 @@ async function salvarEdicaoSessao(id) {
   toast('Sessão atualizada ✦');
   fecharModal();
   await _reloadSessoes();
+  renderFrequencia(ROLES[currentRole].access['frequencia']);
   } catch(e) {
     console.error('[salvarEdicaoSessao]', e);
     toast('❌ Erro inesperado. Tente novamente.');
@@ -9036,6 +9045,7 @@ async function excluirSessao(id, tipo) {
   toast('Sessão excluída ✦');
   fecharModal();
   await Promise.all([_reloadSessoes(), _reloadPresencas()]);
+  renderFrequencia(ROLES[currentRole].access['frequencia']);
   } catch(e) {
     console.error('[excluirSessao]', e);
     toast('❌ Erro inesperado. Tente novamente.');
@@ -9106,6 +9116,7 @@ async function salvarEdicaoEvento(id) {
   toast('Evento atualizado ✦');
   fecharModal();
   await _reloadEventos();
+  renderEventos(ROLES[currentRole].access['eventos']);
   } catch(e) {
     console.error('[salvarEdicaoEvento]', e);
     toast('❌ Erro inesperado. Tente novamente.');
@@ -9120,6 +9131,7 @@ async function excluirEvento(id, titulo) {
   toast('Evento excluído ✦');
   fecharModal();
   await _reloadEventos();
+  renderEventos(ROLES[currentRole].access['eventos']);
   } catch(e) {
     console.error('[excluirEvento]', e);
     toast('❌ Erro inesperado. Tente novamente.');
@@ -9192,6 +9204,7 @@ async function salvarEvento() {
   }
 
   await Promise.all([_reloadEventos(), _reloadSessoes(), _reloadPresencas(), _reloadAtas()]);
+  renderEventos(ROLES[currentRole].access['eventos']);
   } catch(e) {
     console.error("[salvarEvento]", e);
     toast("❌ Erro inesperado. Tente novamente.");
@@ -10549,6 +10562,7 @@ async function salvarPagamentoMembro(membroId, temDebitos) {
 
   fecharModal();
   await _reloadFinancas();
+  renderFinancas(ROLES[currentRole].access['financas'] || 'full');
   } catch(e) {
     console.error('[salvarPagamentoMembro]', e);
     toast('❌ Erro inesperado. Tente novamente.');
