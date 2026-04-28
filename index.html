@@ -6212,11 +6212,15 @@ async function _recalcularAgapeSessao(sessaoId, membroIdsPresentes) {
     const valorTotal = parseFloat(agapeDespesa.valor) || 0;
     if (!valorTotal) return;
 
-    // Buscar débitos individuais existentes
+    // Buscar débitos individuais existentes e separar por status
     const agapeDebitos = financasFrescas.filter(l =>
       l.tipo === 'receita' &&
       l.descricao?.includes('rateio')
     );
+    const pagos   = agapeDebitos.filter(d => d.status === 'pago');
+    const abertos = agapeDebitos.filter(d => d.status !== 'pago');
+    const membrosPagos   = new Set(pagos.map(d => d.membro_id));
+    const membrosAbertos = new Set(abertos.map(d => d.membro_id));
 
     // Filtrar participantes: presentes e não-visitantes
     const participantes = membroIdsPresentes.map(id => {
@@ -6227,36 +6231,47 @@ async function _recalcularAgapeSessao(sessaoId, membroIdsPresentes) {
     if (!participantes.length) return;
 
     const novoValor = parseFloat((valorTotal / participantes.length).toFixed(2));
+    const idsParticipantes = new Set(participantes.map(p => p.id));
 
-    // Verificar se mudou algo (evitar updates desnecessários)
-    const mesmaQtd = agapeDebitos.length === participantes.length;
-    const mesmoValor = agapeDebitos.length > 0 && Math.abs(parseFloat(agapeDebitos[0].valor) - novoValor) < 0.01;
-    const mesmosIds = mesmaQtd && agapeDebitos.every(d => participantes.some(p => p.id === d.membro_id));
-    if (mesmaQtd && mesmoValor && mesmosIds) {
-      return;
+    // 1. Abertos de membros que já não estão presentes → deletar
+    const aExcluir = abertos.filter(d => !idsParticipantes.has(d.membro_id));
+    for (const d of aExcluir) {
+      const { error } = await sb.from('financas').delete().eq('id', d.id);
+      if (error) console.error('Erro ao excluir débito ágape:', error);
     }
 
-    // Apagar débitos antigos
-    for (const d of agapeDebitos) {
-      const { error: errDelAgape } = await sb.from('financas').delete().eq('id', d.id);
-      if (errDelAgape) { console.error('Erro ao excluir débito ágape:', errDelAgape); }
+    // 2. Abertos de membros ainda presentes → atualizar valor se mudou
+    const aAtualizar = abertos.filter(d =>
+      idsParticipantes.has(d.membro_id) &&
+      Math.abs(parseFloat(d.valor) - novoValor) >= 0.01
+    );
+    for (const d of aAtualizar) {
+      const { error } = await sb.from('financas').update({ valor: novoValor }).eq('id', d.id);
+      if (error) console.error('Erro ao atualizar débito ágape:', error);
     }
 
-    // Inserir novos débitos para todos os presentes
-    const novosDebitos = participantes.map(m => ({
-      descricao: `${agapeDespesa.descricao || 'Ágape'} — rateio`,
-      valor: novoValor,
-      tipo: 'receita',
-      data: dataSessao,
-      categoria: 'agape',
-      status: 'aberto',
-      membro_id: m.id
-    }));
+    // 3. Participantes sem nenhuma entrada (nem paga nem aberta) → inserir
+    const aSomarIds = participantes.filter(p =>
+      !membrosPagos.has(p.id) && !membrosAbertos.has(p.id)
+    );
+    if (aSomarIds.length) {
+      const novosDebitos = aSomarIds.map(m => ({
+        descricao: `${agapeDespesa.descricao || 'Ágape'} — rateio`,
+        valor: novoValor,
+        tipo: 'receita',
+        data: dataSessao,
+        categoria: 'agape',
+        status: 'aberto',
+        membro_id: m.id
+      }));
+      const resIns = await sb.from('financas').insert(novosDebitos);
+      if (resIns.error) { console.error('[Ágape] Erro insert:', resIns.error); return; }
+    }
 
-    const resIns = await sb.from('financas').insert(novosDebitos);
-    if (resIns.error) { console.error('[Ágape] Erro insert:', resIns.error); return; }
-
-    toast(`🍽️ Ágape recalculado: ${participantes.length} irmãos × ${fmtVal(novoValor)}`);
+    const totalModificados = aExcluir.length + aAtualizar.length + aSomarIds.length;
+    if (totalModificados > 0) {
+      toast(`🍽️ Ágape recalculado: ${participantes.length} irmãos × ${fmtVal(novoValor)}`);
+    }
   } catch(e) {
     console.warn('[_recalcularAgapeSessao]', e);
   }
