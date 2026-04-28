@@ -3465,7 +3465,7 @@ function ativarAbaConfig(aba) {
   });
   if (aba === 'loja')        renderConfigLoja();
   if (aba === 'assinaturas') renderConfigAssinaturas();
-  if (aba === 'acessos')     renderLogAcessos();
+  if (aba === 'acessos')     renderLogAcessos(); // async, fire-and-forget OK aqui
   if (aba === 'senhas')      renderConfSenhas();
 }
 
@@ -3656,16 +3656,30 @@ function renderConfigAssinaturas() {
   renderAssinaturas();
 }
 
-function renderLogAcessos() {
+async function renderLogAcessos() {
   const el = document.getElementById('cfg-cont-acessos');
   if (!el) return;
 
-  // Ler log do localStorage
-  let log = [];
-  try { log = JSON.parse(localStorage.getItem('log_acessos') || '[]'); } catch(e) {}
+  // Mostrar loading imediato
+  el.innerHTML = `<div style="text-align:center;padding:32px;color:var(--text-muted);font-style:italic">Carregando log...</div>`;
 
-  // Combinar com membros cadastrados para mostrar quadro completo
+  // Buscar últimos 50 registros do Supabase
+  const { data: log, error } = await sb.from('acessos_log')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  if (error) {
+    el.innerHTML = `<div style="text-align:center;padding:32px;color:var(--red)">❌ Erro ao carregar log: ${_esc(error.message)}</div>`;
+    return;
+  }
+
   const membros = DATA.membros || [];
+
+  // Formatar data para exibição (created_at vem como ISO string)
+  const fmtData = iso => iso
+    ? new Date(iso).toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})
+    : '—';
 
   el.innerHTML = `
     <div class="card" style="margin-bottom:16px">
@@ -3674,9 +3688,9 @@ function renderLogAcessos() {
         <button class="btn" onclick="limparLogAcessos()" style="font-size:11px;padding:6px 14px;color:var(--red);border-color:rgba(139,32,32,0.3)">🗑️ Limpar Log</button>
       </div>
       <div style="padding:8px 22px 4px;font-size:12px;color:var(--text-muted);font-style:italic;border-bottom:1px solid var(--border)">
-        Últimos 10 acessos registrados neste dispositivo. O log é sincronizado por navegador.
+        Últimos 10 acessos registrados — sincronizado em todos os dispositivos.
       </div>
-      ${log.length === 0 ? `
+      ${!log || log.length === 0 ? `
         <div style="text-align:center;padding:32px;color:var(--text-muted)">
           <div style="font-size:32px;opacity:0.2;margin-bottom:8px">📋</div>
           <div class="fc" style="font-size:11px">NENHUM ACESSO REGISTRADO AINDA</div>
@@ -3693,12 +3707,12 @@ function renderLogAcessos() {
             </tr>
           </thead>
           <tbody>
-            ${log.slice().reverse().slice(0,10).map(r => `
+            ${log.slice(0,10).map(r => `
               <tr>
                 <td style="font-weight:600">${_esc(r.nome)||'—'}</td>
                 <td style="font-size:12px;color:var(--text-muted)">${_esc(r.cargo)||'—'}</td>
                 <td><span class="badge b-active" style="font-size:9px">${r.perfil||'irmao'}</span></td>
-                <td class="fg" style="font-size:13px">${r.data||'—'}</td>
+                <td class="fg" style="font-size:13px">${fmtData(r.created_at)}</td>
                 <td><span style="font-size:11px">${r.tipo==='demo'?'🧪 Demo':'🔐 Login'}</span></td>
               </tr>`).join('')}
           </tbody>
@@ -3711,21 +3725,28 @@ function renderLogAcessos() {
         <thead><tr><th>Irmão</th><th>Grau</th><th>Cargo</th><th>Último Acesso</th><th>Status</th></tr></thead>
         <tbody>
           ${membros.filter(m=>m.status==='ativo'||m.status==='iniciado').map(m => {
-            // Buscar o acesso mais recente — comparação flexível (sem DEMO, sem "Ir.")
-            const nomeM = (m.nome_maconico||'').replace(/^Ir\.\s*/i,'').replace(/\s*\(DEMO\)\s*/i,'').toLowerCase().trim();
-            const acessosMembro = log.filter(r => {
-              const nomeLog = (r.nome||'').replace(/^Ir\.\s*/i,'').replace(/\s*\(DEMO\)\s*/i,'').toLowerCase().trim();
-              return nomeLog === nomeM || nomeLog.includes(nomeM) || nomeM.includes(nomeLog);
-            });
-            const ultimo = acessosMembro.length
-              ? acessosMembro.sort((a,b) => (b.iso||b.data||'').localeCompare(a.iso||a.data||'')).at(0)
-              : null;
+            // Priorizar match por membro_id; fallback por nome normalizado
+            // Excluir entradas demo (trocas de perfil não são logins reais)
+            const logReais = (log||[]).filter(r => r.tipo !== 'demo');
+            let ultimo = null;
+            if (m.id) {
+              const porId = logReais.filter(r => r.membro_id === m.id);
+              if (porId.length) { ultimo = porId[0]; } // já ordenado por created_at desc
+            }
+            if (!ultimo) {
+              const nomeM = (m.nome_maconico||'').replace(/^Ir\.\s*/i,'').toLowerCase().trim();
+              const porNome = logReais.filter(r => {
+                const nomeLog = (r.nome||'').replace(/^Ir\.\s*/i,'').toLowerCase().trim();
+                return nomeLog === nomeM;
+              });
+              if (porNome.length) ultimo = porNome[0];
+            }
             return `<tr>
               <td style="font-weight:600">${_esc(m.nome_maconico)}</td>
               <td>${m.grau ? `${m.grau}º Grau` : '—'}</td>
               <td style="font-size:12px;color:var(--text-muted)">${_esc(m.cargo)||'—'}</td>
               <td class="fg" style="font-size:13px;color:${ultimo?'var(--text)':'var(--text-muted)'}">
-                ${ultimo ? ultimo.data : '<em>Nunca registrado</em>'}
+                ${ultimo ? fmtData(ultimo.created_at) : '<em>Nunca registrado</em>'}
               </td>
               <td><span class="badge ${m.status==='ativo'?'b-active':'b-pending'}">${m.status}</span></td>
             </tr>`;
@@ -3735,32 +3756,38 @@ function renderLogAcessos() {
     </div>`;
 }
 
-function limparLogAcessos() {
+async function limparLogAcessos() {
   if (!confirm('Limpar todo o log de acessos?')) return;
-  localStorage.removeItem('log_acessos');
-  renderLogAcessos();
+  const { error } = await sb.from('acessos_log').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  if (error) { toast('❌ Erro ao limpar: ' + error.message); return; }
+  await renderLogAcessos();
   toast('🗑️ Log limpo');
 }
 
-function _registrarAcesso(nome, cargo, perfil, tipo) {
+async function _registrarAcesso(nome, cargo, perfil, tipo) {
   try {
-    const agora = new Date();
-    const log = JSON.parse(localStorage.getItem('log_acessos') || '[]');
-    // Remover entradas duplicadas do mesmo usuário nas últimas 5 min (evitar spam)
-    const cincoMinAtras = new Date(agora - 5*60*1000).toISOString();
-    const recente = log.findIndex(r => r.nome === nome && r.iso && r.iso > cincoMinAtras);
-    if (recente >= 0) log.splice(recente, 1); // remove o anterior
-    // Salvar nome limpo (sem sufixo DEMO) para lookup correto
     const nomeLimpo = (nome||'').replace(/\s*\(DEMO\)\s*/i,'').trim();
-    log.push({
-      nome: nomeLimpo, cargo, perfil, tipo,
-      iso:  agora.toISOString(),
-      data: agora.toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})
+    const membroId  = _membroLogado?.id || null;
+
+    // Dedup: ignorar se já existe registro do mesmo membro/nome nos últimos 5 min
+    const cincoMinAtras = new Date(Date.now() - 5*60*1000).toISOString();
+    let queryDedup = sb.from('acessos_log')
+      .select('id')
+      .gt('created_at', cincoMinAtras)
+      .eq('perfil', perfil);
+    if (membroId) queryDedup = queryDedup.eq('membro_id', membroId);
+    else          queryDedup = queryDedup.eq('nome', nomeLimpo);
+    const { data: recente } = await queryDedup.maybeSingle();
+    if (recente) return; // já registrado neste intervalo
+
+    await sb.from('acessos_log').insert({
+      membro_id: membroId,
+      nome:      nomeLimpo,
+      cargo:     cargo || null,
+      perfil:    perfil || 'irmao',
+      tipo:      tipo   || 'login'
     });
-    // Manter apenas últimos 100 registros
-    if (log.length > 100) log.splice(0, log.length - 100);
-    localStorage.setItem('log_acessos', JSON.stringify(log));
-  } catch(e) {}
+  } catch(e) { console.warn('_registrarAcesso:', e); }
 }
 
 // ===================== PANELS =====================
