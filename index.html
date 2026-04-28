@@ -6176,11 +6176,6 @@ async function confirmarPresencas(sessaoId) {
   const res = await sb.from('presencas').upsert(upserts, { onConflict: 'sessao_id,membro_id' });
   if (res.error) { toast('Erro: ' + res.error.message); return; }
 
-  // ── Recalcular ágape se existir para esta sessão ──
-  // Passar apenas presentes fisicamente (nao abonadas) para o agape
-  const presentesAgora = upserts.filter(u => u.situacao === 'presente').map(u => u.membro_id);
-  await _recalcularAgapeSessao(sessaoId, presentesAgora);
-
   toast('Presenças salvas ✦');
   fecharModal();
   await _reloadPresencas();
@@ -6190,7 +6185,7 @@ async function confirmarPresencas(sessaoId) {
   }
 }
 
-// Recalcular ágape: quando muda a lista de presentes, recalcula o rateio
+/* _recalcularAgapeSessao — desativada: ágape só é criado/editado por ação explícita do admin
 async function _recalcularAgapeSessao(sessaoId, membroIdsPresentes) {
   try {
     const sessao = DATA.sessoes.find(s=>s.id===sessaoId);
@@ -6276,7 +6271,7 @@ async function _recalcularAgapeSessao(sessaoId, membroIdsPresentes) {
     console.warn('[_recalcularAgapeSessao]', e);
   }
 }
-
+*/
 
 // ══════════════════════════════════════════════════════════════
 // VINCULAÇÃO DE LOGIN E APROVAÇÃO DE EDIÇÕES
