@@ -2379,7 +2379,7 @@ async function doRecuperarSenha() {
   const okEl  = document.getElementById('rec-ok');
   if (!email) { toast('Preencha o e-mail'); return; }
   const { error } = await sb.auth.resetPasswordForEmail(email, {
-    redirectTo: window.location.href
+    redirectTo: window.location.origin + window.location.pathname
   });
   if (error) { toast('❌ ' + error.message); return; }
   if (okEl) {
@@ -3279,8 +3279,6 @@ async function renderConfSenhas() {
                 : membros.map((m, i) => {
                   const rowBg = i%2===0 ? 'var(--white)' : 'var(--cream)';
                   const st = m.login_status || 'sem_login';
-                  const safeNome = (m.nome_maconico||'').replace(/'/g,'&#39;');
-                  const safeEmail = (m.email||'').replace(/'/g,'&#39;');
                   return `
                   <tr style="background:${rowBg};border-bottom:1px solid var(--border)">
                     <td style="padding:10px 14px">
@@ -3294,15 +3292,18 @@ async function renderConfSenhas() {
                     </td>
                     <td style="padding:8px 14px;text-align:center">
                       <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap">
-                        <button onclick="enviarConviteMembro('${m.id}','${safeEmail}','${safeNome}')"
+                        <button data-id="${_esc(m.id)}" data-email="${_esc(m.email)}" data-nome="${_esc(m.nome_maconico)}"
+                          onclick="enviarConviteMembro(this.dataset.id,this.dataset.email,this.dataset.nome)"
                           class="btn" style="padding:4px 10px;font-size:9px;border-color:var(--green);color:var(--green)" title="Enviar convite/link de acesso">
                           📧 Convidar
                         </button>
-                        <button onclick="resetarSenhaMembro('${safeEmail}','${safeNome}')"
+                        <button data-email="${_esc(m.email)}" data-nome="${_esc(m.nome_maconico)}"
+                          onclick="resetarSenhaMembro(this.dataset.email,this.dataset.nome)"
                           class="btn" style="padding:4px 10px;font-size:9px;border-color:var(--gold-dark);color:var(--gold-dark)" title="Enviar link de reset de senha">
                           🔑 Resetar
                         </button>
-                        <button onclick="definirSenhaTemp('${m.id}','${safeEmail}','${safeNome}')"
+                        <button data-id="${_esc(m.id)}" data-email="${_esc(m.email)}" data-nome="${_esc(m.nome_maconico)}"
+                          onclick="definirSenhaTemp(this.dataset.id,this.dataset.email,this.dataset.nome)"
                           class="btn" style="padding:4px 10px;font-size:9px;border-color:var(--navy);color:var(--navy)" title="Definir senha temporária">
                           🔧 Senha Temp.
                         </button>
@@ -6288,24 +6289,30 @@ async function enviarConviteMembro(membroId, email, nomeMemb) {
   toast('⏳ Enviando convite...');
 
   try {
-    // Supabase Auth — invite user by email
-    const { data, error } = await sb.auth.admin?.inviteUserByEmail
-      ? await sb.auth.admin.inviteUserByEmail(email)
-      : { error: { message: 'Admin API não disponível no cliente' } };
+    const membro = DATA.membros.find(m => m.id === membroId);
+    const temConta = !!membro?.auth_user_id;
+    const redirectTo = window.location.origin + window.location.pathname;
 
-    if (error) {
-      // Fallback: usar resetPasswordForEmail como convite
-      const { error: err2 } = await sb.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin + window.location.pathname
+    if (temConta) {
+      // Membro já tem conta no Auth — enviar link de redefinição de senha
+      const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo });
+      if (error) { toast('❌ Erro ao enviar: ' + error.message); return; }
+    } else {
+      // Membro sem conta — criar conta e enviar e-mail de confirmação
+      const { error } = await sb.auth.signUp({
+        email,
+        password: _gerarSenhaAleatoria(),
+        options: { emailRedirectTo: redirectTo }
       });
-      if (err2) { toast('❌ Erro ao enviar: ' + err2.message); return; }
+      if (error) { toast('❌ Erro ao criar acesso: ' + error.message); return; }
     }
 
-    // Atualizar status no membro
-    await sb.from('membros').update({
+    // Status só atualizado após envio confirmado sem erro
+    const { error: errStatus } = await sb.from('membros').update({
       login_status: 'convite_enviado',
       login_vinculado_em: new Date().toISOString()
     }).eq('id', membroId);
+    if (errStatus) console.error('[enviarConviteMembro] status:', errStatus);
 
     toast(`✅ Convite enviado para ${email}!`);
     await _reloadMembros();
@@ -6335,15 +6342,32 @@ async function enviarConvitesTodos() {
   if (!confirmar) return;
 
   toast(`⏳ Enviando ${semLogin.length} convites...`);
+  const redirectTo = window.location.origin + window.location.pathname;
   let enviados = 0;
 
   for (const m of semLogin) {
     try {
-      await sb.auth.resetPasswordForEmail(m.email, {
-        redirectTo: window.location.origin + window.location.pathname
-      });
-      await sb.from('membros').update({ login_status: 'convite_enviado' }).eq('id', m.id);
-      enviados++;
+      const temConta = !!m.auth_user_id;
+      let erro = null;
+
+      if (temConta) {
+        const { error } = await sb.auth.resetPasswordForEmail(m.email, { redirectTo });
+        erro = error;
+      } else {
+        const { error } = await sb.auth.signUp({
+          email: m.email,
+          password: _gerarSenhaAleatoria(),
+          options: { emailRedirectTo: redirectTo }
+        });
+        erro = error;
+      }
+
+      if (erro) {
+        console.warn('[enviarConvitesTodos]', m.email, erro.message);
+      } else {
+        await sb.from('membros').update({ login_status: 'convite_enviado' }).eq('id', m.id);
+        enviados++;
+      }
     } catch(e) { console.warn('Erro convite', m.email, e); }
     // Pequena pausa para não sobrecarregar
     await new Promise(r => setTimeout(r, 300));
