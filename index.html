@@ -6333,18 +6333,36 @@ async function enviarConviteMembro(membroId, email, nomeMemb) {
     const temConta = !!membro?.auth_user_id;
     const redirectTo = window.location.origin + window.location.pathname;
 
+    console.log('[enviarConviteMembro] --- INÍCIO ---');
+    console.log('[enviarConviteMembro] email:', email);
+    console.log('[enviarConviteMembro] membroId:', membroId);
+    console.log('[enviarConviteMembro] temConta (auth_user_id presente):', temConta, '| auth_user_id:', membro?.auth_user_id);
+    console.log('[enviarConviteMembro] redirectTo:', redirectTo);
+
     if (temConta) {
-      // Membro já tem conta no Auth — enviar link de redefinição de senha
-      const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo });
-      if (error) { toast('❌ Erro ao enviar: ' + error.message); return; }
+      console.log('[enviarConviteMembro] Caminho: resetPasswordForEmail');
+      const resp = await sb.auth.resetPasswordForEmail(email, { redirectTo });
+      console.log('[enviarConviteMembro] resetPasswordForEmail resposta completa:', JSON.stringify(resp));
+      if (resp.error) { toast('❌ Erro ao enviar: ' + resp.error.message); return; }
     } else {
-      // Membro sem conta — criar conta e enviar e-mail de confirmação
-      const { error } = await sb.auth.signUp({
+      console.log('[enviarConviteMembro] Caminho: signUp (sem conta Auth)');
+      const resp = await sb.auth.signUp({
         email,
         password: _gerarSenhaAleatoria(),
         options: { emailRedirectTo: redirectTo }
       });
-      if (error) { toast('❌ Erro ao criar acesso: ' + error.message); return; }
+      console.log('[enviarConviteMembro] signUp resposta:', JSON.stringify(resp));
+      console.log('[enviarConviteMembro] signUp data.user.identities:', resp.data?.user?.identities);
+      console.log('[enviarConviteMembro] signUp error:', resp.error);
+      if (resp.error) { toast('❌ Erro ao criar acesso: ' + resp.error.message); return; }
+      // identities vazio = e-mail já existia no Auth sem auth_user_id salvo — não crítico, resetPassword resolve
+      if (resp.data?.user?.identities?.length === 0) {
+        console.warn('[enviarConviteMembro] E-mail já existe no Auth (identities=[]) — seguindo com resetPasswordForEmail');
+      }
+      // Dispara reset imediatamente para o irmão poder definir sua própria senha
+      const respReset = await sb.auth.resetPasswordForEmail(email, { redirectTo });
+      console.log('[enviarConviteMembro] resetPasswordForEmail (pós-signUp) resposta:', JSON.stringify(respReset));
+      if (respReset.error) console.warn('[enviarConviteMembro] resetPasswordForEmail erro (não crítico):', respReset.error.message);
     }
 
     // Status só atualizado após envio confirmado sem erro
@@ -6352,12 +6370,15 @@ async function enviarConviteMembro(membroId, email, nomeMemb) {
       login_status: 'convite_enviado',
       login_vinculado_em: new Date().toISOString()
     }).eq('id', membroId);
+    console.log('[enviarConviteMembro] update login_status errStatus:', errStatus);
     if (errStatus) console.error('[enviarConviteMembro] status:', errStatus);
 
     toast(`✅ Convite enviado para ${email}!`);
     await _reloadMembros();
     renderMembros(ROLES[currentRole].access['membros']);
+    console.log('[enviarConviteMembro] --- FIM (sucesso) ---');
   } catch(e) {
+    console.error('[enviarConviteMembro] EXCEÇÃO:', e);
     toast('❌ Erro: ' + e.message);
   }
 }
@@ -6394,12 +6415,17 @@ async function enviarConvitesTodos() {
         const { error } = await sb.auth.resetPasswordForEmail(m.email, { redirectTo });
         erro = error;
       } else {
-        const { error } = await sb.auth.signUp({
+        const { error: errSignUp } = await sb.auth.signUp({
           email: m.email,
           password: _gerarSenhaAleatoria(),
           options: { emailRedirectTo: redirectTo }
         });
-        erro = error;
+        if (!errSignUp) {
+          // Dispara reset para o irmão poder definir sua própria senha
+          const { error: errReset } = await sb.auth.resetPasswordForEmail(m.email, { redirectTo });
+          if (errReset) console.warn('[enviarConvitesTodos] resetPasswordForEmail:', m.email, errReset.message);
+        }
+        erro = errSignUp;
       }
 
       if (erro) {
