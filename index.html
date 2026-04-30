@@ -2379,7 +2379,7 @@ async function doRecuperarSenha() {
   const okEl  = document.getElementById('rec-ok');
   if (!email) { toast('Preencha o e-mail'); return; }
   const { error } = await sb.auth.resetPasswordForEmail(email, {
-    redirectTo: window.location.href
+    redirectTo: window.location.origin + window.location.pathname
   });
   if (error) { toast('❌ ' + error.message); return; }
   if (okEl) {
@@ -3279,8 +3279,6 @@ async function renderConfSenhas() {
                 : membros.map((m, i) => {
                   const rowBg = i%2===0 ? 'var(--white)' : 'var(--cream)';
                   const st = m.login_status || 'sem_login';
-                  const safeNome = (m.nome_maconico||'').replace(/'/g,'&#39;');
-                  const safeEmail = (m.email||'').replace(/'/g,'&#39;');
                   return `
                   <tr style="background:${rowBg};border-bottom:1px solid var(--border)">
                     <td style="padding:10px 14px">
@@ -3294,15 +3292,18 @@ async function renderConfSenhas() {
                     </td>
                     <td style="padding:8px 14px;text-align:center">
                       <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap">
-                        <button onclick="enviarConviteMembro('${m.id}','${safeEmail}','${safeNome}')"
+                        <button data-id="${_esc(m.id)}" data-email="${_esc(m.email)}" data-nome="${_esc(m.nome_maconico)}"
+                          onclick="enviarConviteMembro(this.dataset.id,this.dataset.email,this.dataset.nome)"
                           class="btn" style="padding:4px 10px;font-size:9px;border-color:var(--green);color:var(--green)" title="Enviar convite/link de acesso">
                           📧 Convidar
                         </button>
-                        <button onclick="resetarSenhaMembro('${safeEmail}','${safeNome}')"
+                        <button data-email="${_esc(m.email)}" data-nome="${_esc(m.nome_maconico)}"
+                          onclick="resetarSenhaMembro(this.dataset.email,this.dataset.nome)"
                           class="btn" style="padding:4px 10px;font-size:9px;border-color:var(--gold-dark);color:var(--gold-dark)" title="Enviar link de reset de senha">
                           🔑 Resetar
                         </button>
-                        <button onclick="definirSenhaTemp('${m.id}','${safeEmail}','${safeNome}')"
+                        <button data-id="${_esc(m.id)}" data-email="${_esc(m.email)}" data-nome="${_esc(m.nome_maconico)}"
+                          onclick="definirSenhaTemp(this.dataset.id,this.dataset.email,this.dataset.nome)"
                           class="btn" style="padding:4px 10px;font-size:9px;border-color:var(--navy);color:var(--navy)" title="Definir senha temporária">
                           🔧 Senha Temp.
                         </button>
@@ -3464,7 +3465,7 @@ function ativarAbaConfig(aba) {
   });
   if (aba === 'loja')        renderConfigLoja();
   if (aba === 'assinaturas') renderConfigAssinaturas();
-  if (aba === 'acessos')     renderLogAcessos();
+  if (aba === 'acessos')     renderLogAcessos(); // async, fire-and-forget OK aqui
   if (aba === 'senhas')      renderConfSenhas();
 }
 
@@ -3655,16 +3656,30 @@ function renderConfigAssinaturas() {
   renderAssinaturas();
 }
 
-function renderLogAcessos() {
+async function renderLogAcessos() {
   const el = document.getElementById('cfg-cont-acessos');
   if (!el) return;
 
-  // Ler log do localStorage
-  let log = [];
-  try { log = JSON.parse(localStorage.getItem('log_acessos') || '[]'); } catch(e) {}
+  // Mostrar loading imediato
+  el.innerHTML = `<div style="text-align:center;padding:32px;color:var(--text-muted);font-style:italic">Carregando log...</div>`;
 
-  // Combinar com membros cadastrados para mostrar quadro completo
+  // Buscar últimos 50 registros do Supabase
+  const { data: log, error } = await sb.from('acessos_log')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  if (error) {
+    el.innerHTML = `<div style="text-align:center;padding:32px;color:var(--red)">❌ Erro ao carregar log: ${_esc(error.message)}</div>`;
+    return;
+  }
+
   const membros = DATA.membros || [];
+
+  // Formatar data para exibição (created_at vem como ISO string)
+  const fmtData = iso => iso
+    ? new Date(iso).toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})
+    : '—';
 
   el.innerHTML = `
     <div class="card" style="margin-bottom:16px">
@@ -3673,9 +3688,9 @@ function renderLogAcessos() {
         <button class="btn" onclick="limparLogAcessos()" style="font-size:11px;padding:6px 14px;color:var(--red);border-color:rgba(139,32,32,0.3)">🗑️ Limpar Log</button>
       </div>
       <div style="padding:8px 22px 4px;font-size:12px;color:var(--text-muted);font-style:italic;border-bottom:1px solid var(--border)">
-        Últimos 10 acessos registrados neste dispositivo. O log é sincronizado por navegador.
+        Últimos 10 acessos registrados — sincronizado em todos os dispositivos.
       </div>
-      ${log.length === 0 ? `
+      ${!log || log.length === 0 ? `
         <div style="text-align:center;padding:32px;color:var(--text-muted)">
           <div style="font-size:32px;opacity:0.2;margin-bottom:8px">📋</div>
           <div class="fc" style="font-size:11px">NENHUM ACESSO REGISTRADO AINDA</div>
@@ -3692,12 +3707,12 @@ function renderLogAcessos() {
             </tr>
           </thead>
           <tbody>
-            ${log.slice().reverse().slice(0,10).map(r => `
+            ${log.slice(0,10).map(r => `
               <tr>
                 <td style="font-weight:600">${_esc(r.nome)||'—'}</td>
                 <td style="font-size:12px;color:var(--text-muted)">${_esc(r.cargo)||'—'}</td>
                 <td><span class="badge b-active" style="font-size:9px">${r.perfil||'irmao'}</span></td>
-                <td class="fg" style="font-size:13px">${r.data||'—'}</td>
+                <td class="fg" style="font-size:13px">${fmtData(r.created_at)}</td>
                 <td><span style="font-size:11px">${r.tipo==='demo'?'🧪 Demo':'🔐 Login'}</span></td>
               </tr>`).join('')}
           </tbody>
@@ -3710,21 +3725,28 @@ function renderLogAcessos() {
         <thead><tr><th>Irmão</th><th>Grau</th><th>Cargo</th><th>Último Acesso</th><th>Status</th></tr></thead>
         <tbody>
           ${membros.filter(m=>m.status==='ativo'||m.status==='iniciado').map(m => {
-            // Buscar o acesso mais recente — comparação flexível (sem DEMO, sem "Ir.")
-            const nomeM = (m.nome_maconico||'').replace(/^Ir\.\s*/i,'').replace(/\s*\(DEMO\)\s*/i,'').toLowerCase().trim();
-            const acessosMembro = log.filter(r => {
-              const nomeLog = (r.nome||'').replace(/^Ir\.\s*/i,'').replace(/\s*\(DEMO\)\s*/i,'').toLowerCase().trim();
-              return nomeLog === nomeM || nomeLog.includes(nomeM) || nomeM.includes(nomeLog);
-            });
-            const ultimo = acessosMembro.length
-              ? acessosMembro.sort((a,b) => (b.iso||b.data||'').localeCompare(a.iso||a.data||'')).at(0)
-              : null;
+            // Priorizar match por membro_id; fallback por nome normalizado
+            // Excluir entradas demo (trocas de perfil não são logins reais)
+            const logReais = (log||[]).filter(r => r.tipo !== 'demo');
+            let ultimo = null;
+            if (m.id) {
+              const porId = logReais.filter(r => r.membro_id === m.id);
+              if (porId.length) { ultimo = porId[0]; } // já ordenado por created_at desc
+            }
+            if (!ultimo) {
+              const nomeM = (m.nome_maconico||'').replace(/^Ir\.\s*/i,'').toLowerCase().trim();
+              const porNome = logReais.filter(r => {
+                const nomeLog = (r.nome||'').replace(/^Ir\.\s*/i,'').toLowerCase().trim();
+                return nomeLog === nomeM;
+              });
+              if (porNome.length) ultimo = porNome[0];
+            }
             return `<tr>
               <td style="font-weight:600">${_esc(m.nome_maconico)}</td>
               <td>${m.grau ? `${m.grau}º Grau` : '—'}</td>
               <td style="font-size:12px;color:var(--text-muted)">${_esc(m.cargo)||'—'}</td>
               <td class="fg" style="font-size:13px;color:${ultimo?'var(--text)':'var(--text-muted)'}">
-                ${ultimo ? ultimo.data : '<em>Nunca registrado</em>'}
+                ${ultimo ? fmtData(ultimo.created_at) : '<em>Nunca registrado</em>'}
               </td>
               <td><span class="badge ${m.status==='ativo'?'b-active':'b-pending'}">${m.status}</span></td>
             </tr>`;
@@ -3734,32 +3756,38 @@ function renderLogAcessos() {
     </div>`;
 }
 
-function limparLogAcessos() {
+async function limparLogAcessos() {
   if (!confirm('Limpar todo o log de acessos?')) return;
-  localStorage.removeItem('log_acessos');
-  renderLogAcessos();
+  const { error } = await sb.from('acessos_log').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  if (error) { toast('❌ Erro ao limpar: ' + error.message); return; }
+  await renderLogAcessos();
   toast('🗑️ Log limpo');
 }
 
-function _registrarAcesso(nome, cargo, perfil, tipo) {
+async function _registrarAcesso(nome, cargo, perfil, tipo) {
   try {
-    const agora = new Date();
-    const log = JSON.parse(localStorage.getItem('log_acessos') || '[]');
-    // Remover entradas duplicadas do mesmo usuário nas últimas 5 min (evitar spam)
-    const cincoMinAtras = new Date(agora - 5*60*1000).toISOString();
-    const recente = log.findIndex(r => r.nome === nome && r.iso && r.iso > cincoMinAtras);
-    if (recente >= 0) log.splice(recente, 1); // remove o anterior
-    // Salvar nome limpo (sem sufixo DEMO) para lookup correto
     const nomeLimpo = (nome||'').replace(/\s*\(DEMO\)\s*/i,'').trim();
-    log.push({
-      nome: nomeLimpo, cargo, perfil, tipo,
-      iso:  agora.toISOString(),
-      data: agora.toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})
+    const membroId  = _membroLogado?.id || null;
+
+    // Dedup: ignorar se já existe registro do mesmo membro/nome nos últimos 5 min
+    const cincoMinAtras = new Date(Date.now() - 5*60*1000).toISOString();
+    let queryDedup = sb.from('acessos_log')
+      .select('id')
+      .gt('created_at', cincoMinAtras)
+      .eq('perfil', perfil);
+    if (membroId) queryDedup = queryDedup.eq('membro_id', membroId);
+    else          queryDedup = queryDedup.eq('nome', nomeLimpo);
+    const { data: recente } = await queryDedup.maybeSingle();
+    if (recente) return; // já registrado neste intervalo
+
+    await sb.from('acessos_log').insert({
+      membro_id: membroId,
+      nome:      nomeLimpo,
+      cargo:     cargo || null,
+      perfil:    perfil || 'irmao',
+      tipo:      tipo   || 'login'
     });
-    // Manter apenas últimos 100 registros
-    if (log.length > 100) log.splice(0, log.length - 100);
-    localStorage.setItem('log_acessos', JSON.stringify(log));
-  } catch(e) {}
+  } catch(e) { console.warn('_registrarAcesso:', e); }
 }
 
 // ===================== PANELS =====================
@@ -4375,6 +4403,7 @@ async function salvarMembro(dados, id=null) {
   if (res.error) { toast('Erro ao salvar: ' + res.error.message); return false; }
   toast('Irmão salvo com sucesso ✦');
   await _reloadMembros();
+  renderMembros(ROLES[currentRole].access['membros']);
   return true;
   } catch(e) {
     console.error("[salvarMembro]", e);
@@ -4389,6 +4418,7 @@ async function excluirMembro(id, nome) {
   if (res.error) { toast('Erro: ' + res.error.message); return; }
   toast('Membro excluído ✦');
   await _reloadMembros();
+  renderMembros(ROLES[currentRole].access['membros']);
   } catch(e) {
     console.error("[excluirMembro]", e);
     toast("❌ Erro inesperado. Tente novamente.");
@@ -6175,21 +6205,17 @@ async function confirmarPresencas(sessaoId) {
   const res = await sb.from('presencas').upsert(upserts, { onConflict: 'sessao_id,membro_id' });
   if (res.error) { toast('Erro: ' + res.error.message); return; }
 
-  // ── Recalcular ágape se existir para esta sessão ──
-  // Passar apenas presentes fisicamente (nao abonadas) para o agape
-  const presentesAgora = upserts.filter(u => u.situacao === 'presente').map(u => u.membro_id);
-  await _recalcularAgapeSessao(sessaoId, presentesAgora);
-
   toast('Presenças salvas ✦');
   fecharModal();
   await _reloadPresencas();
+  renderFrequencia(ROLES[currentRole].access['frequencia']);
   } catch(e) {
     console.error("[confirmarPresencas]", e);
     toast("❌ Erro inesperado. Tente novamente.");
   }
 }
 
-// Recalcular ágape: quando muda a lista de presentes, recalcula o rateio
+/* _recalcularAgapeSessao — desativada: ágape só é criado/editado por ação explícita do admin
 async function _recalcularAgapeSessao(sessaoId, membroIdsPresentes) {
   try {
     const sessao = DATA.sessoes.find(s=>s.id===sessaoId);
@@ -6211,11 +6237,15 @@ async function _recalcularAgapeSessao(sessaoId, membroIdsPresentes) {
     const valorTotal = parseFloat(agapeDespesa.valor) || 0;
     if (!valorTotal) return;
 
-    // Buscar débitos individuais existentes
+    // Buscar débitos individuais existentes e separar por status
     const agapeDebitos = financasFrescas.filter(l =>
       l.tipo === 'receita' &&
       l.descricao?.includes('rateio')
     );
+    const pagos   = agapeDebitos.filter(d => d.status === 'pago');
+    const abertos = agapeDebitos.filter(d => d.status !== 'pago');
+    const membrosPagos   = new Set(pagos.map(d => d.membro_id));
+    const membrosAbertos = new Set(abertos.map(d => d.membro_id));
 
     // Filtrar participantes: presentes e não-visitantes
     const participantes = membroIdsPresentes.map(id => {
@@ -6226,41 +6256,52 @@ async function _recalcularAgapeSessao(sessaoId, membroIdsPresentes) {
     if (!participantes.length) return;
 
     const novoValor = parseFloat((valorTotal / participantes.length).toFixed(2));
+    const idsParticipantes = new Set(participantes.map(p => p.id));
 
-    // Verificar se mudou algo (evitar updates desnecessários)
-    const mesmaQtd = agapeDebitos.length === participantes.length;
-    const mesmoValor = agapeDebitos.length > 0 && Math.abs(parseFloat(agapeDebitos[0].valor) - novoValor) < 0.01;
-    const mesmosIds = mesmaQtd && agapeDebitos.every(d => participantes.some(p => p.id === d.membro_id));
-    if (mesmaQtd && mesmoValor && mesmosIds) {
-      return;
+    // 1. Abertos de membros que já não estão presentes → deletar
+    const aExcluir = abertos.filter(d => !idsParticipantes.has(d.membro_id));
+    for (const d of aExcluir) {
+      const { error } = await sb.from('financas').delete().eq('id', d.id);
+      if (error) console.error('Erro ao excluir débito ágape:', error);
     }
 
-    // Apagar débitos antigos
-    for (const d of agapeDebitos) {
-      const { error: errDelAgape } = await sb.from('financas').delete().eq('id', d.id);
-      if (errDelAgape) { console.error('Erro ao excluir débito ágape:', errDelAgape); }
+    // 2. Abertos de membros ainda presentes → atualizar valor se mudou
+    const aAtualizar = abertos.filter(d =>
+      idsParticipantes.has(d.membro_id) &&
+      Math.abs(parseFloat(d.valor) - novoValor) >= 0.01
+    );
+    for (const d of aAtualizar) {
+      const { error } = await sb.from('financas').update({ valor: novoValor }).eq('id', d.id);
+      if (error) console.error('Erro ao atualizar débito ágape:', error);
     }
 
-    // Inserir novos débitos para todos os presentes
-    const novosDebitos = participantes.map(m => ({
-      descricao: `${agapeDespesa.descricao || 'Ágape'} — rateio`,
-      valor: novoValor,
-      tipo: 'receita',
-      data: dataSessao,
-      categoria: 'agape',
-      status: 'aberto',
-      membro_id: m.id
-    }));
+    // 3. Participantes sem nenhuma entrada (nem paga nem aberta) → inserir
+    const aSomarIds = participantes.filter(p =>
+      !membrosPagos.has(p.id) && !membrosAbertos.has(p.id)
+    );
+    if (aSomarIds.length) {
+      const novosDebitos = aSomarIds.map(m => ({
+        descricao: `${agapeDespesa.descricao || 'Ágape'} — rateio`,
+        valor: novoValor,
+        tipo: 'receita',
+        data: dataSessao,
+        categoria: 'agape',
+        status: 'aberto',
+        membro_id: m.id
+      }));
+      const resIns = await sb.from('financas').insert(novosDebitos);
+      if (resIns.error) { console.error('[Ágape] Erro insert:', resIns.error); return; }
+    }
 
-    const resIns = await sb.from('financas').insert(novosDebitos);
-    if (resIns.error) { console.error('[Ágape] Erro insert:', resIns.error); return; }
-
-    toast(`🍽️ Ágape recalculado: ${participantes.length} irmãos × ${fmtVal(novoValor)}`);
+    const totalModificados = aExcluir.length + aAtualizar.length + aSomarIds.length;
+    if (totalModificados > 0) {
+      toast(`🍽️ Ágape recalculado: ${participantes.length} irmãos × ${fmtVal(novoValor)}`);
+    }
   } catch(e) {
     console.warn('[_recalcularAgapeSessao]', e);
   }
 }
-
+*/
 
 // ══════════════════════════════════════════════════════════════
 // VINCULAÇÃO DE LOGIN E APROVAÇÃO DE EDIÇÕES
@@ -6271,6 +6312,7 @@ async function _recalcularAgapeSessao(sessaoId, membroIdsPresentes) {
 // SISTEMA DE CONVITES — SaaS Maçônico
 // ══════════════════════════════════════════════════════════════
 
+// v2: usa signUp + resetPasswordForEmail (sem auth.admin) — 2026-04-29
 async function enviarConviteMembro(membroId, email, nomeMemb) {
   const canEdit = ROLES[currentRole]?.access['membros'] === 'full';
   if (!canEdit) { toast('⛔ Sem permissão'); return; }
@@ -6288,29 +6330,56 @@ async function enviarConviteMembro(membroId, email, nomeMemb) {
   toast('⏳ Enviando convite...');
 
   try {
-    // Supabase Auth — invite user by email
-    const { data, error } = await sb.auth.admin?.inviteUserByEmail
-      ? await sb.auth.admin.inviteUserByEmail(email)
-      : { error: { message: 'Admin API não disponível no cliente' } };
+    const membro = DATA.membros.find(m => m.id === membroId);
+    const temConta = !!membro?.auth_user_id;
+    const redirectTo = window.location.origin + window.location.pathname;
 
-    if (error) {
-      // Fallback: usar resetPasswordForEmail como convite
-      const { error: err2 } = await sb.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin + window.location.pathname
+    console.log('[enviarConviteMembro] --- INÍCIO ---');
+    console.log('[enviarConviteMembro] email:', email);
+    console.log('[enviarConviteMembro] membroId:', membroId);
+    console.log('[enviarConviteMembro] temConta (auth_user_id presente):', temConta, '| auth_user_id:', membro?.auth_user_id);
+    console.log('[enviarConviteMembro] redirectTo:', redirectTo);
+
+    if (temConta) {
+      console.log('[enviarConviteMembro] Caminho: resetPasswordForEmail');
+      const resp = await sb.auth.resetPasswordForEmail(email, { redirectTo });
+      console.log('[enviarConviteMembro] resetPasswordForEmail resposta completa:', JSON.stringify(resp));
+      if (resp.error) { toast('❌ Erro ao enviar: ' + resp.error.message); return; }
+    } else {
+      console.log('[enviarConviteMembro] Caminho: signUp (sem conta Auth)');
+      const resp = await sb.auth.signUp({
+        email,
+        password: _gerarSenhaAleatoria(),
+        options: { emailRedirectTo: redirectTo }
       });
-      if (err2) { toast('❌ Erro ao enviar: ' + err2.message); return; }
+      console.log('[enviarConviteMembro] signUp resposta:', JSON.stringify(resp));
+      console.log('[enviarConviteMembro] signUp data.user.identities:', resp.data?.user?.identities);
+      console.log('[enviarConviteMembro] signUp error:', resp.error);
+      if (resp.error) { toast('❌ Erro ao criar acesso: ' + resp.error.message); return; }
+      // identities vazio = e-mail já existia no Auth sem auth_user_id salvo — não crítico, resetPassword resolve
+      if (resp.data?.user?.identities?.length === 0) {
+        console.warn('[enviarConviteMembro] E-mail já existe no Auth (identities=[]) — seguindo com resetPasswordForEmail');
+      }
+      // Dispara reset imediatamente para o irmão poder definir sua própria senha
+      const respReset = await sb.auth.resetPasswordForEmail(email, { redirectTo });
+      console.log('[enviarConviteMembro] resetPasswordForEmail (pós-signUp) resposta:', JSON.stringify(respReset));
+      if (respReset.error) console.warn('[enviarConviteMembro] resetPasswordForEmail erro (não crítico):', respReset.error.message);
     }
 
-    // Atualizar status no membro
-    await sb.from('membros').update({
+    // Status só atualizado após envio confirmado sem erro
+    const { error: errStatus } = await sb.from('membros').update({
       login_status: 'convite_enviado',
       login_vinculado_em: new Date().toISOString()
     }).eq('id', membroId);
+    console.log('[enviarConviteMembro] update login_status errStatus:', errStatus);
+    if (errStatus) console.error('[enviarConviteMembro] status:', errStatus);
 
     toast(`✅ Convite enviado para ${email}!`);
     await _reloadMembros();
     renderMembros(ROLES[currentRole].access['membros']);
+    console.log('[enviarConviteMembro] --- FIM (sucesso) ---');
   } catch(e) {
+    console.error('[enviarConviteMembro] EXCEÇÃO:', e);
     toast('❌ Erro: ' + e.message);
   }
 }
@@ -6335,15 +6404,37 @@ async function enviarConvitesTodos() {
   if (!confirmar) return;
 
   toast(`⏳ Enviando ${semLogin.length} convites...`);
+  const redirectTo = window.location.origin + window.location.pathname;
   let enviados = 0;
 
   for (const m of semLogin) {
     try {
-      await sb.auth.resetPasswordForEmail(m.email, {
-        redirectTo: window.location.origin + window.location.pathname
-      });
-      await sb.from('membros').update({ login_status: 'convite_enviado' }).eq('id', m.id);
-      enviados++;
+      const temConta = !!m.auth_user_id;
+      let erro = null;
+
+      if (temConta) {
+        const { error } = await sb.auth.resetPasswordForEmail(m.email, { redirectTo });
+        erro = error;
+      } else {
+        const { error: errSignUp } = await sb.auth.signUp({
+          email: m.email,
+          password: _gerarSenhaAleatoria(),
+          options: { emailRedirectTo: redirectTo }
+        });
+        if (!errSignUp) {
+          // Dispara reset para o irmão poder definir sua própria senha
+          const { error: errReset } = await sb.auth.resetPasswordForEmail(m.email, { redirectTo });
+          if (errReset) console.warn('[enviarConvitesTodos] resetPasswordForEmail:', m.email, errReset.message);
+        }
+        erro = errSignUp;
+      }
+
+      if (erro) {
+        console.warn('[enviarConvitesTodos]', m.email, erro.message);
+      } else {
+        await sb.from('membros').update({ login_status: 'convite_enviado' }).eq('id', m.id);
+        enviados++;
+      }
     } catch(e) { console.warn('Erro convite', m.email, e); }
     // Pequena pausa para não sobrecarregar
     await new Promise(r => setTimeout(r, 300));
@@ -6410,6 +6501,7 @@ async function salvarVinculacaoLogin(membroId) {
   toast('✅ E-mail de login atualizado! Quando o irmão criar a conta com este e-mail, será vinculado automaticamente.');
   fecharModal();
   await _reloadMembros();
+  renderMembros(ROLES[currentRole].access['membros']);
 }
 
 // ── Irmão editar o PRÓPRIO cadastro ─────────────────────────
@@ -6786,6 +6878,7 @@ async function salvarVisitante(sessaoId) {
   window._certAutoSessao = DATA.sessoes.find(s => s.id === sessaoId) || { id: sessaoId, data: '', tipo: '' };
   fecharModal();
   await _reloadPresencas();
+  renderFrequencia(ROLES[currentRole].access['frequencia']);
   // Mostrar banner automático APÓS o carregamento (500ms para o DOM estabilizar)
   setTimeout(() => _ofertaCertificadoAuto(window._certAutoVis, window._certAutoSessao, sessaoId), 500);
   } catch(e) {
@@ -8803,6 +8896,7 @@ async function salvarEditAgape() {
   toast('Agape atualizado!');
   fecharModal();
   await _reloadFinancas();
+  renderFinancas(ROLES[currentRole].access['financas'] || 'full');
   } catch(e) {
     console.error('[salvarEditAgape]', e);
     toast('❌ Erro inesperado. Tente novamente.');
@@ -8831,6 +8925,7 @@ async function excluirAgape() {
   toast('Agape excluido!');
   fecharModal();
   await _reloadFinancas();
+  renderFinancas(ROLES[currentRole].access['financas'] || 'full');
   } catch(e) {
     console.error('[excluirAgape]', e);
     toast('❌ Erro inesperado. Tente novamente.');
@@ -8922,6 +9017,7 @@ async function lancarMensalidadesAuto() {
   toast(`✦ ${inserts.length} mensalidades lançadas com vencimento em ${diaReal}/${mes+1}!`);
   fecharModal();
   await _reloadFinancas();
+  renderFinancas(ROLES[currentRole].access['financas'] || 'full');
   } catch(e) {
     console.error('[lancarMensalidadesAuto]', e);
     toast('❌ Erro inesperado. Tente novamente.');
@@ -8986,6 +9082,7 @@ async function salvarEdicaoSessao(id) {
   toast('Sessão atualizada ✦');
   fecharModal();
   await _reloadSessoes();
+  renderFrequencia(ROLES[currentRole].access['frequencia']);
   } catch(e) {
     console.error('[salvarEdicaoSessao]', e);
     toast('❌ Erro inesperado. Tente novamente.');
@@ -9002,6 +9099,7 @@ async function excluirSessao(id, tipo) {
   toast('Sessão excluída ✦');
   fecharModal();
   await Promise.all([_reloadSessoes(), _reloadPresencas()]);
+  renderFrequencia(ROLES[currentRole].access['frequencia']);
   } catch(e) {
     console.error('[excluirSessao]', e);
     toast('❌ Erro inesperado. Tente novamente.');
@@ -9072,6 +9170,7 @@ async function salvarEdicaoEvento(id) {
   toast('Evento atualizado ✦');
   fecharModal();
   await _reloadEventos();
+  renderEventos(ROLES[currentRole].access['eventos']);
   } catch(e) {
     console.error('[salvarEdicaoEvento]', e);
     toast('❌ Erro inesperado. Tente novamente.');
@@ -9086,6 +9185,7 @@ async function excluirEvento(id, titulo) {
   toast('Evento excluído ✦');
   fecharModal();
   await _reloadEventos();
+  renderEventos(ROLES[currentRole].access['eventos']);
   } catch(e) {
     console.error('[excluirEvento]', e);
     toast('❌ Erro inesperado. Tente novamente.');
@@ -9158,6 +9258,7 @@ async function salvarEvento() {
   }
 
   await Promise.all([_reloadEventos(), _reloadSessoes(), _reloadPresencas(), _reloadAtas()]);
+  renderEventos(ROLES[currentRole].access['eventos']);
   } catch(e) {
     console.error("[salvarEvento]", e);
     toast("❌ Erro inesperado. Tente novamente.");
@@ -10515,6 +10616,7 @@ async function salvarPagamentoMembro(membroId, temDebitos) {
 
   fecharModal();
   await _reloadFinancas();
+  renderFinancas(ROLES[currentRole].access['financas'] || 'full');
   } catch(e) {
     console.error('[salvarPagamentoMembro]', e);
     toast('❌ Erro inesperado. Tente novamente.');
