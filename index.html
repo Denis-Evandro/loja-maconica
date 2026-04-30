@@ -6312,6 +6312,7 @@ async function _recalcularAgapeSessao(sessaoId, membroIdsPresentes) {
 // SISTEMA DE CONVITES — SaaS Maçônico
 // ══════════════════════════════════════════════════════════════
 
+// v2: usa signUp + resetPasswordForEmail (sem auth.admin) — 2026-04-29
 async function enviarConviteMembro(membroId, email, nomeMemb) {
   const canEdit = ROLES[currentRole]?.access['membros'] === 'full';
   if (!canEdit) { toast('⛔ Sem permissão'); return; }
