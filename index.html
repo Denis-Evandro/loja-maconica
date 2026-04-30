@@ -8808,6 +8808,7 @@ async function confirmarTransferenciaTronco() {
 
   toast(`Transferencia confirmada! ${ok} lancamento(s) marcados como pagos.`);
   await _reloadFinancas();
+  renderFinancas(ROLES[currentRole].access['financas'] || 'full');
   } catch(e) {
     console.error('[confirmarTransferenciaTronco]', e);
     toast('❌ Erro inesperado. Tente novamente.');
