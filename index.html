@@ -2686,6 +2686,7 @@ function _aplicarPorMembro(membro) {
 
 function _aplicarRoleNaTela(role, membro) {
   const r = ROLES[role];
+  document.getElementById('welcome-screen').style.display = 'none';
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app-shell').style.display    = 'block';
 
@@ -7555,7 +7556,7 @@ function renderFinancas(access) {
       const dtFmt = dtAtual ? fmtData(dtAtual) : 'Não definida';
       return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:8px 16px;background:rgba(184,134,11,0.06);border:1px solid rgba(184,134,11,0.2);border-radius:4px">
         <span style="font-size:12px;color:var(--text-muted)">📋 Última atualização dos dados: <strong style="color:var(--text)">${dtFmt}</strong></span>
-        ${canEdit?`<button class="btn" onclick="definirDataAtualizacaoFinanceira()" style="padding:2px 10px;font-size:11px;margin-left:auto">✏️ Definir</button>`:''}
+        ${(canEdit || currentRole==='admin')?`<button class="btn" onclick="definirDataAtualizacaoFinanceira()" style="padding:2px 10px;font-size:11px;margin-left:auto">✏️ Definir</button>`:''}
       </div>`;
     })()}
 
