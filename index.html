@@ -7338,6 +7338,36 @@ function removerCategoria(slug) {
 }
 
 
+function definirDataAtualizacaoFinanceira() {
+  const d = _getDadosLoja();
+  const atual = d.ultima_atualizacao_financeira || new Date().toISOString().split('T')[0];
+  document.body.insertAdjacentHTML('beforeend', `
+    <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px">
+      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:8px;width:340px;overflow:hidden">
+        <div style="height:3px;background:linear-gradient(90deg,var(--gold-dark),var(--gold-rich),var(--gold-light),var(--gold-dark))"></div>
+        <div style="padding:24px 28px">
+          <div class="fc" style="font-size:13px;font-weight:700;letter-spacing:0.1em;color:var(--gold-dark);margin-bottom:16px">📋 Data de Atualização Financeira</div>
+          <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:6px">Data em que os dados foram atualizados:</label>
+          <input type="date" id="input-dt-atualizacao" value="${atual}" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text);box-sizing:border-box">
+          <div style="display:flex;gap:8px;margin-top:18px;justify-content:flex-end">
+            <button class="btn" onclick="fecharModal()">Cancelar</button>
+            <button class="btn btn-solid" onclick="salvarDataAtualizacaoFinanceira()">Salvar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `);
+}
+
+function salvarDataAtualizacaoFinanceira() {
+  const val = document.getElementById('input-dt-atualizacao')?.value;
+  if (!val) { toast('⚠️ Selecione uma data'); return; }
+  _salvarDadosLoja({ ..._getDadosLoja(), ultima_atualizacao_financeira: val });
+  fecharModal();
+  toast('✅ Data de atualização salva!');
+  renderFinancas(ROLES[currentRole].access['financas'] || 'full');
+}
+
 function renderFinancas(access) {
   if (access === 'none') { document.getElementById('financas-content').innerHTML = accessDenied('Finanças'); return; }
   const canEdit = access === 'full';
@@ -7519,6 +7549,15 @@ function renderFinancas(access) {
       <button class="btn btn-solid" onclick="abrirModalInadimplenciaDetalhada()" style="background:linear-gradient(135deg,#7A1010,#B03030);display:flex;align-items:center;gap:6px">📊 Inadimplência</button>
     </div>`:''}
 
+    <!-- Última atualização financeira -->
+    ${(()=>{
+      const dtAtual = _getDadosLoja().ultima_atualizacao_financeira;
+      const dtFmt = dtAtual ? fmtData(dtAtual) : 'Não definida';
+      return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:8px 16px;background:rgba(184,134,11,0.06);border:1px solid rgba(184,134,11,0.2);border-radius:4px">
+        <span style="font-size:12px;color:var(--text-muted)">📋 Última atualização dos dados: <strong style="color:var(--text)">${dtFmt}</strong></span>
+        ${canEdit?`<button class="btn" onclick="definirDataAtualizacaoFinanceira()" style="padding:2px 10px;font-size:11px;margin-left:auto">✏️ Definir</button>`:''}
+      </div>`;
+    })()}
 
     <!-- LINHA 1: KPIs principais -->
     <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:10px">
@@ -10414,6 +10453,12 @@ async function renderMeuFinanceiro() {
         <div style="font-size:14px;font-family:'Cormorant Garamond',serif;color:var(--text-muted);margin-top:2px">${membro.nome_maconico} — ${emDia?'mensalidades em dia':'verifique seus débitos abaixo'}</div>
       </div>
     </div>
+
+    ${(()=>{
+      const dtAtual = _getDadosLoja().ultima_atualizacao_financeira;
+      if (!dtAtual) return '';
+      return `<div style="text-align:right;margin:-6px 0 12px;font-size:11px;color:var(--text-muted)">📋 Última atualização: <strong>${fmtData(dtAtual)}</strong></div>`;
+    })()}
 
     ${secaoDebitos}
 
