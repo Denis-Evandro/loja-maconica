@@ -7555,6 +7555,16 @@ function renderFinancas(access) {
   if (!anosDisp.includes(String(anoAtual))) anosDisp.unshift(String(anoAtual));
 
   document.getElementById('financas-content').innerHTML = `
+    <!-- Última atualização financeira — sempre visível no topo -->
+    ${(()=>{
+      const dtAtual = _getDadosLoja().ultima_atualizacao_financeira;
+      const dtFmt = dtAtual ? fmtData(dtAtual) : 'Não definida';
+      return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:8px 16px;background:rgba(184,134,11,0.06);border:1px solid rgba(184,134,11,0.2);border-radius:4px">
+        <span style="font-size:12px;color:var(--text-muted)">📋 Última atualização dos dados: <strong style="color:var(--text)">${dtFmt}</strong></span>
+        ${(canEdit || currentRole==='admin')?`<button class="btn" onclick="definirDataAtualizacaoFinanceira()" style="padding:2px 10px;font-size:11px;margin-left:auto">✏️ Definir</button>`:''}
+      </div>`;
+    })()}
+
     ${!canEdit ? readOnlyBanner() : ''}
 
     <!-- BOTÕES DE AÇÃO -->
@@ -7568,15 +7578,6 @@ function renderFinancas(access) {
       <button class="btn btn-solid" onclick="abrirModalInadimplenciaDetalhada()" style="background:linear-gradient(135deg,#7A1010,#B03030);display:flex;align-items:center;gap:6px">📊 Inadimplência</button>
     </div>`:''}
 
-    <!-- Última atualização financeira -->
-    ${(()=>{
-      const dtAtual = _getDadosLoja().ultima_atualizacao_financeira;
-      const dtFmt = dtAtual ? fmtData(dtAtual) : 'Não definida';
-      return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:8px 16px;background:rgba(184,134,11,0.06);border:1px solid rgba(184,134,11,0.2);border-radius:4px">
-        <span style="font-size:12px;color:var(--text-muted)">📋 Última atualização dos dados: <strong style="color:var(--text)">${dtFmt}</strong></span>
-        ${(canEdit || currentRole==='admin')?`<button class="btn" onclick="definirDataAtualizacaoFinanceira()" style="padding:2px 10px;font-size:11px;margin-left:auto">✏️ Definir</button>`:''}
-      </div>`;
-    })()}
 
     <!-- LINHA 1: KPIs principais -->
     <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:10px">
@@ -10476,7 +10477,7 @@ async function renderMeuFinanceiro() {
     ${(()=>{
       const dtAtual = _getDadosLoja().ultima_atualizacao_financeira;
       if (!dtAtual) return '';
-      return `<div style="text-align:right;margin:-6px 0 12px;font-size:11px;color:var(--text-muted)">📋 Última atualização: <strong>${fmtData(dtAtual)}</strong></div>`;
+      return `<div style="text-align:right;margin:-6px 0 12px;font-size:13px;color:var(--text-muted)">📋 Última atualização Financeira: <strong>${fmtData(dtAtual)}</strong></div>`;
     })()}
 
     ${secaoDebitos}
