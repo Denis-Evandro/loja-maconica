@@ -2916,7 +2916,25 @@ async function verificarSessaoAtiva() {
   try {
     const { data: { session } } = await sb.auth.getSession();
     if (!session?.user) return;
-    const email = session.user.email;
+    const email  = session.user.email;
+    const userId = session.user.id;
+
+    // Checar admin primeiro (mesma lógica do doLogin)
+    let adminEmails = [];
+    try { adminEmails = JSON.parse(localStorage.getItem('admin_emails') || '[]'); } catch(e) { adminEmails = []; }
+    const { data: usuarioAdmin } = await sb.from('usuarios')
+      .select('role,email').or(`auth_user_id.eq.${userId},email.eq.${email}`)
+      .eq('role','admin').maybeSingle();
+    if (usuarioAdmin || adminEmails.includes(email.toLowerCase())) {
+      _modoDemo    = false;
+      _isAdminReal = true;
+      _membroLogado = { id: null, grau: 3, cargo: 'Administrador do Sistema', nome_maconico: 'Administrador do Sistema' };
+      currentRole  = 'admin';
+      _aplicarRoleNaTela('admin', _membroLogado);
+      return;
+    }
+
+    // Membro regular
     const { data: membro, error: errMembro } = await sb.from('membros').select('*').eq('email', email).maybeSingle();
     if (errMembro) { console.error(errMembro); return; }
     if (!membro) return;
