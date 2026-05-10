@@ -2253,7 +2253,7 @@ function reRenderActive() {
   if (id==='eventos') renderEventos(access);
   if (id==='comissoes') renderComissoes(access);
   if (id==='legislacao') renderLegislacao(access);
-  if (id==='trabalhos') renderTrabalhos(access);
+  if (id==='trabalhos') renderTrabalhos(access, false);
   if (id==='minha-frequencia') renderMinhaFrequencia();
   if (id==='meu-financeiro') renderMeuFinanceiro();
   if (id==='atas') renderAtas();
@@ -3853,7 +3853,7 @@ function showPanel(id) {
   if (id==='eventos') renderEventos(access);
   if (id==='comissoes') renderComissoes(access);
   if (id==='legislacao') renderLegislacao(access);
-  if (id==='trabalhos') renderTrabalhos(access);
+  if (id==='trabalhos') renderTrabalhos(access, true);
   if (id==='minha-frequencia') renderMinhaFrequencia();
   if (id==='meu-financeiro') renderMeuFinanceiro();
   if (id==='atas') renderAtas();
@@ -3945,8 +3945,7 @@ async function renderDashboardIrmao(el) {
   const devia = totalAberto;
   const emDia = totalAberto <= 0;
 
-  // ── Notificações da Biblioteca — recarregar dados frescos ─────
-  await _recarregarTrabalhos();
+  // ── Notificações da Biblioteca ─────────────────────────────────
   const widgetBiblioteca = _widgetNotificacaoBiblioteca();
 
   // ── Quadro de irmãos ───────────────────────────────────────
@@ -4148,9 +4147,6 @@ async function renderDashboard() {
 
   // Irmão vê painel personalizado
   if (currentRole === 'irmao') { renderDashboardIrmao(el); return; }
-
-  // Garantir dados frescos de trabalhos para os aprovadores
-  await _recarregarTrabalhos();
 
   // Aviso de revisão para vigilantes e demais cargos que enviaram trabalhos
   const avisoRevisao = _widgetNotificacaoBiblioteca();
@@ -9650,7 +9646,7 @@ async function salvarAta() {
   if (file) {
     const ext = file.name.split('.').pop();
     const path = `atas/${Date.now()}_${file.name.replace(/\s/g,'_')}`;
-    const { data: upData, error: upErr } = await sb.storage.from('atas-arquivos').upload(path, file, { upsert: true });
+    const { data: upData, error: upErr } = await sb.storage.from('atas-arquivos').upload(path, file, { upsert: true, cacheControl: '31536000', contentType: file.type || 'application/octet-stream' });
     if (upErr) {
       // Se não houver bucket, avisa mas continua salvando o texto
       toast('⚠️ Arquivo não enviado (bucket não configurado), salvando texto...');
@@ -9785,7 +9781,7 @@ async function confirmarEditarAta(ataId, arquivoAtual) {
 
   if (file) {
     const path = `atas/${Date.now()}_${file.name.replace(/\s/g,'_')}`;
-    const { data: upData, error: upErr } = await sb.storage.from('atas-arquivos').upload(path, file, { upsert: true });
+    const { data: upData, error: upErr } = await sb.storage.from('atas-arquivos').upload(path, file, { upsert: true, cacheControl: '31536000', contentType: file.type || 'application/octet-stream' });
     if (!upErr) {
       const { data: urlData } = sb.storage.from('atas-arquivos').getPublicUrl(path);
       arquivo_url = urlData?.publicUrl || arquivo_url;
@@ -10344,7 +10340,7 @@ async function salvarVisitaExterna(membroId) {
   const path = `visitas/${Date.now()}_${file.name.replace(/\s/g,'_')}`;
   let compUrl = null;
   try {
-    const { data: upD, error: upE } = await sb.storage.from('atas-arquivos').upload(path, file, {upsert:true});
+    const { data: upD, error: upE } = await sb.storage.from('atas-arquivos').upload(path, file, {upsert:true, cacheControl:'31536000', contentType:file.type||'application/octet-stream'});
     if (!upE) {
       const { data: urlD } = sb.storage.from('atas-arquivos').getPublicUrl(path);
       compUrl = urlD?.publicUrl || null;
@@ -10881,19 +10877,20 @@ async function _recarregarTrabalhos() {
 // ══════════════════════════════════════════════════════════════
 //  RENDER PRINCIPAL
 // ══════════════════════════════════════════════════════════════
-async function renderTrabalhos(access) {
+async function renderTrabalhos(access, forceRefresh = false) {
   const el = document.getElementById('trabalhos-content');
   if (!el) return;
 
-  // Buscar trabalhos frescos do banco
-  const {data, error} = await sb.from('trabalhos')
-    .select('*,membros(id,nome_maconico,grau,cargo)')
-    .order('data_postagem',{ascending:false});
-  if (error) { console.error('renderTrabalhos:', error); }
-  DATA.trabalhos = (data||[]).map(t => ({
-    ...t,
-    grau_trabalho: t.grau_trabalho ?? t.grau_autor ?? 1
-  }));
+  if (forceRefresh) {
+    const {data, error} = await sb.from('trabalhos')
+      .select('*,membros(id,nome_maconico,grau,cargo)')
+      .order('data_postagem',{ascending:false});
+    if (error) { console.error('renderTrabalhos:', error); }
+    if (data) DATA.trabalhos = data.map(t => ({
+      ...t,
+      grau_trabalho: t.grau_trabalho ?? t.grau_autor ?? 1
+    }));
+  }
 
   // Sincronizar IDs do usuário no localStorage
   { const euS = _eu(), nS = euS.nome.toLowerCase(),
@@ -11380,7 +11377,7 @@ async function salvarGrauTrabalho(id, grauDireto) {
     DATA.trabalhos[idx].grau_visibilidade = novoGrau;
   }
   toast(`✅ Grau atualizado para ${_GL(novoGrau)}`);
-  renderTrabalhos(ROLES[currentRole].access['trabalhos']||'full');
+  renderTrabalhos(ROLES[currentRole].access['trabalhos']||'full', false);
 }
 
 
@@ -11461,15 +11458,11 @@ function abrirModalEnviarTrabalho() {
 async function _uploadTrab(file) {
   const ext  = file.name.split('.').pop().toLowerCase();
   const path = `trabalhos/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-  for (const bkt of ['documentos','atas-arquivos']) {
-    const {error} = await sb.storage.from(bkt).upload(path, file,
-      {upsert:true, contentType:file.type||'application/octet-stream'});
-    if(!error) {
-      const {data:u} = sb.storage.from(bkt).getPublicUrl(path);
-      return u?.publicUrl||null;
-    }
-  }
-  return null;
+  const {error} = await sb.storage.from('atas-arquivos').upload(path, file,
+    {upsert:true, cacheControl:'31536000', contentType:file.type||'application/octet-stream'});
+  if(error) return null;
+  const {data:u} = sb.storage.from('atas-arquivos').getPublicUrl(path);
+  return u?.publicUrl||null;
 }
 
 async function submeterTrabalho() {
@@ -11542,7 +11535,7 @@ async function submeterTrabalho() {
   toast('✅ Trabalho enviado! Aparece em "Meus Trabalhos" enquanto aguarda aprovação.');
   fecharModal();
   await _recarregarTrabalhos();
-  await renderTrabalhos(ROLES[currentRole].access['trabalhos']||'full');
+  await renderTrabalhos(ROLES[currentRole].access['trabalhos']||'full', false);
   ativarAbaTrabalhos('meus');
   } catch(e) {
     console.error('[submeterTrabalho]', e);
@@ -11564,7 +11557,7 @@ async function reenviarTrabalho(id) {
   if (_sbErr('reenviarTrabalho', error)) return;
   toast('✅ Reenviado! O Vigilante receberá para nova avaliação.');
   await _recarregarTrabalhos();
-  await renderTrabalhos(ROLES[currentRole].access['trabalhos']||'full');
+  await renderTrabalhos(ROLES[currentRole].access['trabalhos']||'full', false);
   ativarAbaTrabalhos('meus');
 }
 
@@ -11595,8 +11588,7 @@ async function aprovarTrabalho(id, grauTrab) {
   await _recarregarTrabalhos();
   toast(`✅ Aprovado! Visível para ${_GL(vis)}${vis>0?' e acima':''}.`);
 
-  // Correção 4: permanecer na aba Gestão, não redirecionar para Biblioteca
-  await renderTrabalhos(ROLES[currentRole].access['trabalhos']||'full');
+  await renderTrabalhos(ROLES[currentRole].access['trabalhos']||'full', false);
   ativarAbaTrabalhos('gestao');
   } catch(e) {
     console.error('[aprovarTrabalho]', e);
@@ -11621,8 +11613,7 @@ async function pedirRevisao(id, motivoExterno) {
   await _recarregarTrabalhos();
   toast('🔄 Pedido de revisão enviado. O autor será notificado ao abrir o sistema.');
 
-  // Correção 4: permanecer na aba Gestão
-  await renderTrabalhos(ROLES[currentRole].access['trabalhos']||'full');
+  await renderTrabalhos(ROLES[currentRole].access['trabalhos']||'full', false);
   ativarAbaTrabalhos('gestao');
 }
 
@@ -11632,13 +11623,13 @@ async function excluirTrabalho(id, titulo) {
   const doc = DATA.trabalhos.find(x=>x.id===id);
   if(doc?.url_arquivo) {
     const nome = doc.url_arquivo.split('/').pop();
-    await sb.storage.from('documentos').remove([`trabalhos/${nome}`]).catch(()=>{});
+    await sb.storage.from('atas-arquivos').remove([`trabalhos/${nome}`]).catch(()=>{});
   }
   const {error} = await sb.from('trabalhos').delete().eq('id',id);
   if (_sbErr('excluirTrabalho', error)) return;
   toast('🗑️ Trabalho excluído');
   await _recarregarTrabalhos();
-  await renderTrabalhos(ROLES[currentRole].access['trabalhos']||'full');
+  await renderTrabalhos(ROLES[currentRole].access['trabalhos']||'full', false);
   } catch(e) {
     console.error('[excluirTrabalho]', e);
     toast('❌ Erro inesperado. Tente novamente.');
@@ -11910,21 +11901,18 @@ async function salvarLegislacao(id) {
     const ext     = file.name.split('.').pop().toLowerCase();
     const nomeArq = `legislacao/${Date.now()}.${ext}`;
 
-    // Tentar bucket 'documentos' primeiro, fallback para 'atas-arquivos'
     let upErr = null, publicUrl = null;
 
-    for (const bucket of ['documentos', 'atas-arquivos']) {
-      const { error } = await sb.storage.from(bucket).upload(nomeArq, file, {
-        upsert: true,
-        contentType: file.type || 'application/octet-stream'
-      });
-      if (!error) {
-        const { data: urlData } = sb.storage.from(bucket).getPublicUrl(nomeArq);
-        publicUrl = urlData?.publicUrl || null;
-        upErr = null;
-        break;
-      }
-      upErr = error;
+    const { error: _upErr } = await sb.storage.from('atas-arquivos').upload(nomeArq, file, {
+      upsert: true,
+      cacheControl: '31536000',
+      contentType: file.type || 'application/octet-stream'
+    });
+    if (!_upErr) {
+      const { data: urlData } = sb.storage.from('atas-arquivos').getPublicUrl(nomeArq);
+      publicUrl = urlData?.publicUrl || null;
+    } else {
+      upErr = _upErr;
     }
 
     if (upErr || !publicUrl) {
@@ -11933,7 +11921,7 @@ async function salvarLegislacao(id) {
       if (msg.includes('row-level') || msg.includes('policy') || msg.includes('not authorized') || msg.includes('403')) {
         toast('❌ Permissão negada no Storage. Verifique as políticas do bucket no Supabase (Storage → Policies → INSERT).');
       } else if (msg.includes('not found') || msg.includes('404') || msg.includes('Bucket')) {
-        toast('❌ Bucket não encontrado. Crie o bucket "documentos" em Storage no Supabase.');
+        toast('❌ Bucket não encontrado. Verifique o bucket "atas-arquivos" em Storage no Supabase.');
       } else {
         toast('❌ Erro no upload: ' + msg);
       }
@@ -11974,7 +11962,7 @@ async function excluirLegislacao(id, titulo) {
   // Remover do Storage se tiver arquivo
   if (doc?.url_arquivo) {
     const nome = doc.url_arquivo.split('/').pop();
-    await sb.storage.from('documentos').remove([nome]);
+    await sb.storage.from('atas-arquivos').remove([`legislacao/${nome}`]).catch(()=>{});
   }
   const res = await sb.from('legislacao').delete().eq('id', id);
   if (res.error) { toast('Erro: ' + res.error.message); return; }
