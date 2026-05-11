@@ -1,0 +1,41 @@
+# Secrets e variáveis de ambiente
+.env
+.env.*
+.env.local
+.env.production
+secrets.json
+*.pem
+*.key
+
+# Supabase CLI
+supabase/.temp/
+supabase/seed.sql
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# Deno
+.deno/
+
+# IDEs e editores
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+
+# Build / cache
+dist/
+.cache/
