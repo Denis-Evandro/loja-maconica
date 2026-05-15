@@ -3525,7 +3525,7 @@ async function _carregarConfiguracoes() {
   try {
     const { data, error } = await sb.from('configuracoes').select('dados').eq('id','loja_principal').maybeSingle();
     if (error || !data?.dados) return;
-    const remoto = JSON.parse(data.dados);
+    const remoto = typeof data.dados === 'string' ? JSON.parse(data.dados) : data.dados;
     // Mesclar: remoto tem prioridade sobre localStorage
     const local = _getDadosLoja();
     const merged = { ...local, ...remoto };
