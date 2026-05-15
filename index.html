@@ -2065,7 +2065,7 @@ async function loadAllData() {
       ft(sb.from('presencas').select('*').limit(2000)),
       ft(sb.from('financas').select('*').order('data', {ascending:false}).limit(1000)),
       ft(sb.from('eventos').select('*').order('data')),
-      ft(sb.from('comissoes').select('*').order('data_criacao', {ascending:false})),
+      ft(sb.from('comissoes').select('*').order('criado_em', {ascending:false})),
       ft(sb.from('legislacao').select('*').order('ano', {ascending:false})),
       ft(sb.from('trabalhos').select('*,membros(nome_maconico,grau,cargo)').order('data_postagem', {ascending:false}))
     ]);
@@ -2207,7 +2207,7 @@ async function _reloadPresencas() { const d = await _rl('presencas', { limit:200
 async function _reloadFinancas()  { const d = await _rl('financas',  { orderDesc:'data', limit:1000 }); if (d) DATA.financas = d; }
 async function _reloadEventos()   { const d = await _rl('eventos',   { orderDesc:'data'          }); if (d) DATA.eventos   = d; }
 async function _reloadComissoes() {
-  const d = await _rl('comissoes', { orderDesc:'data_criacao' });
+  const d = await _rl('comissoes', { orderDesc:'criado_em' });
   if (d) DATA.comissoes = _parseComissoes(d);
 }
 async function _reloadLegislacao(){ const d = await _rl('legislacao',{ orderDesc:'ano'           }); if (d) DATA.legislacao = d; }
@@ -11936,7 +11936,7 @@ async function excluirLegislacao(id, titulo) {
 
 async function loadComissoes() {
   try {
-    const { data, error } = await sb.from('comissoes').select('*').order('data_criacao', { ascending: false });
+    const { data, error } = await sb.from('comissoes').select('*').order('criado_em', { ascending: false });
     if (error) throw error;
     // Migração automática do localStorage (executa só uma vez)
     const legacy = localStorage.getItem('comissoes_loja');
@@ -11955,7 +11955,6 @@ async function loadComissoes() {
           missao: c.missao || null,
           observacoes: c.observacoes || null,
           ativa: c.ativa !== false,
-          data_criacao: c.data_criacao || new Date().toISOString().split('T')[0]
         }));
         const { data: migradas, error: errMigradas } = await sb.from('comissoes').insert(rows).select();
         if (errMigradas) { console.error(errMigradas); toast('❌ Erro ao migrar comissões: ' + errMigradas.message); return; }
@@ -12201,7 +12200,7 @@ function abrirModalComissao(tipoInicial='permanente', comissaoExistente=null) {
               <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-family:'Cormorant Garamond',serif;font-size:13px">
                 <input type="checkbox" id="com-ativa" ${c.ativa!==false?'checked':''} style="width:16px;height:16px;cursor:pointer">
                 Ativa</label>
-              <div style="font-size:11px;color:var(--text-muted);font-style:italic">Data de criação: <strong>${ed?fmtData(c.data_criacao):fmtData(new Date().toISOString().split('T')[0])}</strong></div>
+              <div style="font-size:11px;color:var(--text-muted);font-style:italic">Data de criação: <strong>${ed?fmtData(c.criado_em):fmtData(new Date().toISOString().split('T')[0])}</strong></div>
             </div>
           </div>
         </div>
@@ -12337,7 +12336,6 @@ async function salvarComissao(id) {
     missao: document.getElementById('com-missao')?.value.trim() || null,
     observacoes: document.getElementById('com-obs')?.value.trim() || null,
     ativa: document.getElementById('com-ativa')?.checked !== false,
-    data_criacao: new Date().toISOString().split('T')[0]
   };
 
   let res;
