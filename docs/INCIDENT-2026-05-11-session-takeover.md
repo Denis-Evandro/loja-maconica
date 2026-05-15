@@ -168,6 +168,43 @@ Pendente de implementação em `index.html`:
 
 ---
 
+## Tech Debt Descoberto durante investigação (2026-05-10)
+
+### TD-1 — Loop de 1000+ requisições para `/rest/v1/trabalhos`
+
+**Observado em:** 2026-05-10, debug do egress do Storage.  
+**Sintoma:** Com o tab aberto, 1000+ requests `GET /rest/v1/trabalhos?select=*%2Cmembros(...)` disparados em segundos, cada um retornando `200 OK` com array vazio (tabela tem 0 linhas). Loop pré-existia às mudanças do dia — não introduzido pelas correções de F1.x/F2.x.  
+**Impacto atual:** Consome cota da API gratuita do Supabase (50.000 req/mês). Com dados reais, cada loop leria todos os trabalhos × N membros (join) — impacto de egress exponencial.  
+**Causa raiz:** Não determinada por análise estática. Nenhum `setInterval`, timer recursivo ou Realtime subscription encontrado para esta query. Máximo teórico: 4 SELECTs por page load.  
+**Ação necessária antes de ir para produção com dados reais:**
+```js
+// Adicionar em _recarregarTrabalhos() (linha ~10846) antes do SELECT:
+console.trace('[_recarregarTrabalhos] chamada');
+// Adicionar em loadAllData() (linha ~2057) antes da query de trabalhos:
+console.trace('[loadAllData] query trabalhos');
+```
+Reproduzir no browser com DevTools aberto → o call stack vai expor a origem do loop.
+
+### TD-2 — RLS sem restrição em `trabalhos` (`allow_all_trabalhos`)
+
+**Observado em:** Análise de políticas RLS, 2026-05-10.  
+**Sintoma:** Policy com `qual = true` — qualquer usuário autenticado lê e escreve qualquer linha de `trabalhos`, sem filtro por loja ou por membro.  
+**Impacto para SaaS multi-tenant:** Crítico. Ao escalar para múltiplas lojas, membro da Loja A vê trabalhos da Loja B.  
+**Impacto atual (loja única):** Baixo — todos os membros são da mesma loja.  
+**Ação recomendada:** Ao adicionar `loja_id` nas tabelas (pré-requisito para multi-tenant), substituir pela policy:
+```sql
+CREATE POLICY trabalhos_por_loja ON trabalhos
+  USING (loja_id = (SELECT loja_id FROM membros WHERE auth_user_id = auth.uid() LIMIT 1));
+```
+
+### TD-3 — Erros 400 em `/rest/v1/comissoes`
+
+**Observado em:** Network tab durante debug, 2026-05-10.  
+**Sintoma:** Requests para `/rest/v1/comissoes` retornando HTTP 400 — indica query malformada ou coluna/tabela inexistente.  
+**Ação:** Inspecionar a função que consulta `comissoes` e verificar se a estrutura da tabela no banco corresponde ao SELECT usado no código.
+
+---
+
 ## Recomendações para o futuro SaaS multi-tenant
 
 1. **`loja_id` em todas as tabelas sensíveis** (`membros`, `financas`, `sessoes`, `presencas`, `atas`) com RLS `USING (loja_id = auth.jwt()->>'loja_id')`. O `loja_id` deve ser injetado no JWT via `raw_app_meta_data` no momento do convite (`inviteUserByEmail`).
