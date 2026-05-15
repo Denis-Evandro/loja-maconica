@@ -1943,6 +1943,19 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
   }
 });
 
+let _currentAuthUserId = null;
+sb.auth.onAuthStateChange((event, session) => {
+  if (event === 'SIGNED_IN' && session) {
+    if (_currentAuthUserId && session.user.id !== _currentAuthUserId) {
+      console.error('[onAuthStateChange] Sessão trocada inesperadamente!',
+        { era: _currentAuthUserId, virou: session.user.id, email: session.user.email });
+      sb.auth.signOut().then(() => window.location.reload());
+    }
+    _currentAuthUserId = session.user.id;
+  }
+  if (event === 'SIGNED_OUT') { _currentAuthUserId = null; }
+});
+
 // ===================== ROLE DEFINITIONS =====================
 const ROLES = {
   veneravel: {
@@ -6327,12 +6340,11 @@ async function _recalcularAgapeSessao(sessaoId, membroIdsPresentes) {
 // SISTEMA DE CONVITES — SaaS Maçônico
 // ══════════════════════════════════════════════════════════════
 
-// v2: usa signUp + resetPasswordForEmail (sem auth.admin) — 2026-04-29
 async function enviarConviteMembro(membroId, email, nomeMemb) {
   const canEdit = ROLES[currentRole]?.access['membros'] === 'full';
   if (!canEdit) { toast('⛔ Sem permissão'); return; }
   email = (email||'').toLowerCase().trim();
-  if (!email)   { toast('⚠️ Este membro não tem e-mail cadastrado. Adicione um e-mail primeiro.'); return; }
+  if (!email) { toast('⚠️ Este membro não tem e-mail cadastrado. Adicione um e-mail primeiro.'); return; }
 
   const confirmar = confirm(
     `Enviar convite de acesso para:\n\n` +
@@ -6345,54 +6357,16 @@ async function enviarConviteMembro(membroId, email, nomeMemb) {
   toast('⏳ Enviando convite...');
 
   try {
-    const membro = DATA.membros.find(m => m.id === membroId);
-    const temConta = !!membro?.auth_user_id;
     const redirectTo = window.location.origin + window.location.pathname;
-
-    console.log('[enviarConviteMembro] --- INÍCIO ---');
-    console.log('[enviarConviteMembro] email:', email);
-    console.log('[enviarConviteMembro] membroId:', membroId);
-    console.log('[enviarConviteMembro] temConta (auth_user_id presente):', temConta, '| auth_user_id:', membro?.auth_user_id);
-    console.log('[enviarConviteMembro] redirectTo:', redirectTo);
-
-    if (temConta) {
-      console.log('[enviarConviteMembro] Caminho: resetPasswordForEmail');
-      const resp = await sb.auth.resetPasswordForEmail(email, { redirectTo });
-      console.log('[enviarConviteMembro] resetPasswordForEmail resposta completa:', JSON.stringify(resp));
-      if (resp.error) { toast('❌ Erro ao enviar: ' + resp.error.message); return; }
-    } else {
-      console.log('[enviarConviteMembro] Caminho: signUp (sem conta Auth)');
-      const resp = await sb.auth.signUp({
-        email,
-        password: _gerarSenhaAleatoria(),
-        options: { emailRedirectTo: redirectTo }
-      });
-      console.log('[enviarConviteMembro] signUp resposta:', JSON.stringify(resp));
-      console.log('[enviarConviteMembro] signUp data.user.identities:', resp.data?.user?.identities);
-      console.log('[enviarConviteMembro] signUp error:', resp.error);
-      if (resp.error) { toast('❌ Erro ao criar acesso: ' + resp.error.message); return; }
-      // identities vazio = e-mail já existia no Auth sem auth_user_id salvo — não crítico, resetPassword resolve
-      if (resp.data?.user?.identities?.length === 0) {
-        console.warn('[enviarConviteMembro] E-mail já existe no Auth (identities=[]) — seguindo com resetPasswordForEmail');
-      }
-      // Dispara reset imediatamente para o irmão poder definir sua própria senha
-      const respReset = await sb.auth.resetPasswordForEmail(email, { redirectTo });
-      console.log('[enviarConviteMembro] resetPasswordForEmail (pós-signUp) resposta:', JSON.stringify(respReset));
-      if (respReset.error) console.warn('[enviarConviteMembro] resetPasswordForEmail erro (não crítico):', respReset.error.message);
-    }
-
-    // Status só atualizado após envio confirmado sem erro
-    const { error: errStatus } = await sb.from('membros').update({
-      login_status: 'convite_enviado',
-      login_vinculado_em: new Date().toISOString()
-    }).eq('id', membroId);
-    console.log('[enviarConviteMembro] update login_status errStatus:', errStatus);
-    if (errStatus) console.error('[enviarConviteMembro] status:', errStatus);
+    const { data, error } = await sb.functions.invoke('invite-member', {
+      body: { membroId, email, redirectTo }
+    });
+    if (error) { toast('❌ Erro ao enviar convite: ' + error.message); return; }
+    if (data?.error) { toast('❌ ' + data.error); return; }
 
     toast(`✅ Convite enviado para ${email}!`);
     await _reloadMembros();
     renderMembros(ROLES[currentRole].access['membros']);
-    console.log('[enviarConviteMembro] --- FIM (sucesso) ---');
   } catch(e) {
     console.error('[enviarConviteMembro] EXCEÇÃO:', e);
     toast('❌ Erro: ' + e.message);
@@ -6424,34 +6398,15 @@ async function enviarConvitesTodos() {
 
   for (const m of semLogin) {
     try {
-      const temConta = !!m.auth_user_id;
-      let erro = null;
-
-      if (temConta) {
-        const { error } = await sb.auth.resetPasswordForEmail(m.email, { redirectTo });
-        erro = error;
+      const { data, error } = await sb.functions.invoke('invite-member', {
+        body: { membroId: m.id, email: m.email, redirectTo }
+      });
+      if (error || data?.error) {
+        console.warn('[enviarConvitesTodos]', m.email, error?.message || data?.error);
       } else {
-        const { error: errSignUp } = await sb.auth.signUp({
-          email: m.email,
-          password: _gerarSenhaAleatoria(),
-          options: { emailRedirectTo: redirectTo }
-        });
-        if (!errSignUp) {
-          // Dispara reset para o irmão poder definir sua própria senha
-          const { error: errReset } = await sb.auth.resetPasswordForEmail(m.email, { redirectTo });
-          if (errReset) console.warn('[enviarConvitesTodos] resetPasswordForEmail:', m.email, errReset.message);
-        }
-        erro = errSignUp;
-      }
-
-      if (erro) {
-        console.warn('[enviarConvitesTodos]', m.email, erro.message);
-      } else {
-        await sb.from('membros').update({ login_status: 'convite_enviado' }).eq('id', m.id);
         enviados++;
       }
     } catch(e) { console.warn('Erro convite', m.email, e); }
-    // Pequena pausa para não sobrecarregar
     await new Promise(r => setTimeout(r, 300));
   }
 

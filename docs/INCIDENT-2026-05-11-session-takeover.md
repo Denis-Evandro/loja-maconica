@@ -203,6 +203,21 @@ CREATE POLICY trabalhos_por_loja ON trabalhos
 **Sintoma:** Requests para `/rest/v1/comissoes` retornando HTTP 400 — indica query malformada ou coluna/tabela inexistente.  
 **Ação:** Inspecionar a função que consulta `comissoes` e verificar se a estrutura da tabela no banco corresponde ao SELECT usado no código.
 
+### TD-4 — Avaliar migração de outros usos de auth client-side
+
+**Observado em:** 2026-05-15, verificação pós-Fase C.
+
+**Padrões remanescentes no index.html após Fase C:**
+- linha 2493: `sb.auth.signUp()` — fluxo de auto-cadastro do próprio usuário
+- linha 2394: `sb.auth.resetPasswordForEmail()` — recuperação de senha do próprio usuário
+- linha 3359: `sb.auth.resetPasswordForEmail()` — admin envia reset para membro que já tem conta
+
+**Avaliação:**
+- 2493 e 2394 são fluxos do próprio usuário, geralmente aceitáveis client-side em SaaS modernos
+- 3359 é admin atuando em nome de outro usuário — avaliar se deve migrar para Edge Function por consistência arquitetural
+
+**Ação:** Revisar antes do go-live SaaS multi-tenant. Não é bug, mas merece avaliação de segurança e consistência.
+
 ---
 
 ## Recomendações para o futuro SaaS multi-tenant
