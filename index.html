@@ -10799,7 +10799,6 @@ function _widgetNotificacaoBiblioteca() {
 
 // ── Recarregar DATA.trabalhos com join e normalizar grau ───────
 async function _recarregarTrabalhos() {
-  console.trace('[TRACE] _recarregarTrabalhos chamado');
   const {data, error} = await sb.from('trabalhos')
     .select('*,membros(id,nome_maconico,grau,cargo)')
     .order('data_postagem',{ascending:false});
