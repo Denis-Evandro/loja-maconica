@@ -8592,6 +8592,7 @@ function abrirModalAgape() {
   // Membros obreiros (membro + filiado, ativos)
   const obreiros = DATA.membros.filter(m=>(m.tipo_membro==='membro'||m.tipo_membro==='filiado'||!m.tipo_membro)&&(m.status==='ativo'||m.status==='iniciado'));
 
+  window._agapeExcluidos = new Set();
   document.body.insertAdjacentHTML('beforeend', `
     <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px">
       <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:8px;width:620px;max-height:92vh;overflow-y:auto;position:relative">
@@ -8692,6 +8693,7 @@ function calcularRateio() {
     participantes = DATA.membros.filter(m=>(m.tipo_membro==='membro'||m.tipo_membro==='filiado'||!m.tipo_membro)&&(m.status==='ativo'||m.status==='iniciado'));
   }
 
+  participantes = participantes.filter(m => !window._agapeExcluidos?.has(m.id));
   if (!participantes.length || !valor) {
     preview.style.display = 'none';
     return;
@@ -8703,7 +8705,7 @@ function calcularRateio() {
       📊 ${participantes.length} participante(s) · ${fmtVal(valPorCabeca)} por irmão
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:4px;max-height:120px;overflow-y:auto">
-      ${participantes.map(m=>`<span style="background:var(--white);border:1px solid rgba(107,58,0,0.2);border-radius:3px;padding:2px 8px;font-size:10px">${_esc(m.nome_maconico)}</span>`).join('')}
+      ${participantes.map(m=>`<span style="background:var(--white);border:1px solid rgba(107,58,0,0.2);border-radius:3px;padding:2px 8px;font-size:10px;display:inline-flex;align-items:center;gap:4px">${_esc(m.nome_maconico)}<span onclick="window._agapeExcluidos.add('${m.id}');calcularRateio()" style="cursor:pointer;color:#999;font-size:11px;line-height:1;padding:0 2px" title="Excluir do rateio">×</span></span>`).join('')}
     </div>`;
 }
 
@@ -8726,6 +8728,7 @@ async function lancarAgape() {
   } else {
     participantes = DATA.membros.filter(m=>(m.tipo_membro==='membro'||m.tipo_membro==='filiado'||!m.tipo_membro)&&(m.status==='ativo'||m.status==='iniciado'));
   }
+  participantes = participantes.filter(m => !window._agapeExcluidos?.has(m.id));
   if (!participantes.length) { toast('Nenhum participante encontrado'); return; }
 
   const valPorCabeca = parseFloat((valor / participantes.length).toFixed(2));
