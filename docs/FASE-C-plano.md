@@ -423,33 +423,12 @@ WHERE id IN (
 
 *(Para registro; não bloqueiam a Fase C)*
 
-### 6.1 Loop de 1000+ requests — endpoint `/rest/v1/trabalhos`
+### 6.1 Loop de 1000+ requests — `/rest/v1/trabalhos`
 
-**Sintoma observado (2026-05-10):**  
-Com o app aberto, 1000+ requisições `GET /rest/v1/trabalhos?select=*%2Cmembros(...)` disparadas em segundos, cada uma retornando `200 OK` com array vazio (tabela `trabalhos` tem 0 linhas). Loop pré-existia às mudanças do dia.
-
-**Investigação estática concluída:**
-- Nenhum `setInterval`, `setTimeout` recursivo ou Realtime subscription para `trabalhos` encontrado no código.
-- `loadAllData()` (linha 2044): 1 SELECT.
-- `_recarregarTrabalhos()` (linha 10846): 1 SELECT.
-- `renderTrabalhos()` (linha ~2250, pós-F1.3): SELECT condicional via `forceRefresh`.
-- Máximo teórico de 4 SELECTs por carregamento de página — incompatível com 1000+.
-
-**Causa raiz: não determinada por análise estática.**
-
-**Ação necessária:**  
-Adicionar `console.trace()` em produção antes de investigar mais:
-
-```js
-// Em _recarregarTrabalhos() — linha ~10846, antes do SELECT:
-console.trace('[_recarregarTrabalhos] chamada');
-
-// Em loadAllData() — linha ~2057, antes do SELECT de trabalhos:
-console.trace('[loadAllData] query trabalhos');
-```
-
-O `trace` vai mostrar o call stack completo — identifica se é um listener, um ciclo de renderização ou código externo.  
-A diferença no SELECT (`id%2Cnome_maconico` vs `nome_maconico`) já permite identificar qual função está no loop pelo URL da requisição nas DevTools.
+- Diagnóstico estático completo (2026-05-19): sem `setInterval`, sem Realtime subscription, sem ciclo entre funções
+- Runtime (DevTools Network): apenas 2 requests para `trabalhos` no carregamento — loop não reproduzível na sessão de teste
+- Hipótese atual: era situacional (tabela vazia + condição de corrida), pode ter sido resolvido indiretamente pela Fase C
+- Status: monitorar em produção; se loop reaparecer, usar `console.trace()` em `_recarregarTrabalhos` para capturar call stack
 
 ### 6.2 RLS muito permissivo — policy `allow_all_trabalhos`
 
