@@ -1,7 +1,7 @@
 # TD-2: RLS Multi-tenant — Planejamento
 
 Data: 15/05/2026  
-Status: Planejado — execução pendente
+Status: Aguarda versão SaaS — não executar em produção atual
 
 ## Objetivo
 Implementar isolamento de dados por loja (loja_id) em todas as tabelas,
@@ -79,3 +79,10 @@ Todas as queries precisam filtrar por `loja_id` do contexto do usuário.
 ## Rollback
 Manter branch `main` como backup (não deletar).
 Testar em ambiente separado antes de aplicar em produção.
+
+## Decisão (2026-05-19)
+Execução adiada intencionalmente. A estratégia definida é:
+- Manter o sistema atual (mestrevirtual.com.br) em produção sem alterações estruturais
+- Desenvolver a versão SaaS multi-tenant em repositório separado, do zero
+- Migrar quando a nova versão estiver estável e testada
+- Branch `main` preservada como backup adicional
