@@ -445,6 +445,7 @@ CREATE POLICY trabalhos_por_loja ON trabalhos
 
 ### 6.3 Erros 400 em `/rest/v1/comissoes`
 
-**Observado durante debug:** Requests para `/rest/v1/comissoes` retornando 400. Indica query malformada ou tabela/coluna inexistente.
-
-**Ação:** Inspecionar a função que consulta `comissoes` no código e verificar se a estrutura da tabela bate com o SELECT usado.
+- Verificado em 2026-05-19: funcionando corretamente em produção
+- Tabela existe com estrutura completa (15 colunas)
+- 3 comissões carregadas sem erro
+- Status: RESOLVIDO
