@@ -7828,7 +7828,9 @@ function renderFinancas(access) {
           <select id="fin-filtro-tipo" onchange="filtrarExtrato()" ${inp}><option value="">Todos os tipos</option><option value="receita">Receitas</option><option value="despesa">Despesas</option></select>
           <select id="fin-filtro-cat" onchange="filtrarExtrato()" ${inp}>${opsCats}</select>
           <select id="fin-filtro-status" onchange="filtrarExtrato()" ${inp}><option value="">Todos status</option><option value="pago">✅ Pago</option><option value="agendado">📅 Agendado</option><option value="aberto">⚠️ Aberto</option></select>
-          <input type="month" id="fin-filtro-mes" onchange="filtrarExtrato()" ${inp}>
+          <input type="date" id="fin-filtro-ini" onchange="filtrarExtrato()" title="Data início" ${inp}>
+          <input type="date" id="fin-filtro-fim" onchange="filtrarExtrato()" title="Data fim" ${inp}>
+          <button class="btn" style="padding:4px 8px;font-size:9px" onclick="limparFiltroExtrato()" title="Limpar intervalo">✕ Limpar</button>
           ${canEdit?`<button class="btn" style="padding:4px 10px;font-size:9px" onclick="imprimirExtrato()">🖨️ Imprimir</button>
           <button class="btn" style="padding:4px 10px;font-size:9px;border-color:#1A5C3A;color:#1A5C3A" onclick="exportarFinancasCsv()" title="Exportar lançamentos em CSV">📥 CSV</button>
           <button class="btn" style="padding:4px 10px;font-size:9px;border-color:#1B3A6B;color:var(--navy)" onclick="exportarDados('financas')" title="Backup completo da tabela financas">💾 Backup</button>`:''}
@@ -8478,9 +8480,10 @@ function imprimirExtrato() {
   const tipo   = document.getElementById('fin-filtro-tipo')?.value;
   const cat    = document.getElementById('fin-filtro-cat')?.value;
   const status = document.getElementById('fin-filtro-status')?.value;
-  const mes    = document.getElementById('fin-filtro-mes')?.value;
+  const dataIni = document.getElementById('fin-filtro-ini')?.value;
+  const dataFim = document.getElementById('fin-filtro-fim')?.value;
   let lancs = DATA.financas;
-  if (!mes && !irmao && !tipo && !cat && !status) {
+  if (!dataIni && !dataFim && !irmao && !tipo && !cat && !status) {
     const hoje = new Date(), anoAtual = hoje.getFullYear(), mesAtual = String(hoje.getMonth()+1).padStart(2,'0');
     lancs = lancs.filter(l=>
       l.data?.startsWith(`${anoAtual}-${mesAtual}`) ||
@@ -8491,7 +8494,8 @@ function imprimirExtrato() {
   if (tipo)   lancs = lancs.filter(l=>l.tipo===tipo);
   if (cat)    lancs = lancs.filter(l=>l.categoria===cat);
   if (status) lancs = lancs.filter(l=>(l.status||'pago')===status);
-  if (mes)    lancs = lancs.filter(l=>l.data?.startsWith(mes));
+  if (dataIni) lancs = lancs.filter(l=>l.data >= dataIni);
+  if (dataFim) lancs = lancs.filter(l=>l.data <= dataFim);
   const total = lancs.reduce((s,l)=>s+(l.tipo==='receita'?1:-1)*parseFloat(l.valor||0),0);
   const rows = lancs.map(l=>{
     const mb = DATA.membros.find(m=>m.id===l.membro_id);
@@ -8548,14 +8552,15 @@ function filtrarExtrato() {
   const tipo  = document.getElementById('fin-filtro-tipo')?.value;
   const cat   = document.getElementById('fin-filtro-cat')?.value;
   const status= document.getElementById('fin-filtro-status')?.value;
-  const mes   = document.getElementById('fin-filtro-mes')?.value;
+  const dataIni = document.getElementById('fin-filtro-ini')?.value;
+  const dataFim = document.getElementById('fin-filtro-fim')?.value;
   let lancs = DATA.financas;
 
   // Padrão: mês corrente + pendências não pagas de meses anteriores
   const hoje = new Date();
   const anoAtual = hoje.getFullYear();
   const mesAtual = String(hoje.getMonth()+1).padStart(2,'0');
-  if (!mes && !irmao && !tipo && !cat && !status) {
+  if (!dataIni && !dataFim && !irmao && !tipo && !cat && !status) {
     lancs = lancs.filter(l=>
       l.data?.startsWith(`${anoAtual}-${mesAtual}`) ||
       (l.data < `${anoAtual}-${mesAtual}-01` && (l.status==='agendado'||l.status==='aberto'))
@@ -8566,7 +8571,8 @@ function filtrarExtrato() {
   if (tipo)   lancs = lancs.filter(l=>l.tipo===tipo);
   if (cat)    lancs = lancs.filter(l=>l.categoria===cat);
   if (status) lancs = lancs.filter(l=>(l.status||'pago')===status);
-  if (mes)    lancs = lancs.filter(l=>l.data?.startsWith(mes));
+  if (dataIni) lancs = lancs.filter(l=>l.data >= dataIni);
+  if (dataFim) lancs = lancs.filter(l=>l.data <= dataFim);
   const tbody = document.getElementById('tbody-extrato');
   if (!tbody) return;
   const statusBadgeHtml = (s) => {
@@ -8593,6 +8599,14 @@ function filtrarExtrato() {
           <td><button class="btn" style="padding:2px 7px;font-size:10px" title="Editar" onclick="abrirModalEditarLancamento('${l.id}')">✏️</button></td>
         </tr>`;
       }).join('');
+}
+
+function limparFiltroExtrato() {
+  const ini = document.getElementById('fin-filtro-ini');
+  const fim = document.getElementById('fin-filtro-fim');
+  if (ini) ini.value = '';
+  if (fim) fim.value = '';
+  filtrarExtrato();
 }
 
 // ===================== ÁGAPE / RATEIO =====================
