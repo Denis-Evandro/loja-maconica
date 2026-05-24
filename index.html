@@ -7828,7 +7828,9 @@ function renderFinancas(access) {
           <select id="fin-filtro-tipo" onchange="filtrarExtrato()" ${inp}><option value="">Todos os tipos</option><option value="receita">Receitas</option><option value="despesa">Despesas</option></select>
           <select id="fin-filtro-cat" onchange="filtrarExtrato()" ${inp}>${opsCats}</select>
           <select id="fin-filtro-status" onchange="filtrarExtrato()" ${inp}><option value="">Todos status</option><option value="pago">✅ Pago</option><option value="agendado">📅 Agendado</option><option value="aberto">⚠️ Aberto</option></select>
+          <span style="font-size:11px;color:var(--text-muted);white-space:nowrap">De:</span>
           <input type="date" id="fin-filtro-ini" onchange="filtrarExtrato()" title="Data início" ${inp}>
+          <span style="font-size:11px;color:var(--text-muted);white-space:nowrap">Até:</span>
           <input type="date" id="fin-filtro-fim" onchange="filtrarExtrato()" title="Data fim" ${inp}>
           <button class="btn" style="padding:4px 8px;font-size:9px" onclick="limparFiltroExtrato()" title="Limpar intervalo">✕ Limpar</button>
           ${canEdit?`<button class="btn" style="padding:4px 10px;font-size:9px" onclick="imprimirExtrato()">🖨️ Imprimir</button>
