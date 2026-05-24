@@ -7532,8 +7532,8 @@ function renderFinancas(access) {
 
     <!-- LINHA 1: KPIs principais -->
     <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:10px">
-      <div class="stat-card"><div class="stat-label">Receitas Pagas</div><div class="stat-value" style="color:var(--green);font-size:18px">${fmtVal(receitas)}</div><div class="stat-change up">Mês: ${fmtVal(recMes)}</div></div>
-      <div class="stat-card"><div class="stat-label">Despesas Pagas</div><div class="stat-value" style="color:var(--red);font-size:18px">${fmtVal(despesas)}</div><div class="stat-change down">Mês: ${fmtVal(despMes)}</div></div>
+      <div class="stat-card"><div class="stat-label">Receitas Pagas</div><div class="stat-value" style="color:var(--green);font-size:18px">${fmtVal(recMes)}</div><div class="stat-change up">Total: ${fmtVal(receitas)}</div></div>
+      <div class="stat-card"><div class="stat-label">Despesas Pagas</div><div class="stat-value" style="color:var(--red);font-size:18px">${fmtVal(despMes)}</div><div class="stat-change down">Total: ${fmtVal(despesas)}</div></div>
       <div class="stat-card"><div class="stat-label">Saldo Geral</div><div class="stat-value" style="color:${saldo>=0?'var(--green)':'var(--red)'};font-size:18px">${fmtVal(saldo)}</div><div class="stat-change" style="color:${saldoPrev>=0?'var(--green)':'var(--red)'}">Prev. 30d: ${fmtVal(saldoPrev)}</div></div>
     </div>
     <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px">
