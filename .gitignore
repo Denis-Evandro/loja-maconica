@@ -39,3 +39,6 @@ logs/
 # Build / cache
 dist/
 .cache/
+
+# Anotações de trabalho locais
+handoff-mestrevirtual.txt
