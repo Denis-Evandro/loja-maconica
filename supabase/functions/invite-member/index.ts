@@ -130,14 +130,18 @@ serve(async (req: Request) => {
     }
 
     // 7b. Sem conta → inviteUserByEmail (server-side)
+    // must_set_password: flag de UX usado pelo cliente para forçar a tela de
+    // primeiro acesso mesmo se o usuário recarregar a página antes de definir
+    // a senha. Não é controle de segurança — é a senha em si que valida.
     const { data: inviteData, error: inviteErr } =
       await admin.auth.admin.inviteUserByEmail(emailNorm, {
         data: {
           membroId,
-          nome_maconico: membro.nome_maconico,
-          nome_loja:     nomeLoja,
-          numero_loja:   numLoja,
-          oriente:       oriente,
+          nome_maconico:      membro.nome_maconico,
+          nome_loja:          nomeLoja,
+          numero_loja:        numLoja,
+          oriente:            oriente,
+          must_set_password:  true,
         },
         redirectTo: redirectUrl,
       });

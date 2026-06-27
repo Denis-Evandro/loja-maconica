@@ -1471,6 +1471,19 @@ input[type=range].sens-slider::-moz-range-thumb { width:14px; height:14px; borde
 
     <!-- PAINEL LOGIN REAL -->
     <div id="painel-real">
+      <!-- Banner persistente de convite inválido/expirado (preenchido por JS) -->
+      <div id="convite-banner" style="display:none;background:rgba(139,32,32,0.12);border:1px solid rgba(139,32,32,0.4);border-radius:4px;padding:12px 14px;margin-bottom:14px;color:#FFCDCD;font-size:12px;line-height:1.45">
+        <div style="display:flex;align-items:flex-start;gap:8px">
+          <span style="font-size:16px;flex-shrink:0">⚠️</span>
+          <div style="flex:1">
+            <div class="fc" style="font-weight:700;letter-spacing:0.08em;color:#FF8B8B;margin-bottom:4px">CONVITE INVÁLIDO</div>
+            <div id="convite-banner-msg">Convite expirado ou inválido. Solicite um novo convite.</div>
+          </div>
+          <button type="button" onclick="document.getElementById('convite-banner').style.display='none'"
+            style="background:transparent;border:none;color:#FFCDCD;cursor:pointer;font-size:14px;padding:0 0 0 4px" title="Fechar">✕</button>
+        </div>
+      </div>
+
       <label class="field-label">E-mail ou Telefone</label>
       <input class="field-input" id="loginUser" type="text" placeholder="email@exemplo.com ou 13999998888" autocomplete="username"
         onkeydown="if(event.key==='Enter') doLogin()">
@@ -2865,70 +2878,162 @@ async function doLogout() {
   document.getElementById('login-screen').style.display = 'flex';
 }
 
-// Verificar sessão ativa ao carregar (login persistente)
-// Detectar link de recuperação de senha na URL (#access_token=...)
+// ══════════════════════════════════════════════════════════════
+// FLUXO DE LINK DE AUTH NA URL (convite / signup / recovery / erro)
+// ══════════════════════════════════════════════════════════════
+// `detectSessionInUrl: true` faz o Supabase consumir os tokens do hash
+// automaticamente. Precisamos inspecionar `type` antes de deixar o boot
+// seguir, para evitar que um convite (sem senha definida) entre direto
+// no app. Também tratamos `error_description` para mostrar banner persistente.
+let _modoCadastroSenha = null; // 'invite' | 'signup' | 'recovery' | null — trava o boot enquanto preenche senha
+
 async function verificarLinkRecuperacao() {
-  const hash = window.location.hash;
-  if (hash.includes('access_token') && hash.includes('type=recovery')) {
-    // Supabase detectSessionInUrl já processou — mostrar tela de nova senha
-    const { data: { session } } = await sb.auth.getSession();
-    if (session) {
-      document.body.insertAdjacentHTML('beforeend', `
-        <div id="modal-nova-senha" style="position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px">
-          <div style="background:#0F2240;border:1px solid rgba(212,168,67,0.4);border-radius:8px;padding:32px;width:360px">
-            <div class="fc" style="font-size:13px;font-weight:700;color:#D4A843;text-align:center;margin-bottom:6px">🔑 DEFINIR NOVA SENHA</div>
-            <div style="font-size:11px;color:#5A7AAF;text-align:center;margin-bottom:20px">Escolha uma senha segura para sua conta.</div>
-            <label class="fc" style="font-size:9px;font-weight:700;letter-spacing:0.2em;color:#5A7AAF;text-transform:uppercase;display:block;margin-bottom:6px">Nova Senha</label>
-            <input id="nova-senha" type="password" placeholder="Mínimo 6 caracteres"
-              style="width:100%;border:1px solid rgba(212,168,67,0.3);border-radius:4px;padding:10px 14px;font-size:14px;background:rgba(255,255,255,0.05);color:#FFFFFF;margin-bottom:12px">
-            <label class="fc" style="font-size:9px;font-weight:700;letter-spacing:0.2em;color:#5A7AAF;text-transform:uppercase;display:block;margin-bottom:6px">Confirmar Senha</label>
-            <input id="nova-senha2" type="password" placeholder="Repita a senha"
-              style="width:100%;border:1px solid rgba(212,168,67,0.3);border-radius:4px;padding:10px 14px;font-size:14px;background:rgba(255,255,255,0.05);color:#FFFFFF;margin-bottom:16px">
-            <div id="nova-senha-erro" style="display:none;color:#FF6B6B;font-size:11px;margin-bottom:10px;text-align:center"></div>
-            <button onclick="salvarNovaSenha()"
-              style="width:100%;padding:12px;background:linear-gradient(135deg,#1B3A6B,#2A5298);border:none;border-radius:4px;color:#FFFFFF;font-family:'Cinzel',serif;font-size:11px;font-weight:700;letter-spacing:0.1em;cursor:pointer">
-              Salvar Nova Senha ✦
-            </button>
-          </div>
-        </div>`);
-      // Limpar o hash da URL
+  const hash = window.location.hash || '';
+  // 1) Erro vindo do Supabase (token expirado, inválido etc.)
+  if (hash.includes('error')) {
+    const params = new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : hash);
+    const errDesc = params.get('error_description') || params.get('error') || '';
+    if (errDesc) {
+      _mostrarBannerConvite('Convite expirado ou inválido. Solicite um novo convite.');
       history.replaceState(null, '', window.location.pathname);
+      return;
     }
   }
+
+  // 2) Link de auth com tokens
+  if (!hash.includes('access_token')) return;
+
+  let tipo = null;
+  if (hash.includes('type=invite'))   tipo = 'invite';
+  else if (hash.includes('type=signup')) tipo = 'signup';
+  else if (hash.includes('type=recovery')) tipo = 'recovery';
+  if (!tipo) return;
+
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) {
+    _mostrarBannerConvite('Convite expirado ou inválido. Solicite um novo convite.');
+    history.replaceState(null, '', window.location.pathname);
+    return;
+  }
+
+  _modoCadastroSenha = tipo;
+  _abrirModalDefinirSenha(tipo);
+  history.replaceState(null, '', window.location.pathname);
+}
+
+function _mostrarBannerConvite(msg) {
+  const banner = document.getElementById('convite-banner');
+  const msgEl  = document.getElementById('convite-banner-msg');
+  if (banner) banner.style.display = 'block';
+  if (msgEl && msg)  msgEl.textContent = msg;
+}
+
+function _abrirModalDefinirSenha(tipo) {
+  if (document.getElementById('modal-nova-senha')) return; // idempotente
+  const isPrimeiroAcesso = (tipo === 'invite' || tipo === 'signup');
+  const titulo   = isPrimeiroAcesso ? '🔑 PRIMEIRO ACESSO — CRIE SUA SENHA' : '🔑 DEFINIR NOVA SENHA';
+  const subtit   = isPrimeiroAcesso
+    ? 'Escolha uma senha segura. Você usará essa senha para entrar no sistema.'
+    : 'Escolha uma senha segura para sua conta.';
+  const labelBtn = isPrimeiroAcesso ? 'Criar Senha e Continuar ✦' : 'Salvar Nova Senha ✦';
+
+  document.body.insertAdjacentHTML('beforeend', `
+    <div id="modal-nova-senha" style="position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px">
+      <div style="background:#0F2240;border:1px solid rgba(212,168,67,0.4);border-radius:8px;padding:32px;width:380px;max-width:100%">
+        <div class="fc" style="font-size:13px;font-weight:700;color:#D4A843;text-align:center;margin-bottom:6px">${titulo}</div>
+        <div style="font-size:11px;color:#5A7AAF;text-align:center;margin-bottom:20px;line-height:1.45">${subtit}</div>
+        <label class="fc" style="font-size:9px;font-weight:700;letter-spacing:0.2em;color:#5A7AAF;text-transform:uppercase;display:block;margin-bottom:6px">Nova Senha</label>
+        <input id="nova-senha" type="password" placeholder="Mínimo 6 caracteres" autocomplete="new-password"
+          style="width:100%;border:1px solid rgba(212,168,67,0.3);border-radius:4px;padding:10px 14px;font-size:14px;background:rgba(255,255,255,0.05);color:#FFFFFF;margin-bottom:12px">
+        <label class="fc" style="font-size:9px;font-weight:700;letter-spacing:0.2em;color:#5A7AAF;text-transform:uppercase;display:block;margin-bottom:6px">Confirmar Senha</label>
+        <input id="nova-senha2" type="password" placeholder="Repita a senha" autocomplete="new-password"
+          style="width:100%;border:1px solid rgba(212,168,67,0.3);border-radius:4px;padding:10px 14px;font-size:14px;background:rgba(255,255,255,0.05);color:#FFFFFF;margin-bottom:16px"
+          onkeydown="if(event.key==='Enter') salvarNovaSenha()">
+        <div id="nova-senha-erro" style="display:none;color:#FF6B6B;font-size:11px;margin-bottom:10px;text-align:center"></div>
+        <button id="btn-salvar-senha" onclick="salvarNovaSenha()"
+          style="width:100%;padding:12px;background:linear-gradient(135deg,#1B3A6B,#2A5298);border:none;border-radius:4px;color:#FFFFFF;font-family:'Cinzel',serif;font-size:11px;font-weight:700;letter-spacing:0.1em;cursor:pointer">
+          ${labelBtn}
+        </button>
+        ${isPrimeiroAcesso
+          ? `<div style="font-size:10px;color:#5A7AAF;text-align:center;margin-top:12px;font-style:italic">Não feche esta janela antes de criar a senha — sem ela você não conseguirá acessar.</div>`
+          : ''}
+      </div>
+    </div>`);
+  setTimeout(() => document.getElementById('nova-senha')?.focus(), 60);
 }
 
 async function salvarNovaSenha() {
-  try {
+  const btn    = document.getElementById('btn-salvar-senha');
   const senha  = document.getElementById('nova-senha')?.value;
   const senha2 = document.getElementById('nova-senha2')?.value;
   const erroEl = document.getElementById('nova-senha-erro');
+  const setErro = (txt) => { if (erroEl) { erroEl.textContent = txt; erroEl.style.display = 'block'; } };
 
-  if (!senha || senha.length < 6) {
-    if(erroEl){ erroEl.textContent='Senha deve ter pelo menos 6 caracteres'; erroEl.style.display='block'; } return;
-  }
-  if (senha !== senha2) {
-    if(erroEl){ erroEl.textContent='As senhas não coincidem'; erroEl.style.display='block'; } return;
-  }
-  if(erroEl) erroEl.style.display='none';
+  if (!senha || senha.length < 6) { setErro('Senha deve ter pelo menos 6 caracteres'); return; }
+  if (senha !== senha2)           { setErro('As senhas não coincidem'); return; }
+  if (erroEl) erroEl.style.display = 'none';
 
-  const { error } = await sb.auth.updateUser({ password: senha });
-  if (error) {
-    if(erroEl){ erroEl.textContent='Erro: ' + error.message; erroEl.style.display='block'; } return;
-  }
+  try {
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Salvando...'; }
+    // Atualiza a senha E marca metadados de primeiro acesso (guarda contra reload)
+    const { data: { user: userAntes } } = await sb.auth.getUser();
+    const metaPrev = userAntes?.user_metadata || {};
+    const { error } = await sb.auth.updateUser({
+      password: senha,
+      data: { ...metaPrev, must_set_password: false, password_set: true }
+    });
+    if (error) { setErro('Erro: ' + error.message); if (btn) { btn.disabled = false; btn.textContent = '✦'; } return; }
 
-  document.getElementById('modal-nova-senha')?.remove();
-  toast('✅ Senha atualizada com sucesso! Faça login com sua nova senha.');
-  await sb.auth.signOut();
+    // Marca o membro como ativo (mesma transição que o login normal faz)
+    try {
+      if (userAntes?.id) {
+        await sb.from('membros')
+          .update({ login_status: 'ativo' })
+          .eq('auth_user_id', userAntes.id);
+      }
+    } catch(e) { console.warn('[salvarNovaSenha] update login_status:', e); }
+
+    const eraConvite = (_modoCadastroSenha === 'invite' || _modoCadastroSenha === 'signup');
+    _modoCadastroSenha = null;
+    document.getElementById('modal-nova-senha')?.remove();
+    await sb.auth.signOut();
+
+    if (eraConvite) {
+      toast('✅ Conta criada! Faça login com seu e-mail e a nova senha.');
+    } else {
+      toast('✅ Senha atualizada com sucesso! Faça login com sua nova senha.');
+    }
+    // Garante que a tela de login esteja visível
+    const loginScr = document.getElementById('login-screen');
+    const appShell = document.getElementById('app-shell');
+    if (loginScr) loginScr.style.display = 'flex';
+    if (appShell) appShell.style.display = 'none';
   } catch(e) {
     console.error('[salvarNovaSenha]', e);
-    toast('❌ Erro inesperado. Tente novamente.');
+    setErro('Erro inesperado. Tente novamente.');
+    if (btn) { btn.disabled = false; btn.textContent = '✦'; }
   }
 }
 
 async function verificarSessaoAtiva() {
   try {
+    // Se o boot já detectou link de convite/recovery, não autenticar o app —
+    // espera o usuário definir a senha pelo modal.
+    if (_modoCadastroSenha) return;
+
     const { data: { session } } = await sb.auth.getSession();
     if (!session?.user) return;
+
+    // Guard de primeiro acesso: se o convite foi clicado, a sessão foi criada,
+    // mas a senha ainda não foi definida (ex.: usuário recarregou a página
+    // antes de salvar), forçar o modal de senha em vez de entrar no app.
+    const meta = session.user.user_metadata || {};
+    if (meta.must_set_password === true && meta.password_set !== true) {
+      _modoCadastroSenha = 'invite';
+      _abrirModalDefinirSenha('invite');
+      return;
+    }
+
     const email  = session.user.email;
     const userId = session.user.id;
 
@@ -2956,8 +3061,15 @@ async function verificarSessaoAtiva() {
   } catch(e) { console.warn('Sessão:', e); }
 }
 
-verificarLinkRecuperacao();
-verificarSessaoAtiva();
+// Boot ordenado: tratar link de auth (convite/signup/recovery) ANTES de
+// restaurar sessão automática — para que o modal de senha bloqueie a
+// entrada no app quando for primeiro acesso.
+(async () => {
+  try { await verificarLinkRecuperacao(); } catch(e) { console.warn('[boot] verificarLinkRecuperacao:', e); }
+  if (!_modoCadastroSenha) {
+    try { await verificarSessaoAtiva(); } catch(e) { console.warn('[boot] verificarSessaoAtiva:', e); }
+  }
+})();
 _aplicarDadosLoja();
 // _aplicarPermRelatorios é chamada após login (quando PERM_REL já está definida)
 
