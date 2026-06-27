@@ -13267,36 +13267,108 @@ function abrirJanelaPrint(html) {
 }
 
 // ─── MEMBROS ───
-// ── COLUNAS DISPONÍVEIS PARA O RELATÓRIO DE MEMBROS ──
+// ── COLUNAS DISPONÍVEIS PARA O RELATÓRIO DE MEMBROS (modo tabela / padrão) ──
 const COL_REL_MEMBROS = [
-  { id:'foto',     label:'Foto',              default:true  },
-  { id:'num',      label:'Nº',                default:true  },
-  { id:'nomemac',  label:'Nome Maçônico',     default:true  },
-  { id:'nomeciv',  label:'Nome Civil',        default:true  },
-  { id:'cim',      label:'CIM',               default:true  },
-  { id:'grau',     label:'Grau',              default:true  },
-  { id:'cargo',    label:'Cargo',             default:true  },
-  { id:'status',   label:'Situação',          default:true  },
-  { id:'tipo',     label:'Tipo (Membro/Visit.)', default:true },
-  { id:'cpf',      label:'CPF',               default:false },
-  { id:'telefone', label:'Telefone',          default:true  },
-  { id:'email',    label:'E-mail',            default:true  },
-  { id:'nascimento',label:'Nascimento',       default:false },
-  { id:'ingresso', label:'Ingresso',          default:false },
-  { id:'loja',     label:'Loja de Origem',    default:false },
-  { id:'mens',     label:'Mensalidade',       default:false },
+  { id:'foto',      label:'Foto',                 default:true  },
+  { id:'num',       label:'Nº',                   default:true  },
+  { id:'nomemac',   label:'Nome Maçônico',        default:true  },
+  { id:'nomeciv',   label:'Nome Civil',           default:true  },
+  { id:'apelido',   label:'Nome de Tratamento',   default:false },
+  { id:'cim',       label:'CIM',                  default:true  },
+  { id:'grau',      label:'Grau',                 default:true  },
+  { id:'instalado', label:'Mestre Instalado',     default:false },
+  { id:'cargo',     label:'Cargo',                default:true  },
+  { id:'status',    label:'Situação',             default:true  },
+  { id:'tipo',      label:'Tipo (Membro/Visit.)', default:true  },
+  { id:'cpf',       label:'CPF',                  default:false },
+  { id:'rg',        label:'RG',                   default:false },
+  { id:'telefone',  label:'Telefone',             default:true  },
+  { id:'email',     label:'E-mail',               default:true  },
+  { id:'nascimento',label:'Nascimento',           default:false },
+  { id:'ingresso',  label:'Ingresso',             default:false },
+  { id:'loja',      label:'Loja de Origem',       default:false },
+  { id:'mens',      label:'Mensalidade',          default:false },
+  { id:'cep',       label:'CEP',                  default:false },
+  { id:'endereco',  label:'Endereço',             default:false },
+  { id:'cidade',    label:'Cidade',               default:false },
+  { id:'estado',    label:'Estado',               default:false },
+  { id:'pais',      label:'País',                 default:false },
 ];
 
-let _relMembrosCols = null;
+// ── SEÇÕES DISPONÍVEIS PARA O RELATÓRIO COMPLETO (modo ficha) ──
+const SECOES_REL_MEMBROS = [
+  { id:'identificacao', label:'Identificação',      default:true },
+  { id:'pessoais',      label:'Dados Pessoais',     default:true },
+  { id:'contato',       label:'Contato e Endereço', default:true },
+  { id:'maconicos',     label:'Dados Maçônicos',    default:true },
+  { id:'situacao',      label:'Situação Cadastral', default:true },
+  { id:'familiares',    label:'Familiares',         default:true },
+  { id:'historico',     label:'Histórico Maçônico', default:true },
+];
+
+let _relMembrosCols  = null;
+let _relMembrosSecoes = null;
+let _relMembrosModo  = 'tabela';  // 'tabela' (padrão) | 'ficha' (completo)
+let _relMembrosFiltroSit = 'ativos'; // 'ativos' | 'inativos' | 'todos' — só usado no modo ficha
+
 function getRelMembrosCols() {
   if (!_relMembrosCols) _relMembrosCols = COL_REL_MEMBROS.filter(c=>c.default).map(c=>c.id);
   return _relMembrosCols;
+}
+function getRelMembrosSecoes() {
+  if (!_relMembrosSecoes) _relMembrosSecoes = SECOES_REL_MEMBROS.filter(s=>s.default).map(s=>s.id);
+  return _relMembrosSecoes;
+}
+
+// Preset: "padrao" = modo tabela / defaults; "completo" = modo ficha / todas as seções / filtro ativos
+function setPresetRelMembros(preset) {
+  if (preset === 'completo') {
+    _relMembrosModo = 'ficha';
+    _relMembrosSecoes = SECOES_REL_MEMBROS.map(s=>s.id);
+    _relMembrosFiltroSit = 'ativos';
+    toast('📚 Relatório completo aplicado — exibindo Ativos');
+  } else {
+    _relMembrosModo = 'tabela';
+    _relMembrosCols = COL_REL_MEMBROS.filter(c=>c.default).map(c=>c.id);
+    toast('📄 Relatório padrão aplicado');
+  }
+  mostrarRelMembros();
+}
+
+// Monta endereço a partir das partes do membro
+function _enderecoMembro(m) {
+  const linha = [m.endereco, m.numero].filter(Boolean).join(', ');
+  const compl = m.complemento ? ` — ${m.complemento}` : '';
+  return (linha + compl) || '—';
+}
+
+// Filtro de situação para o modo ficha
+function _filtroSituacaoMembros(membros, filtro) {
+  if (filtro === 'todos')   return membros;
+  if (filtro === 'inativos') return membros.filter(m => m.status !== 'ativo');
+  return membros.filter(m => m.status === 'ativo'); // 'ativos' (default)
+}
+function _membrosFichaFiltrados() {
+  return _filtroSituacaoMembros(DATA.membros || [], _relMembrosFiltroSit);
+}
+
+function mudarFiltroSitRelMembros(val) {
+  _relMembrosFiltroSit = val || 'ativos';
+  const cont = document.getElementById('rel-membros-conteudo');
+  if (cont) cont.innerHTML = renderFichaRelMembros();
+  const c = document.getElementById('rel-membros-contagem');
+  if (c) c.textContent = String(_membrosFichaFiltrados().length);
 }
 
 function mostrarRelMembros() {
   if (!_possoVerRelatorio('membros')) {
     toast('⛔ Sem permissão para este relatório.'); return;
   }
+  if (_relMembrosModo === 'ficha') {
+    document.getElementById('rel-resultado').innerHTML = _cardRelMembrosFicha();
+    return;
+  }
+  // ── MODO TABELA (padrão) ──
   const membros = DATA.membros;
   const grupos = {
     ativo:     membros.filter(m=>m.status==='ativo'),
@@ -13308,10 +13380,8 @@ function mostrarRelMembros() {
   };
   const titulos = {ativo:'✅ Ativos',iniciado:'🔵 Recém Iniciados',filiado:'🔗 Filiados',visitante:'🤝 Visitantes',inativo:'❌ Inativos',licenciado:'⏸️ Licenciados'};
 
-  // Renderizar baseado nos cols selecionados
   const renderTabela = () => {
     const cols = getRelMembrosCols();
-    const th = (id) => cols.includes(id);
     const tipoMap = {membro:'🏛️ Membro',filiado:'🔗 Filiado',visitante:'🤝 Visitante'};
 
     const getCelula = (m, col) => {
@@ -13320,18 +13390,26 @@ function mostrarRelMembros() {
         case 'num':      return `<strong>${String(m.numero_sequencial||'').padStart(3,'0')}</strong>`;
         case 'nomemac':  return m.nome_maconico||'—';
         case 'nomeciv':  return m.nome_civil||'—';
+        case 'apelido':  return m.apelido||'—';
         case 'cim':      return m.cim||'—';
         case 'grau':     return degreeBadge(m.grau);
+        case 'instalado':return m.mestre_instalado?'Sim':'Não';
         case 'cargo':    return m.cargo||'—';
         case 'status':   return statusBadge(m.status);
         case 'tipo':     return tipoMap[m.tipo_membro||'membro']||'—';
         case 'cpf':      return m.cpf||'—';
+        case 'rg':       return m.rg||'—';
         case 'telefone': return m.telefone||'—';
         case 'email':    return m.email||'—';
         case 'nascimento': return fmtData(m.data_nascimento);
         case 'ingresso': return fmtData(m.data_ingresso);
         case 'loja':     return m.loja_origem||'—';
         case 'mens':     return m.tipo_membro==='visitante'?'—':fmtVal(m.mensalidade||100);
+        case 'cep':      return m.cep||'—';
+        case 'endereco': return _enderecoMembro(m);
+        case 'cidade':   return m.cidade||'—';
+        case 'estado':   return m.estado||'—';
+        case 'pais':     return m.pais||'—';
         default:         return '—';
       }
     };
@@ -13357,6 +13435,8 @@ function mostrarRelMembros() {
       <div class="card-header" style="flex-wrap:wrap;gap:8px">
         <div class="card-title">👥 Irmãos do Quadro</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <button class="btn btn-solid" onclick="setPresetRelMembros('padrao')" style="font-size:10px" title="Campos essenciais — modelo padrão">📄 Padrão</button>
+          <button class="btn" onclick="setPresetRelMembros('completo')" style="font-size:10px" title="Ficha completa com todos os dados, familiares e histórico">📚 Completo</button>
           <button class="btn" onclick="toggleColsRelMembros()" style="font-size:10px">⚙️ Colunas</button>
           <button class="btn" onclick="imprimirRelMembros()">🖨️ Imprimir</button>
           <button class="btn btn-solid" onclick="exportarRelMembrosExcel()" style="font-size:10px;background:linear-gradient(135deg,#1A5C3A,#2A8C5A)">📊 Excel</button>
@@ -13385,13 +13465,245 @@ function mostrarRelMembros() {
     </div>`;
 }
 
+// ── CARD do modo Ficha (completo) ──
+function _cardRelMembrosFicha() {
+  const total = _membrosFichaFiltrados().length;
+  const totalGeral = (DATA.membros||[]).length;
+  return `<div class="card">
+    <div class="card-header" style="flex-wrap:wrap;gap:8px">
+      <div class="card-title">📚 Relatório Completo de Irmãos</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button class="btn" onclick="setPresetRelMembros('padrao')" style="font-size:10px" title="Voltar ao relatório padrão">📄 Padrão</button>
+        <button class="btn btn-solid" onclick="setPresetRelMembros('completo')" style="font-size:10px" title="Recarregar relatório completo">📚 Completo</button>
+        <button class="btn" onclick="toggleSecoesRelMembros()" style="font-size:10px">⚙️ Seções</button>
+        <button class="btn" onclick="imprimirRelMembros()">🖨️ Imprimir</button>
+        <button class="btn btn-solid" onclick="exportarRelMembrosExcel()" style="font-size:10px;background:linear-gradient(135deg,#1A5C3A,#2A8C5A)">📊 Excel</button>
+      </div>
+    </div>
+
+    <!-- Filtro de situação + contagem -->
+    <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;background:rgba(27,58,107,0.04);border:1px solid rgba(27,58,107,0.15);border-radius:4px;padding:12px 14px;margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <label class="fc" style="font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--navy)" for="rel-membros-filtro-sit">SITUAÇÃO:</label>
+        <select id="rel-membros-filtro-sit" onchange="mudarFiltroSitRelMembros(this.value)"
+          style="border:1px solid var(--border-mid);border-radius:3px;padding:5px 10px;font-family:'Cormorant Garamond',serif;font-size:13px;background:var(--white);cursor:pointer">
+          <option value="ativos"   ${_relMembrosFiltroSit==='ativos'  ?'selected':''}>✅ Apenas Ativos</option>
+          <option value="inativos" ${_relMembrosFiltroSit==='inativos'?'selected':''}>❌ Apenas Inativos</option>
+          <option value="todos"    ${_relMembrosFiltroSit==='todos'   ?'selected':''}>👥 Todos os Irmãos</option>
+        </select>
+      </div>
+      <div style="margin-left:auto;font-family:'Cormorant Garamond',serif;font-size:13px;color:var(--text-muted)">
+        Irmãos no relatório: <strong id="rel-membros-contagem" style="font-size:16px;color:var(--navy)">${total}</strong>
+        <span style="margin-left:6px;font-size:11px">de ${totalGeral} cadastrados</span>
+      </div>
+    </div>
+
+    <!-- Seletor de seções (oculto inicialmente) -->
+    <div id="secoes-seletor" style="display:none;background:rgba(27,58,107,0.04);border:1px solid rgba(27,58,107,0.15);border-radius:4px;padding:14px 16px;margin-bottom:16px">
+      <div class="fc" style="font-size:9px;font-weight:700;letter-spacing:0.15em;color:var(--navy);margin-bottom:10px">SEÇÕES EXIBIDAS NO RELATÓRIO</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        ${SECOES_REL_MEMBROS.map(s=>`
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-family:'Cormorant Garamond',serif;font-size:12px;background:var(--white);border:1px solid var(--border-mid);border-radius:3px;padding:4px 10px">
+            <input type="checkbox" id="sec-rel-${s.id}" ${getRelMembrosSecoes().includes(s.id)?'checked':''} onchange="atualizarSecoesRel()" style="cursor:pointer">
+            ${s.label}
+          </label>`).join('')}
+      </div>
+    </div>
+
+    <div id="rel-membros-conteudo">${renderFichaRelMembros()}</div>
+  </div>`;
+}
+
+function toggleSecoesRelMembros() {
+  const el = document.getElementById('secoes-seletor');
+  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function atualizarSecoesRel() {
+  _relMembrosSecoes = SECOES_REL_MEMBROS
+    .filter(s => document.getElementById('sec-rel-'+s.id)?.checked)
+    .map(s => s.id);
+  const cont = document.getElementById('rel-membros-conteudo');
+  if (cont) cont.innerHTML = renderFichaRelMembros();
+}
+
 function toggleColsRelMembros() {
   const el = document.getElementById('cols-seletor');
   if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
 
+// ── Render do conteúdo ficha (HTML em tela) ──
+function renderFichaRelMembros() {
+  const lista = _membrosFichaFiltrados();
+  if (!lista.length) {
+    return `<div style="text-align:center;padding:40px 20px;color:var(--text-muted);font-style:italic;border:1px dashed var(--border-mid);border-radius:6px">
+      Nenhum irmão encontrado para o filtro selecionado.
+    </div>`;
+  }
+  const secoes = getRelMembrosSecoes();
+  return `<div style="display:flex;flex-direction:column;gap:14px">
+    ${lista.map(m => _fichaMembroHTML(m, secoes, false)).join('')}
+  </div>`;
+}
+
+// Helper que monta um campo (label + valor)
+function _campoFichaRel(label, valor) {
+  const v = (valor === null || valor === undefined || valor === '') ? '—' : valor;
+  return `<div style="min-width:0">
+    <div style="font-family:'Cinzel',serif;font-size:8px;font-weight:700;letter-spacing:0.12em;color:#7A4A00;text-transform:uppercase;margin-bottom:2px">${label}</div>
+    <div style="font-family:'Cormorant Garamond',serif;font-size:13px;color:var(--text);word-wrap:break-word;overflow-wrap:break-word">${v}</div>
+  </div>`;
+}
+
+function _secaoTituloFicha(label) {
+  return `<div style="font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.15em;color:var(--navy);text-transform:uppercase;padding:6px 10px;background:rgba(27,58,107,0.06);border-left:3px solid var(--gold-dark);margin:10px 0 8px">${label}</div>`;
+}
+
+// ── Monta a ficha HTML de UM membro. `paraImpressao` ajusta cores/fontes ──
+function _fichaMembroHTML(m, secoes, paraImpressao) {
+  const tipoMap = {membro:'🏛️ Membro da Loja', filiado:'🔗 Filiado', visitante:'🤝 Visitante'};
+  const grauMap = {1:'1º — Aprendiz', 2:'2º — Companheiro', 3:'3º — Mestre'};
+  const statusMap = {ativo:'✅ Ativo',inativo:'❌ Inativo',licenciado:'⏸️ Licenciado',suspenso:'🚫 Suspenso',adormecido:'😴 Adormecido',profano:'🔵 Profano (em iniciação)',iniciado:'🔵 Recém Iniciado'};
+  const fam  = _parseFamiliares(m);
+  const hist = _parseHistorico(m);
+
+  const wrapStyle = paraImpressao
+    ? 'border:1.5px solid #C9A84C;border-radius:4px;padding:10px 14px;margin-bottom:12px;page-break-inside:avoid;break-inside:avoid;width:100%;background:white'
+    : 'border:1px solid var(--border-mid);border-radius:6px;padding:14px 18px;background:var(--white);box-shadow:0 1px 3px rgba(0,0,0,0.04)';
+  const gridStyle = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px 16px';
+
+  const cab = `
+    <div style="display:flex;gap:14px;align-items:flex-start;border-bottom:1px solid #C9A84C;padding-bottom:10px;margin-bottom:10px">
+      <div style="flex-shrink:0">
+        ${m.foto_url
+          ? `<img src="${m.foto_url}" style="width:60px;height:74px;object-fit:cover;border:1px solid var(--border-mid);border-radius:3px">`
+          : `<div style="width:60px;height:74px;background:#fafaf3;border:1px solid var(--border-mid);border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:24px;color:#C9A84C">👤</div>`}
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-family:'Cormorant Garamond',serif;font-size:17px;font-weight:700;color:var(--text);word-wrap:break-word">${m.nome_maconico || '—'}</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px;word-wrap:break-word">${m.nome_civil || ''}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;font-size:10px">
+          <span style="background:#1B3A6B;color:white;padding:2px 8px;border-radius:3px">${grauMap[m.grau]||'Grau '+(m.grau||'?')}</span>
+          ${m.cargo ? `<span style="background:#C9A84C;color:white;padding:2px 8px;border-radius:3px">${m.cargo}</span>` : ''}
+          <span style="background:#7A4A00;color:white;padding:2px 8px;border-radius:3px">${tipoMap[m.tipo_membro||'membro']||''}</span>
+          <span style="background:${m.status==='ativo'?'#1A5C3A':'#8B2020'};color:white;padding:2px 8px;border-radius:3px">${statusMap[m.status]||m.status||'—'}</span>
+        </div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-family:'Cinzel',serif;font-size:8px;font-weight:700;letter-spacing:0.12em;color:var(--text-muted)">Nº</div>
+        <div style="font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:700;color:var(--navy)">${String(m.numero_sequencial||'').padStart(3,'0')}</div>
+      </div>
+    </div>`;
+
+  const blocos = [];
+
+  if (secoes.includes('identificacao')) {
+    blocos.push(_secaoTituloFicha('Identificação') + `<div style="${gridStyle}">
+      ${_campoFichaRel('CPF', m.cpf)}
+      ${_campoFichaRel('RG', m.rg)}
+      ${_campoFichaRel('CIM / Doc. Maçônico', m.cim)}
+      ${_campoFichaRel('Nome de Tratamento', m.apelido)}
+    </div>`);
+  }
+
+  if (secoes.includes('pessoais')) {
+    blocos.push(_secaoTituloFicha('Dados Pessoais') + `<div style="${gridStyle}">
+      ${_campoFichaRel('Nome Civil', m.nome_civil)}
+      ${_campoFichaRel('Data de Nascimento', fmtData(m.data_nascimento))}
+      ${_campoFichaRel('Foto', m.foto_url ? 'Sim' : 'Não')}
+    </div>`);
+  }
+
+  if (secoes.includes('contato')) {
+    blocos.push(_secaoTituloFicha('Contato e Endereço') + `<div style="${gridStyle}">
+      ${_campoFichaRel('E-mail', m.email)}
+      ${_campoFichaRel('Telefone', m.telefone)}
+      ${_campoFichaRel('CEP', m.cep)}
+      ${_campoFichaRel('Endereço', _enderecoMembro(m))}
+      ${_campoFichaRel('Cidade', m.cidade)}
+      ${_campoFichaRel('Estado', m.estado)}
+      ${_campoFichaRel('País', m.pais)}
+    </div>`);
+  }
+
+  if (secoes.includes('maconicos')) {
+    const mens = m.tipo_membro==='visitante' ? 'Sem mensalidade' : (m.mensalidade ? `R$ ${m.mensalidade}` : '—');
+    blocos.push(_secaoTituloFicha('Dados Maçônicos') + `<div style="${gridStyle}">
+      ${_campoFichaRel('Grau', grauMap[m.grau]||m.grau)}
+      ${_campoFichaRel('Mestre Instalado', m.mestre_instalado ? 'Sim' : 'Não')}
+      ${_campoFichaRel('Cargo', m.cargo)}
+      ${_campoFichaRel('Tipo de Participação', tipoMap[m.tipo_membro||'membro'])}
+      ${_campoFichaRel('Data de Ingresso', fmtData(m.data_ingresso))}
+      ${_campoFichaRel('Loja de Origem', m.loja_origem)}
+      ${_campoFichaRel('Mensalidade', mens)}
+    </div>`);
+  }
+
+  if (secoes.includes('situacao')) {
+    blocos.push(_secaoTituloFicha('Situação Cadastral') + `<div style="${gridStyle}">
+      ${_campoFichaRel('Status', statusMap[m.status]||m.status)}
+      ${_campoFichaRel('Nº Sequencial', String(m.numero_sequencial||'').padStart(3,'0'))}
+      ${_campoFichaRel('Acesso ao Sistema', m.login_status || (m.auth_user_id ? 'Vinculado' : 'Não vinculado'))}
+    </div>`);
+  }
+
+  if (secoes.includes('familiares')) {
+    blocos.push(_secaoTituloFicha(`Familiares ${fam.length?`(${fam.length})`:''}`) + (fam.length
+      ? `<table style="width:100%;border-collapse:collapse;table-layout:fixed;font-size:12px">
+          <thead><tr style="background:#1B3A6B;color:white">
+            <th style="padding:5px 8px;text-align:left;font-size:9px;letter-spacing:0.06em">Parentesco</th>
+            <th style="padding:5px 8px;text-align:left;font-size:9px">Nome</th>
+            <th style="padding:5px 8px;text-align:left;font-size:9px">Gênero</th>
+            <th style="padding:5px 8px;text-align:left;font-size:9px">Nascimento</th>
+            <th style="padding:5px 8px;text-align:left;font-size:9px">Telefone</th>
+            <th style="padding:5px 8px;text-align:left;font-size:9px">E-mail</th>
+          </tr></thead>
+          <tbody>${fam.map(f=>`<tr>
+            <td style="padding:5px 8px;border-bottom:1px solid #e8e0d0;word-wrap:break-word">${f.grau||'—'}</td>
+            <td style="padding:5px 8px;border-bottom:1px solid #e8e0d0;word-wrap:break-word">${f.nome||'—'}</td>
+            <td style="padding:5px 8px;border-bottom:1px solid #e8e0d0;word-wrap:break-word">${f.genero||'—'}</td>
+            <td style="padding:5px 8px;border-bottom:1px solid #e8e0d0;word-wrap:break-word">${fmtData(f.nascimento)}</td>
+            <td style="padding:5px 8px;border-bottom:1px solid #e8e0d0;word-wrap:break-word">${f.telefone||'—'}</td>
+            <td style="padding:5px 8px;border-bottom:1px solid #e8e0d0;word-wrap:break-word">${f.email||'—'}</td>
+          </tr>`).join('')}</tbody>
+        </table>`
+      : `<div style="font-style:italic;color:var(--text-muted);font-size:12px;padding:6px 4px">Nenhum familiar cadastrado.</div>`));
+  }
+
+  if (secoes.includes('historico')) {
+    blocos.push(_secaoTituloFicha(`Histórico Maçônico ${hist.length?`(${hist.length})`:''}`) + (hist.length
+      ? `<table style="width:100%;border-collapse:collapse;table-layout:fixed;font-size:12px">
+          <thead><tr style="background:#1B3A6B;color:white">
+            <th style="padding:5px 8px;text-align:left;width:90px;font-size:9px">Data</th>
+            <th style="padding:5px 8px;text-align:left;width:110px;font-size:9px">Tipo</th>
+            <th style="padding:5px 8px;text-align:left;font-size:9px">Descrição</th>
+            <th style="padding:5px 8px;text-align:left;font-size:9px">Observação</th>
+          </tr></thead>
+          <tbody>${hist.map(h=>`<tr>
+            <td style="padding:5px 8px;border-bottom:1px solid #e8e0d0;word-wrap:break-word">${fmtData(h.data)}</td>
+            <td style="padding:5px 8px;border-bottom:1px solid #e8e0d0;word-wrap:break-word">${h.tipo||'—'}</td>
+            <td style="padding:5px 8px;border-bottom:1px solid #e8e0d0;word-wrap:break-word">${h.titulo||'—'}</td>
+            <td style="padding:5px 8px;border-bottom:1px solid #e8e0d0;word-wrap:break-word">${h.obs||'—'}</td>
+          </tr>`).join('')}</tbody>
+        </table>`
+      : `<div style="font-style:italic;color:var(--text-muted);font-size:12px;padding:6px 4px">Nenhum registro de histórico maçônico.</div>`));
+  }
+
+  return `<div style="${wrapStyle}">${cab}${blocos.join('')}</div>`;
+}
+
+// Parsers tolerantes — _historico/_familiares são JSON-strings em DATA.membros
+function _parseFamiliares(m) {
+  try { return JSON.parse(m._familiares || '[]') || []; } catch(e) { return []; }
+}
+function _parseHistorico(m) {
+  try { return JSON.parse(m._historico || '[]') || []; } catch(e) { return []; }
+}
+
 function atualizarColsRel() {
   _relMembrosCols = COL_REL_MEMBROS.filter(c => document.getElementById('col-rel-'+c.id)?.checked).map(c=>c.id);
+  // Se estamos no modo ficha, ignoramos colunas (esse seletor não está visível)
+  if (_relMembrosModo === 'ficha') return;
   // Re-renderizar só a tabela
   const membros = DATA.membros;
   const grupos = {
@@ -13409,18 +13721,26 @@ function atualizarColsRel() {
       case 'num':      return String(m.numero_sequencial||'').padStart(3,'0');
       case 'nomemac':  return m.nome_maconico||'—';
       case 'nomeciv':  return m.nome_civil||'—';
+      case 'apelido':  return m.apelido||'—';
       case 'cim':      return m.cim||'—';
       case 'grau':     return degreeBadge(m.grau);
+      case 'instalado':return m.mestre_instalado?'Sim':'Não';
       case 'cargo':    return m.cargo||'—';
       case 'status':   return statusBadge(m.status);
       case 'tipo':     return tipoMap[m.tipo_membro||'membro']||'—';
       case 'cpf':      return m.cpf||'—';
+      case 'rg':       return m.rg||'—';
       case 'telefone': return m.telefone||'—';
       case 'email':    return m.email||'—';
       case 'nascimento': return fmtData(m.data_nascimento);
       case 'ingresso': return fmtData(m.data_ingresso);
       case 'loja':     return m.loja_origem||'—';
       case 'mens':     return m.tipo_membro==='visitante'?'—':fmtVal(m.mensalidade||100);
+      case 'cep':      return m.cep||'—';
+      case 'endereco': return _enderecoMembro(m);
+      case 'cidade':   return m.cidade||'—';
+      case 'estado':   return m.estado||'—';
+      case 'pais':     return m.pais||'—';
       default: return '—';
     }
   };
@@ -13436,25 +13756,38 @@ function atualizarColsRel() {
 }
 
 function exportarRelMembrosExcel() {
+  if (_relMembrosModo === 'ficha') {
+    _exportarRelMembrosCompletoExcel();
+    return;
+  }
+  // ── Modo tabela (padrão): planilha única ──
   const cols = getRelMembrosCols().filter(c=>c!=='foto');
-  const headerMap = {num:'Nº',nomemac:'Nome Maçônico',nomeciv:'Nome Civil',cim:'CIM',grau:'Grau',cargo:'Cargo',status:'Situação',tipo:'Tipo',cpf:'CPF',telefone:'Telefone',email:'E-mail',nascimento:'Nascimento',ingresso:'Ingresso',loja:'Loja Origem',mens:'Mensalidade'};
+  const headerMap = {num:'Nº',nomemac:'Nome Maçônico',nomeciv:'Nome Civil',apelido:'Nome de Tratamento',cim:'CIM',grau:'Grau',instalado:'Mestre Instalado',cargo:'Cargo',status:'Situação',tipo:'Tipo',cpf:'CPF',rg:'RG',telefone:'Telefone',email:'E-mail',nascimento:'Nascimento',ingresso:'Ingresso',loja:'Loja Origem',mens:'Mensalidade',cep:'CEP',endereco:'Endereço',cidade:'Cidade',estado:'Estado',pais:'País'};
   const getCelVal = (m,c) => {
     switch(c){
       case 'num':      return String(m.numero_sequencial||'').padStart(3,'0');
       case 'nomemac':  return m.nome_maconico||'';
       case 'nomeciv':  return m.nome_civil||'';
+      case 'apelido':  return m.apelido||'';
       case 'cim':      return m.cim||'';
       case 'grau':     return `${m.grau||3}º Grau`;
+      case 'instalado':return m.mestre_instalado?'Sim':'Não';
       case 'cargo':    return m.cargo||'';
       case 'status':   return m.status||'';
       case 'tipo':     return m.tipo_membro||'membro';
       case 'cpf':      return m.cpf||'';
+      case 'rg':       return m.rg||'';
       case 'telefone': return m.telefone||'';
       case 'email':    return m.email||'';
       case 'nascimento':return fmtData(m.data_nascimento);
       case 'ingresso': return fmtData(m.data_ingresso);
       case 'loja':     return m.loja_origem||'';
       case 'mens':     return m.tipo_membro==='visitante'?0:(m.mensalidade||100);
+      case 'cep':      return m.cep||'';
+      case 'endereco': return [m.endereco, m.numero, m.complemento].filter(Boolean).join(', ');
+      case 'cidade':   return m.cidade||'';
+      case 'estado':   return m.estado||'';
+      case 'pais':     return m.pais||'';
       default:         return '';
     }
   };
@@ -13463,26 +13796,118 @@ function exportarRelMembrosExcel() {
   exportarExcel([cabecalho,...linhas], 'irmaos_loja_'+new Date().toISOString().slice(0,10), 'Irmãos do Quadro');
 }
 
+// Excel do modo Ficha: 3 abas (Membros / Familiares / Histórico)
+function _exportarRelMembrosCompletoExcel() {
+  const lista = _membrosFichaFiltrados();
+  if (!lista.length) { toast('Nenhum irmão para exportar com o filtro atual.'); return; }
+
+  const cabMembros = ['Nº','Nome Maçônico','Nome Civil','Nome de Tratamento','CPF','RG','CIM','Data Nascimento','E-mail','Telefone','CEP','Endereço','Número','Complemento','Cidade','Estado','País','Grau','Mestre Instalado','Cargo','Tipo','Data Ingresso','Loja de Origem','Mensalidade','Situação','Acesso Sistema'];
+  const linhasMembros = lista.map(m => [
+    String(m.numero_sequencial||'').padStart(3,'0'),
+    m.nome_maconico||'', m.nome_civil||'', m.apelido||'',
+    m.cpf||'', m.rg||'', m.cim||'',
+    fmtData(m.data_nascimento),
+    m.email||'', m.telefone||'',
+    m.cep||'', m.endereco||'', m.numero||'', m.complemento||'',
+    m.cidade||'', m.estado||'', m.pais||'',
+    `${m.grau||3}º Grau`, m.mestre_instalado?'Sim':'Não',
+    m.cargo||'', m.tipo_membro||'membro',
+    fmtData(m.data_ingresso), m.loja_origem||'',
+    m.tipo_membro==='visitante' ? 0 : (m.mensalidade||100),
+    m.status||'', m.login_status || (m.auth_user_id ? 'Vinculado' : 'Não vinculado')
+  ]);
+
+  const cabFam = ['Nº Irmão','Irmão (Nome Maçônico)','Parentesco','Nome','Gênero','Data Nascimento','Telefone','E-mail'];
+  const linhasFam = [];
+  lista.forEach(m => {
+    const fam = _parseFamiliares(m);
+    fam.forEach(f => linhasFam.push([
+      String(m.numero_sequencial||'').padStart(3,'0'),
+      m.nome_maconico||'',
+      f.grau||'', f.nome||'', f.genero||'',
+      fmtData(f.nascimento), f.telefone||'', f.email||''
+    ]));
+  });
+
+  const cabHist = ['Nº Irmão','Irmão (Nome Maçônico)','Data','Tipo','Descrição','Observação'];
+  const linhasHist = [];
+  lista.forEach(m => {
+    const hist = _parseHistorico(m);
+    hist.forEach(h => linhasHist.push([
+      String(m.numero_sequencial||'').padStart(3,'0'),
+      m.nome_maconico||'',
+      fmtData(h.data), h.tipo||'', h.titulo||'', h.obs||''
+    ]));
+  });
+
+  const abas = [
+    { nome:'Membros',    dados: [cabMembros, ...linhasMembros] },
+    { nome:'Familiares', dados: [cabFam,    ...(linhasFam.length?linhasFam:[['—','—','—','—','—','—','—','—']])] },
+    { nome:'Histórico',  dados: [cabHist,   ...(linhasHist.length?linhasHist:[['—','—','—','—','—','—']])] }
+  ];
+
+  const filtroLabel = {ativos:'ativos', inativos:'inativos', todos:'todos'}[_relMembrosFiltroSit] || 'todos';
+  const nomeArq = `relatorio_completo_${filtroLabel}_${new Date().toISOString().slice(0,10)}`;
+  _exportarExcelMultiAbas(abas, nomeArq);
+}
+
+// Helper local: exportar múltiplas abas via SheetJS (carrega dinamicamente se necessário)
+function _exportarExcelMultiAbas(abas, nomeArquivo) {
+  const fazer = () => {
+    try {
+      const wb = XLSX.utils.book_new();
+      abas.forEach(a => {
+        const ws = XLSX.utils.aoa_to_sheet(a.dados);
+        const maxW = a.dados[0]?.map((_,ci) => Math.max(...a.dados.map(r=>String(r[ci]||'').length), 10));
+        ws['!cols'] = maxW?.map(w=>({wch: Math.min(w+2, 60)}));
+        XLSX.utils.book_append_sheet(wb, ws, a.nome);
+      });
+      XLSX.writeFile(wb, nomeArquivo+'.xlsx');
+      toast('✅ Excel exportado com 3 abas!');
+    } catch(e) {
+      toast('Erro ao gerar Excel: '+e.message);
+    }
+  };
+  if (typeof XLSX !== 'undefined') { fazer(); return; }
+  const script = document.createElement('script');
+  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  script.onload = fazer;
+  script.onerror = () => toast('Erro ao carregar biblioteca Excel');
+  document.head.appendChild(script);
+}
+
 function imprimirRelMembros() {
+  if (_relMembrosModo === 'ficha') {
+    _imprimirRelMembrosCompleto();
+    return;
+  }
   const cols = getRelMembrosCols().filter(c=>c!=='foto');
-  const headerMap = {num:'Nº',nomemac:'Nome Maçônico',nomeciv:'Nome Civil',cim:'CIM',grau:'Grau',cargo:'Cargo',status:'Situação',tipo:'Tipo',cpf:'CPF',telefone:'Telefone',email:'E-mail',nascimento:'Nascimento',ingresso:'Ingresso',loja:'Loja',mens:'Mensalidade'};
+  const headerMap = {num:'Nº',nomemac:'Nome Maçônico',nomeciv:'Nome Civil',apelido:'Tratamento',cim:'CIM',grau:'Grau',instalado:'M. Inst.',cargo:'Cargo',status:'Situação',tipo:'Tipo',cpf:'CPF',rg:'RG',telefone:'Telefone',email:'E-mail',nascimento:'Nascimento',ingresso:'Ingresso',loja:'Loja',mens:'Mensalidade',cep:'CEP',endereco:'Endereço',cidade:'Cidade',estado:'UF',pais:'País'};
   const getCelP = (m,c)=>{
     switch(c){
       case 'num':return String(m.numero_sequencial||'').padStart(3,'0');
       case 'nomemac':return m.nome_maconico||'—';
       case 'nomeciv':return m.nome_civil||'—';
+      case 'apelido':return m.apelido||'—';
       case 'cim':return m.cim||'—';
       case 'grau':return `${m.grau}º`;
+      case 'instalado':return m.mestre_instalado?'Sim':'Não';
       case 'cargo':return m.cargo||'—';
       case 'status':return m.status||'—';
       case 'tipo':return m.tipo_membro||'membro';
       case 'cpf':return m.cpf||'—';
+      case 'rg':return m.rg||'—';
       case 'telefone':return m.telefone||'—';
       case 'email':return m.email||'—';
       case 'nascimento':return fmtData(m.data_nascimento);
       case 'ingresso':return fmtData(m.data_ingresso);
       case 'loja':return m.loja_origem||'—';
       case 'mens':return m.tipo_membro==='visitante'?'—':`R$${m.mensalidade||100}`;
+      case 'cep':return m.cep||'—';
+      case 'endereco':return _enderecoMembro(m);
+      case 'cidade':return m.cidade||'—';
+      case 'estado':return m.estado||'—';
+      case 'pais':return m.pais||'—';
       default:return '—';
     }
   };
@@ -13500,6 +13925,30 @@ function imprimirRelMembros() {
     <div class="print-title">Quadro de Irmãos</div>
     <div class="print-date">${new Date().toLocaleDateString('pt-BR')} · Total: ${DATA.membros.length}</div></div>
     <table class="print-table"><thead><tr>${headers}</tr></thead><tbody>${linhas}</tbody></table>
+    ${htmlAssinaturas(['veneravel','secretario'])}`);
+}
+
+// ── Impressão do modo Ficha (Completo) ──
+function _imprimirRelMembrosCompleto() {
+  const lista = _membrosFichaFiltrados();
+  if (!lista.length) { toast('Nenhum irmão para imprimir com o filtro atual.'); return; }
+  const secoes = getRelMembrosSecoes();
+  const filtroLabel = {ativos:'Apenas Ativos', inativos:'Apenas Inativos', todos:'Todos os Irmãos'}[_relMembrosFiltroSit] || '—';
+
+  const fichas = lista.map(m => _fichaMembroHTML(m, secoes, true)).join('');
+
+  abrirJanelaPrint(`
+    <div class="print-header">
+      <div class="print-lodge">${_nomeImpressao()}</div>
+      <div class="print-title">Relatório Completo de Irmãos</div>
+      <div class="print-date">${new Date().toLocaleDateString('pt-BR')} · Filtro: ${filtroLabel} · ${lista.length} irmão(s)</div>
+    </div>
+    <style>
+      /* CSS específico para evitar corte horizontal das fichas */
+      table { table-layout: fixed !important; width: 100% !important; }
+      th, td { word-wrap: break-word; overflow-wrap: break-word; }
+    </style>
+    <div>${fichas}</div>
     ${htmlAssinaturas(['veneravel','secretario'])}`);
 }
 
