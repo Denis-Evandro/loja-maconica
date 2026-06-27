@@ -2034,7 +2034,7 @@ const PANEL_TITLES = {
 };
 
 // ===================== DATA CACHE =====================
-let DATA = { membros: [], sessoes: [], presencas: [], financas: [], eventos: [], visitantes: [], atas: [], comissoes: [], legislacao: [], trabalhos: [] };
+let DATA = { membros: [], sessoes: [], presencas: [], financas: [], eventos: [], visitantes: [], atas: [], comissoes: [], legislacao: [], trabalhos: [], contas_bancarias: [], categorias_financeiras: [] };
 
 
 // ─── Permissões Funcionais ────────────────────────────────────
@@ -2093,6 +2093,18 @@ async function loadAllData() {
     if (trab.status==='fulfilled' && trab.value?.data) DATA.trabalhos = trab.value.data.map(t=>({
       ...t, grau_trabalho: t.grau_trabalho ?? t.grau_autor ?? 1
     }));
+
+    // Fase 1 do plano financeiro — tabelas opcionais (podem não existir ainda
+    // antes da migration ser aplicada). Falhas aqui são silenciosas para
+    // não quebrar o boot de quem ainda não rodou a migration.
+    try {
+      const [cb, cf] = await Promise.allSettled([
+        ft(sb.from('contas_bancarias').select('*').order('ativo', { ascending: false }).order('nome')),
+        ft(sb.from('categorias_financeiras').select('*').order('ordem').order('nome'))
+      ]);
+      if (cb.status==='fulfilled' && cb.value?.data) DATA.contas_bancarias = cb.value.data;
+      if (cf.status==='fulfilled' && cf.value?.data) DATA.categorias_financeiras = cf.value.data;
+    } catch (e) { console.warn('[loadAllData] tabelas financeiras Fase 1:', e?.message); }
 
     reRenderActive();
     renderDashboard();
@@ -3570,8 +3582,10 @@ function renderConfiguracoes() {
     el.innerHTML = accessDenied('Configurações');
     return;
   }
-  const abas = ['loja','assinaturas','acessos','senhas'];
+  const abas = ['loja','assinaturas','bancos','acessos','senhas'];
   const isAdmin = currentRole === 'admin';
+  // Aba "Bancos" — Plano Financeiro Fase 1: visível para Admin, Tesoureiro e Venerável
+  const podeVerBancos = ['admin','tesoureiro','veneravel'].includes(currentRole);
   el.innerHTML = `
     <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:20px;flex-wrap:wrap">
       <button id="cfg-aba-loja" onclick="ativarAbaConfig('loja')"
@@ -3581,6 +3595,10 @@ function renderConfiguracoes() {
       <button id="cfg-aba-assinaturas" onclick="ativarAbaConfig('assinaturas')"
         style="padding:10px 22px;border:none;background:none;cursor:pointer;font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.08em;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all 0.15s">
         ✍️ Assinaturas
+      </button>
+      <button id="cfg-aba-bancos" onclick="ativarAbaConfig('bancos')"
+        style="padding:10px 22px;border:none;background:none;cursor:pointer;font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.08em;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all 0.15s;display:${podeVerBancos?'inline-block':'none'}">
+        🏦 Bancos &amp; Categorias
       </button>
       <button id="cfg-aba-acessos" onclick="ativarAbaConfig('acessos')"
         style="padding:10px 22px;border:none;background:none;cursor:pointer;font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.08em;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all 0.15s">
@@ -3593,6 +3611,7 @@ function renderConfiguracoes() {
     </div>
     <div id="cfg-cont-loja"></div>
     <div id="cfg-cont-assinaturas" style="display:none"></div>
+    <div id="cfg-cont-bancos" style="display:none"></div>
     <div id="cfg-cont-acessos" style="display:none"></div>
     <div id="cfg-cont-senhas" style="display:none"></div>`;
 
@@ -3600,7 +3619,7 @@ function renderConfiguracoes() {
 }
 
 function ativarAbaConfig(aba) {
-  ['loja','assinaturas','acessos','senhas'].forEach(a => {
+  ['loja','assinaturas','bancos','acessos','senhas'].forEach(a => {
     const btn  = document.getElementById(`cfg-aba-${a}`);
     const cont = document.getElementById(`cfg-cont-${a}`);
     const ok   = a === aba;
@@ -3609,6 +3628,7 @@ function ativarAbaConfig(aba) {
   });
   if (aba === 'loja')        renderConfigLoja();
   if (aba === 'assinaturas') renderConfigAssinaturas();
+  if (aba === 'bancos')      renderConfigBancos();
   if (aba === 'acessos')     renderLogAcessos(); // async, fire-and-forget OK aqui
   if (aba === 'senhas')      renderConfSenhas();
 }
@@ -3645,6 +3665,378 @@ async function _carregarConfiguracoes() {
     _aplicarDadosLoja();
   } catch(e) { console.warn('_carregarConfiguracoes:', e); }
 }
+
+// ══════════════════════════════════════════════════════════════════════════
+// PLANO FINANCEIRO — FASE 1: Contas Bancárias e Categorias Financeiras
+// Documentação: docs/plano-financeiro-contas-conciliacao.md
+// Migration:    docs/migrations/2026-06-27-fase1-contas-categorias.sql
+// Escopo desta aba: CRUD simples. Não altera fluxo de lançamentos atual.
+// ══════════════════════════════════════════════════════════════════════════
+
+function _podeEditarBancos() {
+  return ['admin','tesoureiro'].includes(currentRole);
+}
+function _podeVerBancos() {
+  return ['admin','tesoureiro','veneravel'].includes(currentRole);
+}
+
+async function _reloadContasBancarias() {
+  try {
+    const { data, error } = await sb.from('contas_bancarias')
+      .select('*').order('ativo', { ascending: false }).order('nome');
+    if (error) throw error;
+    DATA.contas_bancarias = data || [];
+  } catch (e) { console.warn('[reloadContasBancarias]', e?.message); }
+}
+async function _reloadCategoriasFin() {
+  try {
+    const { data, error } = await sb.from('categorias_financeiras')
+      .select('*').order('ordem').order('nome');
+    if (error) throw error;
+    DATA.categorias_financeiras = data || [];
+  } catch (e) { console.warn('[reloadCategoriasFin]', e?.message); }
+}
+
+function renderConfigBancos() {
+  const el = document.getElementById('cfg-cont-bancos');
+  if (!el) return;
+  if (!_podeVerBancos()) {
+    el.innerHTML = accessDenied('Bancos & Categorias');
+    return;
+  }
+  const podeEditar = _podeEditarBancos();
+  el.innerHTML = `
+    <div style="background:rgba(27,94,160,0.05);border:1px solid rgba(27,94,160,0.2);border-radius:4px;padding:12px 16px;margin-bottom:18px;font-size:12px;color:#1B5EA0;line-height:1.5">
+      <strong>📘 Fase 1 — Cadastros básicos.</strong> Aqui você cadastra as contas
+      bancárias da loja e as categorias dos lançamentos. Importação de extrato OFX
+      e conciliação bancária serão habilitadas em fases futuras.
+      ${podeEditar ? '' : '<br><em>Você pode apenas visualizar — edição restrita ao Tesoureiro e Administrador.</em>'}
+    </div>
+
+    <div id="cfg-cont-bancos-contas"></div>
+    <div style="height:18px"></div>
+    <div id="cfg-cont-bancos-categorias"></div>
+  `;
+  renderContasBancariasSecao();
+  renderCategoriasFinSecao();
+}
+
+// ─── Contas Bancárias ─────────────────────────────────────────────────────
+function renderContasBancariasSecao() {
+  const el = document.getElementById('cfg-cont-bancos-contas');
+  if (!el) return;
+  const podeEditar = _podeEditarBancos();
+  const lista = DATA.contas_bancarias || [];
+  const tipoLabel = { corrente:'Corrente', poupanca:'Poupança', caixa_fisico:'Caixa físico', outra:'Outra' };
+  const linhas = lista.map(c => {
+    const sub = [c.banco, c.agencia && 'Ag.'+c.agencia, c.conta && 'Cc.'+c.conta].filter(Boolean).join(' · ');
+    return `<tr style="${c.ativo?'':'opacity:0.5'}">
+      <td style="padding:8px 10px;border-bottom:1px solid var(--border)">
+        <div style="font-weight:600">${_esc(c.nome)}</div>
+        ${sub?`<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${_esc(sub)}</div>`:''}
+      </td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:12px">${tipoLabel[c.tipo]||c.tipo}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--border);text-align:right;font-family:'Cinzel',serif">${fmtVal(c.saldo_inicial||0)}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:11px">${c.ativo?'<span style="color:var(--green)">● Ativa</span>':'<span style="color:var(--text-muted)">○ Inativa</span>'}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--border);text-align:right">
+        ${podeEditar ? `
+          <button class="btn" style="padding:3px 8px;font-size:10px" onclick="abrirModalContaBancaria('${c.id}')">✏️ Editar</button>
+          <button class="btn" style="padding:3px 8px;font-size:10px;${c.ativo?'border-color:#A05A00;color:#A05A00':'border-color:var(--green);color:var(--green)'}" onclick="toggleContaBancariaAtiva('${c.id}')">${c.ativo?'⏸ Desativar':'▶ Ativar'}</button>
+        ` : ''}
+      </td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="card">
+      <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
+        <div class="card-title">🏦 Contas Bancárias</div>
+        ${podeEditar ? '<button class="btn btn-solid" onclick="abrirModalContaBancaria()" style="padding:6px 14px;font-size:11px">＋ Nova Conta</button>' : ''}
+      </div>
+      ${lista.length===0
+        ? `<div style="padding:18px;text-align:center;color:var(--text-muted);font-style:italic;font-size:13px">
+            Nenhuma conta cadastrada ainda.<br>
+            <span style="font-size:11px">Sugestão: Sicoob — Conta Corrente · Sicoob — Poupança</span>
+           </div>`
+        : `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead><tr style="background:rgba(27,58,107,0.05);border-bottom:1px solid var(--border-mid)">
+              <th style="padding:8px 10px;text-align:left;font-size:10px;letter-spacing:0.06em;color:var(--text-mid)">Nome</th>
+              <th style="padding:8px 10px;text-align:left;font-size:10px;letter-spacing:0.06em;color:var(--text-mid)">Tipo</th>
+              <th style="padding:8px 10px;text-align:right;font-size:10px;letter-spacing:0.06em;color:var(--text-mid)">Saldo inicial</th>
+              <th style="padding:8px 10px;text-align:left;font-size:10px;letter-spacing:0.06em;color:var(--text-mid)">Status</th>
+              <th style="padding:8px 10px"></th>
+            </tr></thead>
+            <tbody>${linhas}</tbody>
+          </table></div>`}
+    </div>
+  `;
+}
+
+function abrirModalContaBancaria(id=null) {
+  if (!_podeEditarBancos()) { toast('⛔ Sem permissão'); return; }
+  const c = id ? (DATA.contas_bancarias.find(x=>x.id===id)||null) : null;
+  const inp = `style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"`;
+  document.body.insertAdjacentHTML('beforeend', `
+    <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px">
+      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:8px;width:480px;max-width:100%;max-height:92vh;overflow-y:auto">
+        <div style="height:3px;background:linear-gradient(90deg,var(--gold-dark),var(--gold-rich),var(--gold-light),var(--gold-dark));border-radius:8px 8px 0 0"></div>
+        <div style="padding:24px 28px">
+          <div class="fc" style="font-size:13px;font-weight:700;color:var(--gold-dark);margin-bottom:18px">${c?'✏️ Editar Conta':'＋ Nova Conta Bancária'}</div>
+          <div style="display:grid;gap:12px">
+            <div><label class="lbl">Nome (como aparece nas telas) *</label>
+              <input id="cb-nome" ${inp} value="${_esc(c?.nome||'')}" placeholder="Ex: Sicoob — Conta Corrente"></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div><label class="lbl">Banco</label>
+                <input id="cb-banco" ${inp} value="${_esc(c?.banco||'Sicoob')}" placeholder="Ex: Sicoob"></div>
+              <div><label class="lbl">Tipo</label>
+                <select id="cb-tipo" ${inp}>
+                  <option value="corrente"     ${c?.tipo==='corrente'||!c?'selected':''}>Conta Corrente</option>
+                  <option value="poupanca"     ${c?.tipo==='poupanca'?'selected':''}>Poupança</option>
+                  <option value="caixa_fisico" ${c?.tipo==='caixa_fisico'?'selected':''}>Caixa físico</option>
+                  <option value="outra"        ${c?.tipo==='outra'?'selected':''}>Outra</option>
+                </select></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div><label class="lbl">Agência</label>
+                <input id="cb-agencia" ${inp} value="${_esc(c?.agencia||'')}" placeholder="0000"></div>
+              <div><label class="lbl">Conta</label>
+                <input id="cb-conta" ${inp} value="${_esc(c?.conta||'')}" placeholder="00000-0"></div>
+            </div>
+            <div><label class="lbl">Saldo inicial (R$)</label>
+              <input id="cb-saldo" type="number" step="0.01" ${inp} value="${c?.saldo_inicial ?? 0}"></div>
+            <div><label class="lbl">Observação</label>
+              <textarea id="cb-obs" ${inp} rows="2" placeholder="Notas internas (opcional)">${_esc(c?.observacao||'')}</textarea></div>
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+              <input id="cb-ativo" type="checkbox" ${c===null||c?.ativo?'checked':''}> Conta ativa
+            </label>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
+            <button class="btn" onclick="fecharModal()" style="padding:8px 18px">Cancelar</button>
+            <button class="btn btn-solid" onclick="salvarContaBancaria(${c?`'${c.id}'`:'null'})" style="padding:8px 18px">${c?'Salvar Alterações':'Cadastrar Conta'}</button>
+          </div>
+        </div>
+      </div>
+    </div>`);
+}
+
+async function salvarContaBancaria(id) {
+  if (!_podeEditarBancos()) { toast('⛔ Sem permissão'); return; }
+  const cbId = (id==='null'||!id) ? null : id;
+  const dados = {
+    nome:          document.getElementById('cb-nome')?.value.trim(),
+    banco:         document.getElementById('cb-banco')?.value.trim() || null,
+    tipo:          document.getElementById('cb-tipo')?.value || 'corrente',
+    agencia:       document.getElementById('cb-agencia')?.value.trim() || null,
+    conta:         document.getElementById('cb-conta')?.value.trim() || null,
+    saldo_inicial: parseFloat(document.getElementById('cb-saldo')?.value || 0),
+    observacao:    document.getElementById('cb-obs')?.value.trim() || null,
+    ativo:         document.getElementById('cb-ativo')?.checked ?? true
+  };
+  if (!dados.nome) { toast('Informe o nome da conta'); return; }
+  try {
+    const res = cbId
+      ? await sb.from('contas_bancarias').update(dados).eq('id', cbId)
+      : await sb.from('contas_bancarias').insert(dados);
+    if (res.error) { toast('❌ ' + res.error.message); return; }
+    toast(cbId ? '✅ Conta atualizada' : '✅ Conta cadastrada');
+    fecharModal();
+    await _reloadContasBancarias();
+    renderContasBancariasSecao();
+  } catch (e) {
+    console.error('[salvarContaBancaria]', e);
+    toast('❌ Erro inesperado');
+  }
+}
+
+async function toggleContaBancariaAtiva(id) {
+  if (!_podeEditarBancos()) { toast('⛔ Sem permissão'); return; }
+  const c = DATA.contas_bancarias.find(x=>x.id===id);
+  if (!c) return;
+  const { error } = await sb.from('contas_bancarias').update({ ativo: !c.ativo }).eq('id', id);
+  if (error) { toast('❌ ' + error.message); return; }
+  toast(c.ativo ? 'Conta desativada' : 'Conta ativada');
+  await _reloadContasBancarias();
+  renderContasBancariasSecao();
+}
+
+// Hard delete intencionalmente NÃO disponível — use toggleContaBancariaAtiva
+// (UPDATE ativo=false). A migration também bloqueia DELETE via ausência de policy.
+
+// ─── Categorias Financeiras ───────────────────────────────────────────────
+function renderCategoriasFinSecao() {
+  const el = document.getElementById('cfg-cont-bancos-categorias');
+  if (!el) return;
+  const podeEditar = _podeEditarBancos();
+  const lista = DATA.categorias_financeiras || [];
+  const tipoLabel = { receita:'↑ Receita', despesa:'↓ Despesa', ambos:'↑↓ Ambos' };
+  const natLabel = { operacional:'Operacional', transferencia:'Transferência', rendimento:'Rendimento', outros:'Outros' };
+  const linhas = lista.map(c => `<tr style="${c.ativo?'':'opacity:0.5'}">
+    <td style="padding:8px 10px;border-bottom:1px solid var(--border)">
+      <div style="font-weight:600">${_esc(c.nome)}</div>
+      <div style="font-size:11px;color:var(--text-muted);font-family:monospace">${_esc(c.slug)}</div>
+    </td>
+    <td style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:12px">${tipoLabel[c.tipo]||c.tipo}</td>
+    <td style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:11px">${natLabel[c.natureza]||c.natureza||'—'}</td>
+    <td style="padding:8px 10px;border-bottom:1px solid var(--border);text-align:center;font-size:11px">
+      ${c.impacta_resultado === false ? '<span title="NÃO entra nos totais de receita/despesa do período" style="color:#5C3D7A">⊘ não impacta</span>' : '<span style="color:var(--text-muted)">impacta</span>'}
+    </td>
+    <td style="padding:8px 10px;border-bottom:1px solid var(--border);text-align:center;font-size:11px">
+      ${c.sistema ? '<span title="Categoria do sistema — não pode ser desativada/apagada pela UI" style="color:var(--gold-dark)">🔒 Sistema</span>' : '—'}
+    </td>
+    <td style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:11px">${c.ativo?'<span style="color:var(--green)">● Ativa</span>':'<span style="color:var(--text-muted)">○ Inativa</span>'}</td>
+    <td style="padding:8px 10px;border-bottom:1px solid var(--border);text-align:right">
+      ${podeEditar ? `
+        <button class="btn" style="padding:3px 8px;font-size:10px" onclick="abrirModalCategoriaFin('${c.id}')">✏️ Editar</button>
+        ${c.sistema
+          ? '<span style="font-size:10px;color:var(--text-muted);font-style:italic;padding:0 6px" title="Categoria do sistema — sempre ativa">🔒 protegida</span>'
+          : `<button class="btn" style="padding:3px 8px;font-size:10px;${c.ativo?'border-color:#A05A00;color:#A05A00':'border-color:var(--green);color:var(--green)'}" onclick="toggleCategoriaFinAtiva('${c.id}')">${c.ativo?'⏸ Desativar':'▶ Ativar'}</button>`}
+      ` : ''}
+    </td>
+  </tr>`).join('');
+
+  el.innerHTML = `
+    <div class="card">
+      <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
+        <div class="card-title">🏷️ Categorias Financeiras</div>
+        ${podeEditar ? '<button class="btn btn-solid" onclick="abrirModalCategoriaFin()" style="padding:6px 14px;font-size:11px">＋ Nova Categoria</button>' : ''}
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);font-style:italic;padding:0 0 10px">
+        Categorias marcadas como <span style="color:#5C3D7A">⊘ não impacta</span> (ex: Transferência interna)
+        não entram nos totais de receita/despesa do período — apenas movimentam dinheiro entre contas.
+        O campo <em>Natureza</em> classifica estruturalmente: operacional, transferência, rendimento ou outros.
+      </div>
+      ${lista.length===0
+        ? `<div style="padding:18px;text-align:center;color:var(--text-muted);font-style:italic;font-size:13px">
+            Nenhuma categoria no banco ainda.<br>
+            <span style="font-size:11px">As categorias usadas hoje no formulário de lançamento continuam funcionando via lista local até serem cadastradas aqui.</span>
+           </div>`
+        : `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead><tr style="background:rgba(27,58,107,0.05);border-bottom:1px solid var(--border-mid)">
+              <th style="padding:8px 10px;text-align:left;font-size:10px;letter-spacing:0.06em;color:var(--text-mid)">Nome / Slug</th>
+              <th style="padding:8px 10px;text-align:left;font-size:10px;letter-spacing:0.06em;color:var(--text-mid)">Tipo</th>
+              <th style="padding:8px 10px;text-align:left;font-size:10px;letter-spacing:0.06em;color:var(--text-mid)">Natureza</th>
+              <th style="padding:8px 10px;text-align:center;font-size:10px;letter-spacing:0.06em;color:var(--text-mid)">Resultado</th>
+              <th style="padding:8px 10px;text-align:center;font-size:10px;letter-spacing:0.06em;color:var(--text-mid)">Sistema</th>
+              <th style="padding:8px 10px;text-align:left;font-size:10px;letter-spacing:0.06em;color:var(--text-mid)">Status</th>
+              <th style="padding:8px 10px"></th>
+            </tr></thead>
+            <tbody>${linhas}</tbody>
+          </table></div>`}
+    </div>
+  `;
+}
+
+function _slugifyCat(s) {
+  return (s||'').toString().toLowerCase().trim()
+    .normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'').slice(0,40);
+}
+
+function abrirModalCategoriaFin(id=null) {
+  if (!_podeEditarBancos()) { toast('⛔ Sem permissão'); return; }
+  const c = id ? (DATA.categorias_financeiras.find(x=>x.id===id)||null) : null;
+  const inp = `style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"`;
+  document.body.insertAdjacentHTML('beforeend', `
+    <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px">
+      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:8px;width:460px;max-width:100%;max-height:92vh;overflow-y:auto">
+        <div style="height:3px;background:linear-gradient(90deg,var(--navy),var(--gold-dark));border-radius:8px 8px 0 0"></div>
+        <div style="padding:24px 28px">
+          <div class="fc" style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:18px">${c?'✏️ Editar Categoria':'＋ Nova Categoria Financeira'}</div>
+          <div style="display:grid;gap:12px">
+            <div><label class="lbl">Nome *</label>
+              <input id="cf-nome" ${inp} value="${_esc(c?.nome||'')}" placeholder="Ex: Doação" oninput="document.getElementById('cf-slug').value = _slugifyCat(this.value)"></div>
+            <div><label class="lbl">Slug (identificador único)</label>
+              <input id="cf-slug" ${inp} value="${_esc(c?.slug||'')}" placeholder="doacao" ${c?'readonly':''}></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div><label class="lbl">Tipo</label>
+                <select id="cf-tipo" ${inp}>
+                  <option value="ambos"   ${c?.tipo==='ambos'||!c?'selected':''}>↑↓ Ambos</option>
+                  <option value="receita" ${c?.tipo==='receita'?'selected':''}>↑ Receita</option>
+                  <option value="despesa" ${c?.tipo==='despesa'?'selected':''}>↓ Despesa</option>
+                </select></div>
+              <div><label class="lbl">Natureza</label>
+                <select id="cf-natureza" ${inp}>
+                  <option value="operacional"   ${c?.natureza==='operacional'||!c?'selected':''}>Operacional (mensalidade, despesas)</option>
+                  <option value="transferencia" ${c?.natureza==='transferencia'?'selected':''}>Transferência entre contas</option>
+                  <option value="rendimento"    ${c?.natureza==='rendimento'?'selected':''}>Rendimento de aplicação</option>
+                  <option value="outros"        ${c?.natureza==='outros'?'selected':''}>Outros</option>
+                </select></div>
+            </div>
+            <div><label class="lbl">Ordem (menor aparece primeiro nas listas)</label>
+              <input id="cf-ordem" type="number" ${inp} value="${c?.ordem ?? 100}"></div>
+            <label style="display:flex;align-items:flex-start;gap:8px;font-size:13px;cursor:pointer;line-height:1.4">
+              <input id="cf-impacta" type="checkbox" ${c===null||c?.impacta_resultado!==false?'checked':''} style="margin-top:3px">
+              <span><strong>Impacta resultado financeiro</strong> — quando marcado (padrão), entra nos totais de receita/despesa do período. <em>Desmarque para transferências internas que só movem dinheiro entre contas.</em></span>
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+              <input id="cf-ativo" type="checkbox" ${c===null||c?.ativo?'checked':''}> Categoria ativa
+            </label>
+            ${c?.sistema ? '<div style="font-size:11px;color:var(--gold-dark);font-style:italic">🔒 Categoria do sistema — slug protegido contra alteração.</div>' : ''}
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px">
+            <button class="btn" onclick="fecharModal()" style="padding:8px 18px">Cancelar</button>
+            <button class="btn btn-solid" onclick="salvarCategoriaFin(${c?`'${c.id}'`:'null'})" style="padding:8px 18px">${c?'Salvar Alterações':'Cadastrar Categoria'}</button>
+          </div>
+        </div>
+      </div>
+    </div>`);
+}
+
+async function salvarCategoriaFin(id) {
+  if (!_podeEditarBancos()) { toast('⛔ Sem permissão'); return; }
+  const cfId = (id==='null'||!id) ? null : id;
+  const existente = cfId ? DATA.categorias_financeiras.find(x=>x.id===cfId) : null;
+  const nome = document.getElementById('cf-nome')?.value.trim();
+  let slug = document.getElementById('cf-slug')?.value.trim() || _slugifyCat(nome);
+  if (existente?.sistema) slug = existente.slug; // proteção
+  const dados = {
+    nome,
+    slug,
+    tipo:              document.getElementById('cf-tipo')?.value || 'ambos',
+    natureza:          document.getElementById('cf-natureza')?.value || 'operacional',
+    ordem:             parseInt(document.getElementById('cf-ordem')?.value || 100, 10),
+    impacta_resultado: !!document.getElementById('cf-impacta')?.checked,
+    ativo:             document.getElementById('cf-ativo')?.checked ?? true
+  };
+  if (!dados.nome) { toast('Informe o nome'); return; }
+  if (!dados.slug) { toast('Slug inválido'); return; }
+  try {
+    const res = cfId
+      ? await sb.from('categorias_financeiras').update(dados).eq('id', cfId)
+      : await sb.from('categorias_financeiras').insert(dados);
+    if (res.error) {
+      const msg = /duplicate|unique/i.test(res.error.message)
+        ? `Já existe uma categoria com o slug "${dados.slug}".`
+        : res.error.message;
+      toast('❌ ' + msg);
+      return;
+    }
+    toast(cfId ? '✅ Categoria atualizada' : '✅ Categoria cadastrada');
+    fecharModal();
+    await _reloadCategoriasFin();
+    renderCategoriasFinSecao();
+  } catch (e) {
+    console.error('[salvarCategoriaFin]', e);
+    toast('❌ Erro inesperado');
+  }
+}
+
+async function toggleCategoriaFinAtiva(id) {
+  if (!_podeEditarBancos()) { toast('⛔ Sem permissão'); return; }
+  const c = DATA.categorias_financeiras.find(x=>x.id===id);
+  if (!c) return;
+  if (c.sistema) { toast('⛔ Categorias do sistema não podem ser desativadas pela UI.'); return; }
+  const { error } = await sb.from('categorias_financeiras').update({ ativo: !c.ativo }).eq('id', id);
+  if (error) { toast('❌ ' + error.message); return; }
+  toast(c.ativo ? 'Categoria desativada' : 'Categoria ativada');
+  await _reloadCategoriasFin();
+  renderCategoriasFinSecao();
+}
+
+// Hard delete intencionalmente NÃO disponível — use toggleCategoriaFinAtiva
+// (UPDATE ativo=false). Categorias do sistema não podem nem ser desativadas
+// pela UI (proteção client-side; backend permite UPDATE para flexibilidade
+// administrativa via SQL Editor se algum dia for necessário).
 
 function renderConfigLoja() {
   const el = document.getElementById('cfg-cont-loja');
