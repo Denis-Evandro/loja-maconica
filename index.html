@@ -6452,6 +6452,27 @@ async function _recalcularAgapeSessao(sessaoId, membroIdsPresentes) {
 // SISTEMA DE CONVITES — SaaS Maçônico
 // ══════════════════════════════════════════════════════════════
 
+// Tenta extrair a mensagem real de erro retornada pela edge function.
+// O SDK supabase-js v2 envolve respostas não-2xx num FunctionsHttpError cuja
+// .context é o Response original — precisamos ler o JSON do corpo manualmente.
+async function _extrairMsgErroFuncao(error, data) {
+  if (data?.error) return data.error;
+  if (!error) return null;
+  try {
+    const ctx = error.context;
+    if (ctx && typeof ctx.clone === 'function') {
+      const body = await ctx.clone().text();
+      if (body) {
+        try {
+          const parsed = JSON.parse(body);
+          return parsed.error || parsed.message || body;
+        } catch { return body; }
+      }
+    }
+  } catch(e) { console.warn('[_extrairMsgErroFuncao]', e); }
+  return error.message || 'Erro desconhecido';
+}
+
 async function enviarConviteMembro(membroId, email, nomeMemb) {
   const canEdit = ROLES[currentRole]?.access['membros'] === 'full';
   if (!canEdit) { toast('⛔ Sem permissão'); return; }
@@ -6470,18 +6491,37 @@ async function enviarConviteMembro(membroId, email, nomeMemb) {
 
   try {
     const redirectTo = window.location.origin + window.location.pathname;
+    console.log('[enviarConviteMembro] → invoke', { membroId, email, redirectTo });
     const { data, error } = await sb.functions.invoke('invite-member', {
       body: { membroId, email, redirectTo }
     });
-    if (error) { toast('❌ Erro ao enviar convite: ' + error.message); return; }
-    if (data?.error) { toast('❌ ' + data.error); return; }
+    console.log('[enviarConviteMembro] ← data:', data, 'error:', error);
+    if (error || data?.error) {
+      const msg = await _extrairMsgErroFuncao(error, data);
+      console.error('[enviarConviteMembro] mensagem real:', msg);
+      // Mensagem amigável para o caso clássico de e-mail já registrado
+      // (versões antigas da edge function ainda podem devolver isso)
+      if (/já\s+possui\s+conta|already.*registered|already\s+exists/i.test(msg)) {
+        toast('❌ Este e-mail já tem uma conta pendente. Remova o usuário antigo ou reenvie o convite.');
+      } else {
+        toast('❌ ' + msg);
+      }
+      return;
+    }
 
-    toast(`✅ Convite enviado para ${email}!`);
+    if (data?.reenvio) {
+      const obs = data.semSenha
+        ? '✅ Reenviado para ' + email + ' (conta sem senha — irmão recebe link para criar senha).'
+        : '✅ Link de redefinição enviado para ' + email + ' (conta já existe).';
+      toast(obs);
+    } else {
+      toast(`✅ Convite enviado para ${email}!`);
+    }
     await _reloadMembros();
     renderMembros(ROLES[currentRole].access['membros']);
   } catch(e) {
     console.error('[enviarConviteMembro] EXCEÇÃO:', e);
-    toast('❌ Erro: ' + e.message);
+    toast('❌ Erro: ' + (e?.message || e));
   }
 }
 
@@ -6514,7 +6554,8 @@ async function enviarConvitesTodos() {
         body: { membroId: m.id, email: m.email, redirectTo }
       });
       if (error || data?.error) {
-        console.warn('[enviarConvitesTodos]', m.email, error?.message || data?.error);
+        const msg = await _extrairMsgErroFuncao(error, data);
+        console.warn('[enviarConvitesTodos]', m.email, msg);
       } else {
         enviados++;
       }

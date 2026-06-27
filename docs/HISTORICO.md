@@ -87,6 +87,57 @@ Registro cronológico das sessões de desenvolvimento do sistema.
 
 ---
 
+## Sessão 7 — 26-27/Jun/2026 · Relatório Completo de Membros + Fix Convite/Primeiro Acesso
+**Chat:** atual
+
+### Relatório Completo de Membros (modo ficha)
+- ✅ Mantido modo tabela (padrão) intacto — sem regressão
+- ✅ Novo modo **ficha por irmão** ativado pelo botão "📚 Completo"
+  - Cabeçalho com foto, número, nome maçônico/civil, badges de grau/cargo/tipo/situação
+  - Seções: Identificação · Dados Pessoais · Contato e Endereço · Dados Maçônicos · Situação Cadastral · **Familiares** (tabela) · **Histórico Maçônico** (tabela)
+  - Layout fluido (`grid auto-fit minmax(160px,1fr)`) — não corta horizontalmente
+  - Familiares e histórico lidos de `m._familiares` / `m._historico` (JSON-string na tabela `membros`)
+- ✅ Filtro de situação: **Apenas Ativos** (padrão) / Apenas Inativos / Todos
+  - Ativos = `status === 'ativo'`; Inativos = todos os demais
+  - Contagem exibida em destaque antes da impressão
+- ✅ Seletor de seções "⚙️ Seções" para customizar quais blocos aparecem
+- ✅ Impressão com `page-break-inside:avoid` por ficha e `table-layout:fixed` interno
+- ✅ Excel com **3 abas separadas**: Membros · Familiares · Histórico (FK por Nº/nome maçônico)
+
+### Fix Auth — Primeiro Acesso via Convite
+- 🔴 **Bug**: clique no link de convite consumia tokens via `detectSessionInUrl:true` e logava o irmão direto **sem nunca pedir senha**. Resultado: ele entrava na primeira vez e nunca mais conseguia.
+- ✅ Boot reescrito: detecta `type=invite` / `type=signup` / `type=recovery` no hash e abre modal "🔑 PRIMEIRO ACESSO — CRIE SUA SENHA" (ou "DEFINIR NOVA SENHA" para recovery)
+- ✅ Guard em `verificarSessaoAtiva` lê `user_metadata.must_set_password` — bloqueia entrada no app se a senha ainda não foi definida (cobre reload no meio do fluxo)
+- ✅ `salvarNovaSenha` grava `user_metadata.password_set=true`, atualiza `membros.login_status='ativo'`, desloga e mostra "✅ Conta criada! Faça login com seu e-mail e a nova senha."
+- ✅ Banner persistente vermelho acima do form de login para convite expirado/inválido (lê `error_description` do hash)
+- ✅ Edge function `invite-member` v1.2 inclui `must_set_password:true` no `user_metadata` do convite
+
+### Fix Edge Function — 409 Conflict no reenvio de convite
+- 🔴 **Bug**: ao reenviar convite para e-mail que já estava em `auth.users` mas sem vínculo em `membros.auth_user_id` (situação clássica de teste interrompido), a function retornava 409 e mandava "executar a limpeza (Fase A)"
+- 🔴 **Bug secundário herdado**: caminho 7a (membro já tem `auth_user_id`) usava `generateLink` que **só gera o link e não envia e-mail** — quem já tinha conta nunca recebia o reenvio
+- ✅ Novo helper `reenviarParaUsuarioExistente()` que: vincula `auth_user_id` ao membro, atualiza `user_metadata` com `must_set_password=true` se a senha ainda não foi definida, e dispara `resetPasswordForEmail` (que **envia** o e-mail)
+- ✅ Quando `inviteUserByEmail` retorna "already registered", a function agora busca o user existente via `listUsers` paginado e cai no helper de reenvio — sem 409
+- ✅ Caminho 7a refeito para usar o mesmo helper, eliminando o bug do "convite que não chegava"
+- ✅ Logs verbose em 13 pontos da edge function (`▶ ✓ ✖ ⚠ → 💥`) para diagnóstico futuro
+- ✅ Cliente: novo helper `_extrairMsgErroFuncao` que lê o body real do `Response` via `error.context.clone().text()` — antes o SDK mostrava só "non-2xx status code" genérico
+- ✅ Toast diferencia "convite novo" / "reenvio para conta sem senha" / "reenvio para conta com senha"
+- ✅ A "Fase A" (limpeza manual de auth órfão documentada em `INCIDENT-2026-05-11-session-takeover.md`) **fica obsoleta** — a function trata o cenário automaticamente
+
+### Operação realizada
+- Bloqueio do delete manual de auth user causado por FK `membros.auth_user_id → auth.users(id)` com `ON DELETE NO ACTION`
+- Workaround documentado: `UPDATE membros SET auth_user_id=NULL WHERE auth_user_id = <id>` antes do `DELETE FROM auth.users` — não foi necessário em produção após o fix da function
+
+### Commits:
+- `8beb5fe` — feat(relatorios): modo ficha completo de membros com familiares, histórico e filtro de situação
+- `9ff8ef6` — fix(auth): força criação de senha no primeiro acesso via convite
+- (este commit) — fix(convite): reaproveita user existente, envia e-mail de reenvio e mostra erro real no cliente
+
+### Deploys realizados:
+- `git push origin master` → GitHub Pages republicou
+- `npx supabase functions deploy invite-member` → Edge Function v1.2 ativa
+
+---
+
 ## Tech Debt Ativo
 
 | ID | Descrição | Status |
@@ -95,3 +146,4 @@ Registro cronológico das sessões de desenvolvimento do sistema.
 | TD-2 | RLS aberto demais — crítico antes do SaaS | Planejado — pendente execução |
 | TD-3 | Erro 400 em /comissoes | ✅ Resolvido (15/05/2026) |
 | TD-4 | Outros usos de auth client-side (linhas 2493, 2394, 3359) | Pendente |
+| TD-5 | Logs verbose temporários da edge function `invite-member` | Pendente — remover após período de observação estável |
