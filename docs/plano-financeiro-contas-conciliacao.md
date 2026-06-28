@@ -88,9 +88,9 @@ financeiro. **Consulte este documento antes de tocar qualquer coisa em
 
 ## 3. Fases
 
-### Fase 1 — Cadastros básicos *(em execução agora)*
+### Fase 1 — Cadastros básicos *(CONCLUÍDA em 2026-06-28)*
 
-**Entrega:**
+**Entregue:**
 - Tabela `contas_bancarias` (com RLS).
 - Tabela `categorias_financeiras` (com RLS).
 - CRUD simples acessado pelo painel **Finanças** (botão "🏦 Bancos & Categorias"
@@ -99,46 +99,78 @@ financeiro. **Consulte este documento antes de tocar qualquer coisa em
     Tesoureiro tem `configuracoes:'none'` no ROLES, o que bloqueava o acesso.
     A funcionalidade foi movida para Finanças, onde Tesoureiro e Venerável
     têm `financas:'full'`.
-- Seeds iniciais documentados (não inseridos automaticamente — Tesoureiro
-  insere via UI após revisar):
-  - Contas: *Sicoob — Conta Corrente*, *Sicoob — Poupança*
-  - Categorias adicionais sugeridas: *Tronco/Beneficência* (já existe como
-    `tronco`), *Transferência interna* (novo, slug `transferencia_interna`),
-    *Rendimento financeiro* (novo, slug `rendimento`).
+- 3 categorias-sistema inseridas via seed: `tronco`, `transferencia_interna`,
+  `rendimento`.
+- Funções helper RLS `is_financeiro_editor()` / `is_financeiro_reader()` com
+  SECURITY DEFINER, search_path fixo, REVOKE FROM PUBLIC + GRANT TO authenticated.
+- Soft delete (sem policy `FOR DELETE`).
 
-**Fora de escopo desta fase:**
-- Vincular conta bancária ao lançamento de `financas` (vai na Fase 2).
-- Importar OFX (Fase 3).
-- Painel de conciliação (Fase 4).
-- Regras de matching (Fase 5).
-- Backfill de lançamentos antigos (qualquer fase futura, sempre opt-in).
-- Migrar o `localStorage.cats_fin` automaticamente (Tesoureiro decide o que
-  promover para a tabela; categorias antigas em localStorage seguem funcionando
-  como fallback).
+**Status:** migration `docs/migrations/2026-06-27-fase1-contas-categorias.sql`
+**aplicada no Supabase em 2026-06-28**. PR #1 (branch
+`fase1-contas-bancarias-categorias`) pendente de merge em `master` no momento
+em que a Fase 2 começa — ambas as fases serão mergeadas em ordem.
 
-**Migration:** `docs/migrations/2026-06-27-fase1-contas-categorias.sql`
-(arquivo separado, **não rodado** — fica para revisão antes da aplicação manual
-no SQL Editor do Supabase **com backup feito previamente**).
+### Fase 2 — Vínculo de categoria/conta no lançamento *(em execução agora)*
 
-### Fase 2 — Vínculo opcional de conta no lançamento *(planejada)*
+**Objetivo:** fazer `financas` referenciar as tabelas da Fase 1 sem quebrar
+nenhum lançamento existente nem o fluxo atual de criação.
 
 **Entrega:**
-- `ALTER TABLE financas ADD COLUMN conta_bancaria_id uuid NULLABLE REFERENCES contas_bancarias(id)`.
-- `ALTER TABLE financas ADD COLUMN forma_pagamento text NULLABLE`
-  (`pix` / `ted` / `dinheiro` / `boleto` / `cartao` / `outro`).
-- `ALTER TABLE financas ADD COLUMN identificador_externo text NULLABLE`
-  (campo para guardar FITID/end-to-end-id do PIX quando conciliado).
-- `ALTER TABLE financas ADD COLUMN data_vencimento date NULLABLE` —
-  separa `data` (efetiva, quando aconteceu) de `data_vencimento`
-  (quando era devido). Lançamentos antigos: `data_vencimento = NULL`,
-  código antigo continua usando `data` como hoje.
-- Modal "Novo Lançamento" ganha selects opcionais.
 
-**Cuidados:**
-- **Tudo nullable**. Não inventar histórico falso: lançamentos antigos
-  ficam com `conta_bancaria_id = NULL` indefinidamente, salvo backfill
-  manual conduzido pelo Tesoureiro **caso a caso**, jamais em massa.
-- Cálculos atuais de saldo continuam funcionando sem mudança.
+1. **Migration aditiva** (`docs/migrations/2026-06-28-fase2-vinculo-financas.sql`)
+   - Seeds das **10 categorias legadas** que hoje vivem em
+     `localStorage.cats_fin`, mapeando cada slug para um nome amigável e
+     `natureza='operacional'`:
+     | slug          | nome                | tipo    | sistema |
+     |---------------|---------------------|---------|---------|
+     | `mensalidade` | Mensalidade         | receita | **true** (usada por "Lançar Mensalidades do Mês") |
+     | `joia`        | Joia de Iniciação   | receita | false |
+     | `manutencao`  | Manutenção          | despesa | false |
+     | `aluguel`     | Aluguel             | despesa | false |
+     | `mutua`       | Mútua               | ambos   | false |
+     | `agape`       | Ágape               | ambos   | false |
+     | `material`    | Material            | despesa | false |
+     | `evento`      | Evento              | ambos   | false |
+     | `outros`      | Outros              | ambos   | **true** (fallback genérico) |
+     | `tronco`      | (já existe da Fase 1) | — | true |
+     - Seed **idempotente** (`ON CONFLICT (slug) DO UPDATE`).
+   - **ADD COLUMN** em `financas` (todas **nullable**, não invalidam linhas existentes):
+     - `categoria_id uuid REFERENCES categorias_financeiras(id) ON DELETE SET NULL`
+     - `conta_bancaria_id uuid REFERENCES contas_bancarias(id) ON DELETE SET NULL`
+     - `forma_pagamento text` (`pix` / `ted` / `dinheiro` / `boleto` / `cartao` / `outro`)
+     - `identificador_externo text` (reservado para FITID/end-to-end-id do PIX — usado a partir da Fase 3)
+     - `data_vencimento date` (separa "quando era devido" de `data` que vira "quando aconteceu" — só para lançamentos NOVOS; antigos ficam NULL)
+   - **Backfill conservador**: `UPDATE financas SET categoria_id = c.id FROM categorias_financeiras c WHERE c.slug = financas.categoria AND financas.categoria_id IS NULL`.
+     Não toca `financas.categoria` (texto) — mantém compatibilidade com cálculos atuais.
+   - Índices em `financas(categoria_id)` e `financas(conta_bancaria_id)`.
+
+2. **Cliente (`index.html`)**:
+   - Modal "Novo Lançamento" passa a montar o select de categoria a partir de
+     `DATA.categorias_financeiras` (apenas ativas, ordenadas por `ordem`).
+     **Fallback**: se a tabela estiver vazia (migration não aplicada), continua
+     usando `CATEGORIAS_FIN` do localStorage como hoje.
+   - Novo select opcional **"Conta Bancária"** — lista contas ativas
+     (`DATA.contas_bancarias.filter(c => c.ativo)`). Vazio por padrão.
+   - `salvarLancamento`: inclui `categoria_id` (resolvido pelo slug) e
+     `conta_bancaria_id` (do select) no payload. Mantém `categoria` (texto)
+     redundante para compatibilidade com código antigo.
+   - Filtros, relatórios e cálculos atuais **não mudam** — continuam usando
+     `categoria` (string).
+
+**Fora de escopo desta fase:**
+- Forçar `categoria_id NOT NULL` (futuro, após backfill total e migração de UI).
+- Remover `financas.categoria` (texto) — fica como fallback até auditoria.
+- Usar `forma_pagamento`/`identificador_externo`/`data_vencimento` no fluxo
+  manual (entram na Fase 3+ junto com OFX).
+- Mexer em relatórios ou cálculos de saldo.
+
+**Cuidados / invariantes:**
+- Toda coluna nova é **nullable**. Lançamentos antigos preservados.
+- Backfill é idempotente e não destrutivo (`WHERE categoria_id IS NULL`).
+- Soft delete preservado: FKs usam `ON DELETE SET NULL` (não bloqueiam delete
+  futuro de conta/categoria, embora a Fase 1 já proíba delete por policy).
+- Cliente tolera ausência de `DATA.categorias_financeiras`/`DATA.contas_bancarias`
+  (fallback ao comportamento legado).
 
 ### Fase 3 — Importação OFX do Sicoob *(planejada)*
 
@@ -276,3 +308,7 @@ Resumo:
 | 2026-06-27 | — | Plano criado | Denis + Claude |
 | 2026-06-27 | 1 | Migration SQL escrita para revisão (`docs/migrations/2026-06-27-fase1-contas-categorias.sql`) | Denis + Claude |
 | 2026-06-27 | 1 | CRUD UI de contas bancárias e categorias financeiras em Configurações | Denis + Claude |
+| 2026-06-27 | 1 | Migration revisada: `neutra` → `impacta_resultado`, coluna `natureza` adicionada, policies de DELETE removidas (soft-delete), hardening REVOKE/GRANT | Denis + Claude |
+| 2026-06-28 | 1 | C1 corrigido: UI movida de Configurações para Finanças (Tesoureiro bloqueado por `configuracoes:'none'`) — commit `e7a7d36` | Denis + Claude |
+| 2026-06-28 | 1 | Migration aplicada em produção (Supabase) | Denis |
+| 2026-06-28 | 2 | Iniciada — branch `fase2-vinculo-financas-bancos-categorias` | Denis + Claude |
