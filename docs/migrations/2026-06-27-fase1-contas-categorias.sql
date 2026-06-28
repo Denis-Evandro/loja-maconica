@@ -1,37 +1,38 @@
--- ════════════════════════════════════════════════════════════════════════════
--- MIGRATION — FASE 1 do plano "Financeiro: Contas e Conciliação"
+-- ===========================================================================
+-- MIGRATION - FASE 1 do plano "Financeiro: Contas e Conciliacao"
 -- Data:   2026-06-27
 -- Plano:  docs/plano-financeiro-contas-conciliacao.md
--- Status: AGUARDANDO REVISÃO — NÃO APLICAR SEM:
---   1) Snapshot/backup do banco (Supabase Dashboard → Database → Backups
---      → Create on-demand backup);
---   2) Revisão por outra pessoa;
---   3) Execução em ambiente de dev/staging primeiro, se houver.
+-- Status: AGUARDANDO REVISAO - NAO APLICAR SEM:
+--   1) Snapshot/backup do banco (Supabase Dashboard > Database > Backups
+--      > Create on-demand backup);
+--   2) Revisao por outra pessoa;
+--   3) Execucao em ambiente de dev/staging primeiro, se houver.
 --
--- Aplicação em produção: copiar e colar no SQL Editor do Supabase Dashboard
+-- Aplicacao em producao: copiar e colar no SQL Editor do Supabase Dashboard
 -- e executar bloco a bloco, lendo o resultado de cada NOTICE.
 --
 -- O que entra:
---   • Tabela contas_bancarias  (onde o dinheiro está)
---   • Tabela categorias_financeiras (origem/finalidade do lançamento)
---   • RLS habilitada + policies por perfil
---   • Função utilitária is_financeiro_editor() / is_financeiro_reader()
+--   * Tabela contas_bancarias  (onde o dinheiro esta)
+--   * Tabela categorias_financeiras (origem/finalidade do lancamento)
+--   * RLS habilitada + policies por perfil
+--   * Funcao utilitaria is_financeiro_editor() / is_financeiro_reader()
+--   * Hardening REVOKE/GRANT das funcoes para o role authenticated
 --
--- O que NÃO entra (próximas fases):
---   • Alteração em "financas"
---   • Tabelas de extrato bancário / importação OFX / conciliação
---   • Backfill de dados antigos
---   • Seeds automáticos (Tesoureiro insere via UI após revisar)
--- ════════════════════════════════════════════════════════════════════════════
+-- O que NAO entra (proximas fases):
+--   * Alteracao em "financas"
+--   * Tabelas de extrato bancario / importacao OFX / conciliacao
+--   * Backfill de dados antigos
+--   * Seeds automaticos de contas (Tesoureiro insere via UI apos revisar)
+-- ===========================================================================
 
 BEGIN;
 
--- ────────────────────────────────────────────────────────────────────────────
--- 1. FUNÇÕES UTILITÁRIAS DE PERMISSÃO
--- Padronizam a checagem usada em todas as policies, evitando duplicar lógica.
--- ────────────────────────────────────────────────────────────────────────────
+-- ---------------------------------------------------------------------------
+-- 1. FUNCOES UTILITARIAS DE PERMISSAO
+-- Padronizam a checagem usada em todas as policies, evitando duplicar logica.
+-- ---------------------------------------------------------------------------
 
--- Editor: pode INSERT/UPDATE/DELETE em dados bancários.
+-- Editor: pode INSERT/UPDATE em dados bancarios.
 -- = Admin do sistema (tabela usuarios) OU Tesoureiro ativo (tabela membros).
 CREATE OR REPLACE FUNCTION public.is_financeiro_editor()
 RETURNS boolean
@@ -54,8 +55,8 @@ AS $$
   );
 $$;
 
--- Reader: pode SELECT em dados bancários.
--- = Editor + Venerável Mestre ativo (para fins de relatório).
+-- Reader: pode SELECT em dados bancarios.
+-- = Editor + Veneravel Mestre ativo (para fins de relatorio).
 CREATE OR REPLACE FUNCTION public.is_financeiro_reader()
 RETURNS boolean
 LANGUAGE sql
@@ -73,22 +74,22 @@ AS $$
 $$;
 
 COMMENT ON FUNCTION public.is_financeiro_editor IS
-  'Fase 1 — financeiro: TRUE se o usuário pode editar contas/categorias bancárias (Admin ou Tesoureiro ativo).';
+  'Fase 1 - financeiro: TRUE se o usuario pode editar contas/categorias bancarias (Admin ou Tesoureiro ativo).';
 COMMENT ON FUNCTION public.is_financeiro_reader IS
-  'Fase 1 — financeiro: TRUE se o usuário pode visualizar contas/categorias bancárias (Admin, Tesoureiro ou Venerável ativos).';
+  'Fase 1 - financeiro: TRUE se o usuario pode visualizar contas/categorias bancarias (Admin, Tesoureiro ou Veneravel ativos).';
 
 -- Hardening: revogar EXECUTE de PUBLIC e conceder apenas a `authenticated`.
--- Funções SECURITY DEFINER ficam disponíveis por padrão a qualquer role; com
--- isso restringimos a chamada às sessões autenticadas (anon não chama).
+-- Funcoes SECURITY DEFINER ficam disponiveis por padrao a qualquer role; com
+-- isso restringimos a chamada as sessoes autenticadas (anon nao chama).
 REVOKE EXECUTE ON FUNCTION public.is_financeiro_editor() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.is_financeiro_reader() FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION public.is_financeiro_editor() TO authenticated;
 GRANT  EXECUTE ON FUNCTION public.is_financeiro_reader() TO authenticated;
 
--- ────────────────────────────────────────────────────────────────────────────
+-- ---------------------------------------------------------------------------
 -- 2. TABELA contas_bancarias
--- Representa ONDE o dinheiro está fisicamente (conta bancária ou caixa físico).
--- ────────────────────────────────────────────────────────────────────────────
+-- Representa ONDE o dinheiro esta fisicamente (conta bancaria ou caixa fisico).
+-- ---------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS public.contas_bancarias (
   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -107,11 +108,11 @@ CREATE TABLE IF NOT EXISTS public.contas_bancarias (
 );
 
 COMMENT ON TABLE public.contas_bancarias IS
-  'Fase 1 — Onde o dinheiro da loja está fisicamente. Não confundir com categoria do lançamento.';
+  'Fase 1 - Onde o dinheiro da loja esta fisicamente. Nao confundir com categoria do lancamento.';
 COMMENT ON COLUMN public.contas_bancarias.tipo IS
   'corrente | poupanca | caixa_fisico | outra';
 COMMENT ON COLUMN public.contas_bancarias.saldo_inicial IS
-  'Saldo informado pelo Tesoureiro no momento do cadastro. Não é atualizado por triggers.';
+  'Saldo informado pelo Tesoureiro no momento do cadastro. Nao e atualizado por triggers.';
 
 -- Trigger leve para manter alterado_em
 CREATE OR REPLACE FUNCTION public._tg_contas_bancarias_touch()
@@ -147,36 +148,36 @@ CREATE POLICY "contas_bancarias_update"
   USING (public.is_financeiro_editor())
   WITH CHECK (public.is_financeiro_editor());
 
--- DELETE intencionalmente NÃO permitido. Use UPDATE ativo=false (soft delete).
--- Justificativa: na Fase 2, financas terá conta_bancaria_id apontando para esta
--- tabela. Apagar conta usada quebraria histórico. Manter sempre como soft-delete.
--- Cliente reflete essa decisão escondendo o botão "Excluir".
+-- DELETE intencionalmente NAO permitido. Use UPDATE ativo=false (soft delete).
+-- Justificativa: na Fase 2, financas tera conta_bancaria_id apontando para esta
+-- tabela. Apagar conta usada quebraria historico. Manter sempre como soft-delete.
+-- Cliente reflete essa decisao escondendo o botao "Excluir".
 
--- ────────────────────────────────────────────────────────────────────────────
+-- ---------------------------------------------------------------------------
 -- 3. TABELA categorias_financeiras
--- Representa ORIGEM/FINALIDADE do lançamento (mensalidade, ágape, tronco, etc.)
--- Migra (não destrutivamente) o que hoje vive em localStorage.cats_fin.
--- ────────────────────────────────────────────────────────────────────────────
+-- Representa ORIGEM/FINALIDADE do lancamento (mensalidade, agape, tronco, etc.)
+-- Migra (nao destrutivamente) o que hoje vive em localStorage.cats_fin.
+-- ---------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS public.categorias_financeiras (
   id                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   slug               text NOT NULL,                              -- 'mensalidade', 'tronco', etc.
   nome               text NOT NULL,                              -- "Mensalidade"
-  -- natureza: classifica o lançamento estruturalmente
-  --   'operacional'   → mensalidade, joia, ágape, despesas normais (caso comum)
-  --   'transferencia' → transferência entre contas próprias da loja
-  --   'rendimento'    → juros/rendimento de aplicação
-  --   'outros'        → reserva
+  -- natureza: classifica o lancamento estruturalmente
+  --   'operacional'   -> mensalidade, joia, agape, despesas normais (caso comum)
+  --   'transferencia' -> transferencia entre contas proprias da loja
+  --   'rendimento'    -> juros/rendimento de aplicacao
+  --   'outros'        -> reserva
   natureza           text NOT NULL DEFAULT 'operacional'
                      CHECK (natureza IN ('operacional','transferencia','rendimento','outros')),
-  -- tipo: 'receita' / 'despesa' / 'ambos' — para filtro no formulário
+  -- tipo: 'receita' / 'despesa' / 'ambos' - para filtro no formulario
   tipo               text NOT NULL DEFAULT 'ambos'
                      CHECK (tipo IN ('receita','despesa','ambos')),
-  -- Quando FALSE, lançamentos desta categoria NÃO entram no total de
-  -- receita/despesa do período (ex: transferência interna corrente↔poupança).
-  -- Default TRUE (caso comum). Combina com natureza para o cálculo correto.
+  -- Quando FALSE, lancamentos desta categoria NAO entram no total de
+  -- receita/despesa do periodo (ex: transferencia interna corrente <-> poupanca).
+  -- Default TRUE (caso comum). Combina com natureza para o calculo correto.
   impacta_resultado  boolean NOT NULL DEFAULT true,
-  -- Sistema = entregue pela aplicação, não pode ser excluída/desativada de forma
+  -- Sistema = entregue pela aplicacao, nao pode ser excluida/desativada de forma
   -- a quebrar invariantes (controlado no cliente; backend impede DELETE).
   sistema            boolean NOT NULL DEFAULT false,
   ordem              int NOT NULL DEFAULT 100,
@@ -187,13 +188,13 @@ CREATE TABLE IF NOT EXISTS public.categorias_financeiras (
 );
 
 COMMENT ON TABLE public.categorias_financeiras IS
-  'Fase 1 — Origem/finalidade dos lançamentos financeiros. impacta_resultado=false (ex: transferência interna) NÃO entra nos totais.';
+  'Fase 1 - Origem/finalidade dos lancamentos financeiros. impacta_resultado=false (ex: transferencia interna) NAO entra nos totais.';
 COMMENT ON COLUMN public.categorias_financeiras.natureza IS
-  'operacional | transferencia | rendimento | outros — usado por relatórios e DRE para classificação estrutural.';
+  'operacional | transferencia | rendimento | outros - usado por relatorios e DRE para classificacao estrutural.';
 COMMENT ON COLUMN public.categorias_financeiras.impacta_resultado IS
-  'Quando FALSE, lançamentos desta categoria NÃO entram nos totais de receita/despesa do período. Combine com natureza para regras de relatório.';
+  'Quando FALSE, lancamentos desta categoria NAO entram nos totais de receita/despesa do periodo. Combine com natureza para regras de relatorio.';
 COMMENT ON COLUMN public.categorias_financeiras.sistema IS
-  'Quando TRUE, é categoria criada pela aplicação (DELETE bloqueado por policy; UI esconde botões destrutivos).';
+  'Quando TRUE, e categoria criada pela aplicacao (DELETE bloqueado por policy; UI esconde botoes destrutivos).';
 
 CREATE OR REPLACE FUNCTION public._tg_categorias_financeiras_touch()
 RETURNS trigger LANGUAGE plpgsql AS $$
@@ -228,20 +229,22 @@ CREATE POLICY "categorias_financeiras_update"
   USING (public.is_financeiro_editor())
   WITH CHECK (public.is_financeiro_editor());
 
--- DELETE intencionalmente NÃO permitido. Use UPDATE ativo=false (soft delete).
+-- DELETE intencionalmente NAO permitido. Use UPDATE ativo=false (soft delete).
 -- Justificativa: linhas em "financas" guardam o slug da categoria como texto.
--- Apagar categoria não corromperia esses lançamentos, mas perderia histórico de
--- nome/natureza para relatórios. Manter como soft-delete.
--- Categorias "sistema" também não podem ser desativadas pela UI (proteção
--- client-side; backend permite UPDATE mas o cliente esconde o botão).
+-- Apagar categoria nao corromperia esses lancamentos, mas perderia historico de
+-- nome/natureza para relatorios. Manter como soft-delete.
+-- Categorias "sistema" tambem nao podem ser desativadas pela UI (protecao
+-- client-side; backend permite UPDATE mas o cliente esconde o botao).
 
--- ────────────────────────────────────────────────────────────────────────────
--- 4. SEEDS DE CATEGORIAS "SISTEMA" — exigidas pelo plano da Fase 1
--- Estas três categorias são essenciais para a lógica de saldo e conciliação
--- (mesmo nas próximas fases). Por isso entram aqui como categorias sistema.
+-- ---------------------------------------------------------------------------
+-- 4. SEEDS DE CATEGORIAS "SISTEMA" - exigidas pelo plano da Fase 1
+-- Estas tres categorias sao essenciais para a logica de saldo e conciliacao
+-- (mesmo nas proximas fases). Por isso entram aqui como categorias sistema.
 -- As categorias antigas em localStorage.cats_fin continuam funcionando como
--- fallback no cliente — Tesoureiro pode promover via UI quando quiser.
--- ────────────────────────────────────────────────────────────────────────────
+-- fallback no cliente - Tesoureiro pode promover via UI quando quiser.
+--
+-- NOTA: nomes das categorias preservam acentuacao (sao exibidos na UI).
+-- ---------------------------------------------------------------------------
 
 INSERT INTO public.categorias_financeiras
        (slug,                    nome,                    natureza,        tipo,      impacta_resultado, sistema, ordem)
@@ -255,13 +258,13 @@ SET nome               = EXCLUDED.nome,
     impacta_resultado  = EXCLUDED.impacta_resultado,
     sistema            = true;
 
--- NOTA: as duas contas iniciais (Sicoob - Conta Corrente / Poupança)
--- NÃO são inseridas aqui. O Tesoureiro vai cadastrá-las pela UI da Fase 1,
--- conferindo banco/agência/conta e saldo inicial antes de salvar.
+-- NOTA: as duas contas iniciais (Sicoob - Conta Corrente / Poupanca)
+-- NAO sao inseridas aqui. O Tesoureiro vai cadastra-las pela UI da Fase 1,
+-- conferindo banco/agencia/conta e saldo inicial antes de salvar.
 
--- ────────────────────────────────────────────────────────────────────────────
--- 5. ÍNDICES auxiliares
--- ────────────────────────────────────────────────────────────────────────────
+-- ---------------------------------------------------------------------------
+-- 5. INDICES auxiliares
+-- ---------------------------------------------------------------------------
 
 CREATE INDEX IF NOT EXISTS contas_bancarias_ativo_idx
   ON public.contas_bancarias(ativo);
@@ -272,9 +275,9 @@ CREATE INDEX IF NOT EXISTS categorias_financeiras_ativo_idx
 CREATE INDEX IF NOT EXISTS categorias_financeiras_ordem_idx
   ON public.categorias_financeiras(ordem);
 
--- ────────────────────────────────────────────────────────────────────────────
--- 6. VERIFICAÇÃO (read-only) — rode separadamente após o COMMIT
--- ────────────────────────────────────────────────────────────────────────────
+-- ---------------------------------------------------------------------------
+-- 6. VERIFICACAO (read-only) - rode separadamente apos o COMMIT
+-- ---------------------------------------------------------------------------
 -- SELECT 'contas_bancarias' as tabela, count(*) as linhas FROM public.contas_bancarias
 -- UNION ALL
 -- SELECT 'categorias_financeiras', count(*) FROM public.categorias_financeiras;
@@ -297,8 +300,8 @@ CREATE INDEX IF NOT EXISTS categorias_financeiras_ordem_idx
 
 COMMIT;
 
--- ════════════════════════════════════════════════════════════════════════════
--- ROLLBACK (se necessário, dentro da mesma janela do SQL Editor):
+-- ===========================================================================
+-- ROLLBACK (se necessario, dentro da mesma janela do SQL Editor):
 --   BEGIN;
 --   DROP TABLE IF EXISTS public.contas_bancarias       CASCADE;
 --   DROP TABLE IF EXISTS public.categorias_financeiras CASCADE;
@@ -307,4 +310,4 @@ COMMIT;
 --   DROP FUNCTION IF EXISTS public._tg_contas_bancarias_touch()       CASCADE;
 --   DROP FUNCTION IF EXISTS public._tg_categorias_financeiras_touch() CASCADE;
 --   COMMIT;
--- ════════════════════════════════════════════════════════════════════════════
+-- ===========================================================================
