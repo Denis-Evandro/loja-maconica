@@ -3582,10 +3582,11 @@ function renderConfiguracoes() {
     el.innerHTML = accessDenied('Configurações');
     return;
   }
-  const abas = ['loja','assinaturas','bancos','acessos','senhas'];
+  const abas = ['loja','assinaturas','acessos','senhas'];
   const isAdmin = currentRole === 'admin';
-  // Aba "Bancos" — Plano Financeiro Fase 1: visível para Admin, Tesoureiro e Venerável
-  const podeVerBancos = ['admin','tesoureiro','veneravel'].includes(currentRole);
+  // NOTA: a aba "Bancos & Categorias" (Fase 1 do plano financeiro) foi movida
+  // para o painel Finanças porque o Tesoureiro tem `configuracoes:'none'`.
+  // Mantida nada aqui — acesso fica em renderFinancas via abrirBancosCategorias().
   el.innerHTML = `
     <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:20px;flex-wrap:wrap">
       <button id="cfg-aba-loja" onclick="ativarAbaConfig('loja')"
@@ -3595,10 +3596,6 @@ function renderConfiguracoes() {
       <button id="cfg-aba-assinaturas" onclick="ativarAbaConfig('assinaturas')"
         style="padding:10px 22px;border:none;background:none;cursor:pointer;font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.08em;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all 0.15s">
         ✍️ Assinaturas
-      </button>
-      <button id="cfg-aba-bancos" onclick="ativarAbaConfig('bancos')"
-        style="padding:10px 22px;border:none;background:none;cursor:pointer;font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.08em;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all 0.15s;display:${podeVerBancos?'inline-block':'none'}">
-        🏦 Bancos &amp; Categorias
       </button>
       <button id="cfg-aba-acessos" onclick="ativarAbaConfig('acessos')"
         style="padding:10px 22px;border:none;background:none;cursor:pointer;font-family:'Cinzel',serif;font-size:10px;font-weight:700;letter-spacing:0.08em;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all 0.15s">
@@ -3611,7 +3608,6 @@ function renderConfiguracoes() {
     </div>
     <div id="cfg-cont-loja"></div>
     <div id="cfg-cont-assinaturas" style="display:none"></div>
-    <div id="cfg-cont-bancos" style="display:none"></div>
     <div id="cfg-cont-acessos" style="display:none"></div>
     <div id="cfg-cont-senhas" style="display:none"></div>`;
 
@@ -3619,7 +3615,7 @@ function renderConfiguracoes() {
 }
 
 function ativarAbaConfig(aba) {
-  ['loja','assinaturas','bancos','acessos','senhas'].forEach(a => {
+  ['loja','assinaturas','acessos','senhas'].forEach(a => {
     const btn  = document.getElementById(`cfg-aba-${a}`);
     const cont = document.getElementById(`cfg-cont-${a}`);
     const ok   = a === aba;
@@ -3628,7 +3624,6 @@ function ativarAbaConfig(aba) {
   });
   if (aba === 'loja')        renderConfigLoja();
   if (aba === 'assinaturas') renderConfigAssinaturas();
-  if (aba === 'bancos')      renderConfigBancos();
   if (aba === 'acessos')     renderLogAcessos(); // async, fire-and-forget OK aqui
   if (aba === 'senhas')      renderConfSenhas();
 }
@@ -3697,8 +3692,25 @@ async function _reloadCategoriasFin() {
   } catch (e) { console.warn('[reloadCategoriasFin]', e?.message); }
 }
 
-function renderConfigBancos() {
-  const el = document.getElementById('cfg-cont-bancos');
+// Estado do painel Finanças: 'extrato' (default) ou 'bancos' (Bancos & Categorias)
+let _modoFinancas = 'extrato';
+
+function abrirBancosCategorias() {
+  if (!_podeVerBancos()) { toast('⛔ Sem permissão'); return; }
+  _modoFinancas = 'bancos';
+  const acc = ROLES[currentRole]?.access?.['financas'] || 'none';
+  renderFinancas(acc);
+}
+function voltarParaExtratoFinanceiro() {
+  _modoFinancas = 'extrato';
+  const acc = ROLES[currentRole]?.access?.['financas'] || 'none';
+  renderFinancas(acc);
+}
+
+// Render principal de Bancos & Categorias (montado dentro de financas-content
+// quando _modoFinancas === 'bancos'). Substituiu a antiga aba em Configurações.
+function renderBancosCategorias() {
+  const el = document.getElementById('bancos-cat-container');
   if (!el) return;
   if (!_podeVerBancos()) {
     el.innerHTML = accessDenied('Bancos & Categorias');
@@ -3706,6 +3718,11 @@ function renderConfigBancos() {
   }
   const podeEditar = _podeEditarBancos();
   el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <button class="btn" onclick="voltarParaExtratoFinanceiro()" style="padding:6px 14px;font-size:11px">← Voltar ao extrato</button>
+      <div class="fc" style="font-size:11px;font-weight:700;letter-spacing:0.12em;color:var(--navy)">FINANCEIRO › BANCOS &amp; CATEGORIAS</div>
+    </div>
+
     <div style="background:rgba(27,94,160,0.05);border:1px solid rgba(27,94,160,0.2);border-radius:4px;padding:12px 16px;margin-bottom:18px;font-size:12px;color:#1B5EA0;line-height:1.5">
       <strong>📘 Fase 1 — Cadastros básicos.</strong> Aqui você cadastra as contas
       bancárias da loja e as categorias dos lançamentos. Importação de extrato OFX
@@ -7884,6 +7901,17 @@ function salvarDataAtualizacaoFinanceira() {
 }
 
 function renderFinancas(access) {
+  // Sub-modo "Bancos & Categorias" (Fase 1 do plano financeiro). Permite acesso
+  // a Tesoureiro/Venerável/Admin (via _podeVerBancos), mesmo se access==='none'
+  // — porque o gate de "financas" não é o mesmo de "bancos/categorias".
+  if (_modoFinancas === 'bancos' && typeof _podeVerBancos === 'function' && _podeVerBancos()) {
+    document.getElementById('financas-content').innerHTML = `<div id="bancos-cat-container"></div>`;
+    renderBancosCategorias();
+    return;
+  } else if (_modoFinancas === 'bancos') {
+    // Se entrou em modo bancos sem permissão (não deveria), volta ao extrato
+    _modoFinancas = 'extrato';
+  }
   if (access === 'none') { document.getElementById('financas-content').innerHTML = accessDenied('Finanças'); return; }
   const canEdit = access === 'full';
   const hoje = new Date();
@@ -8079,6 +8107,16 @@ function renderFinancas(access) {
     })()}
 
     ${!canEdit ? readOnlyBanner() : ''}
+
+    <!-- Atalho para Bancos & Categorias (Fase 1) — visível para quem pode ver -->
+    ${_podeVerBancos() ? `<div style="margin-bottom:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <button class="btn" onclick="abrirBancosCategorias()" style="display:inline-flex;align-items:center;gap:6px;border-color:var(--navy);color:var(--navy)">
+        🏦 Bancos &amp; Categorias
+      </button>
+      <span style="font-size:11px;color:var(--text-muted);font-style:italic">
+        Cadastre contas bancárias e categorias financeiras${_podeEditarBancos() ? '' : ' (visualização)'}
+      </span>
+    </div>` : ''}
 
     <!-- BOTÕES DE AÇÃO -->
     ${canEdit?`<div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap">

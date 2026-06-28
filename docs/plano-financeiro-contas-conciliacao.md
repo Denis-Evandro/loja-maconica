@@ -93,7 +93,12 @@ financeiro. **Consulte este documento antes de tocar qualquer coisa em
 **Entrega:**
 - Tabela `contas_bancarias` (com RLS).
 - Tabela `categorias_financeiras` (com RLS).
-- CRUD simples em Configurações para ambas (Admin/Tesoureiro editam; Venerável lê).
+- CRUD simples acessado pelo painel **Finanças** (botão "🏦 Bancos & Categorias"
+  no topo do extrato — Admin/Tesoureiro editam; Venerável lê).
+  - **Nota técnica**: inicialmente a aba foi colocada em Configurações, mas o
+    Tesoureiro tem `configuracoes:'none'` no ROLES, o que bloqueava o acesso.
+    A funcionalidade foi movida para Finanças, onde Tesoureiro e Venerável
+    têm `financas:'full'`.
 - Seeds iniciais documentados (não inseridos automaticamente — Tesoureiro
   insere via UI após revisar):
   - Contas: *Sicoob — Conta Corrente*, *Sicoob — Poupança*
