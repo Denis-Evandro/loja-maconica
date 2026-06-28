@@ -7717,7 +7717,18 @@ async function salvarEdicaoLancamento(lancId) {
   const status = document.getElementById('ed-status')?.value || 'pago';
   const membro_id = document.getElementById('ed-membro')?.value || null;
   if (!descricao || !valor || !data) { toast('Preencha os campos obrigatórios'); return; }
-  const res = await sb.from('financas').update({ descricao, valor, tipo, data, categoria, status, membro_id: membro_id||null }).eq('id', lancId);
+
+  // Fase 2: ao mudar a categoria, recalcular categoria_id pelo slug atual.
+  // Garantia: financas.categoria (texto) e financas.categoria_id (FK) sempre
+  // apontam para a mesma categoria. Se o slug nao tiver correspondencia na
+  // tabela, o categoria_id vira NULL (consistente com lancamentos legados).
+  const catBancoEncontrada = (DATA.categorias_financeiras || []).find(c => c.slug === categoria);
+  const novoCategoriaId = catBancoEncontrada ? catBancoEncontrada.id : null;
+  const update = { descricao, valor, tipo, data, categoria, status, membro_id: membro_id||null };
+  // Só envia categoria_id se a tabela existe (evita erro PostgREST pre-Fase-2)
+  if (_categoriasVemDoBanco()) update.categoria_id = novoCategoriaId;
+
+  const res = await sb.from('financas').update(update).eq('id', lancId);
   if (res.error) { toast('Erro: ' + res.error.message); return; }
   toast('✅ Lançamento atualizado');
   fecharModal();
@@ -7765,8 +7776,9 @@ function getCatLabel(c) {
 
 // Fase 2: lista unificada de categorias para o formulário.
 // Prioridade: DATA.categorias_financeiras (banco) > CATEGORIAS_FIN (localStorage legado).
-// Mantém compatibilidade: se a migration Fase 2 não foi aplicada ou a tabela
-// está vazia, o formulário continua funcionando exatamente como antes.
+// Mantém compatibilidade: se a tabela está vazia (raro pós-Fase 1), o formulário
+// volta a usar a lista local — mas o botão "+" e as tags de remoção só são
+// mostrados nesse fallback (ver _categoriasVemDoBanco).
 function _getCategoriasParaForm() {
   const doBanco = (DATA.categorias_financeiras || []).filter(c => c.ativo !== false);
   if (doBanco.length > 0) {
@@ -7776,6 +7788,14 @@ function _getCategoriasParaForm() {
       .map(c => ({ slug: c.slug, nome: c.nome, id: c.id }));
   }
   return CATEGORIAS_FIN.map(c => ({ slug: c, nome: getCatLabel(c), id: null }));
+}
+
+// True quando a lista vem da tabela categorias_financeiras (Fase 1 aplicada).
+// Usado para esconder o botão "+" e as tags de exclusão do localStorage no
+// modal — gestão de categorias passa a ser exclusivamente via
+// "Finanças → Bancos & Categorias".
+function _categoriasVemDoBanco() {
+  return (DATA.categorias_financeiras || []).some(c => c.ativo !== false);
 }
 
 function buildCatOptions(selecionada='') {
@@ -7823,15 +7843,19 @@ function abrirModalLancamento(prefCat='') {
               <select id="f-cat" onchange="toggleCampoSessaoTronco()" style="flex:1;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)">
                 ${buildCatOptions(prefCat)}
               </select>
-              <button type="button" onclick="adicionarCategoria()" title="Nova categoria"
-                style="padding:8px 12px;border:1px solid var(--border-mid);border-radius:3px;background:var(--cream);color:var(--gold-dark);cursor:pointer;font-size:16px">＋</button>
+              ${_categoriasVemDoBanco() ? '' : `<button type="button" onclick="adicionarCategoria()" title="Nova categoria (lista local)"
+                style="padding:8px 12px;border:1px solid var(--border-mid);border-radius:3px;background:var(--cream);color:var(--gold-dark);cursor:pointer;font-size:16px">＋</button>`}
             </div>
-            <div id="cats-tags" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">${CATEGORIAS_FIN.map(c=>`
-              <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:rgba(27,58,107,0.08);border:1px solid rgba(27,58,107,0.2);border-radius:20px;font-size:10px;color:var(--text-mid)">
-                ${getCatLabel(c)}
-                ${c==='mensalidade'||c==='outros'?'':'<span onclick="removerCategoria(\''+c+'\')" style="cursor:pointer;color:var(--red);font-size:11px;margin-left:2px">×</span>'}
-              </span>`).join('')}
-            </div>
+            ${_categoriasVemDoBanco()
+              ? `<div style="font-size:11px;color:var(--text-muted);font-style:italic;margin-top:6px;padding:6px 10px;background:rgba(27,58,107,0.04);border-left:3px solid var(--navy);border-radius:3px">
+                  Para criar/editar categorias, vá em <strong>Finanças → 🏦 Bancos &amp; Categorias</strong>.
+                </div>`
+              : `<div id="cats-tags" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">${CATEGORIAS_FIN.map(c=>`
+                  <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:rgba(27,58,107,0.08);border:1px solid rgba(27,58,107,0.2);border-radius:20px;font-size:10px;color:var(--text-mid)">
+                    ${getCatLabel(c)}
+                    ${c==='mensalidade'||c==='outros'?'':'<span onclick="removerCategoria(\''+c+'\')" style="cursor:pointer;color:var(--red);font-size:11px;margin-left:2px">×</span>'}
+                  </span>`).join('')}
+                </div>`}
           </div>
 
           <!-- Campo de sessão — aparece só quando categoria = tronco -->

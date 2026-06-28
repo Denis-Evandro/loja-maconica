@@ -147,15 +147,34 @@ nenhum lançamento existente nem o fluxo atual de criação.
 2. **Cliente (`index.html`)**:
    - Modal "Novo Lançamento" passa a montar o select de categoria a partir de
      `DATA.categorias_financeiras` (apenas ativas, ordenadas por `ordem`).
-     **Fallback**: se a tabela estiver vazia (migration não aplicada), continua
-     usando `CATEGORIAS_FIN` do localStorage como hoje.
+     **Fallback raro**: se a tabela estiver vazia (cenário só possível antes
+     da Fase 1, que já está aplicada em produção), continua usando
+     `CATEGORIAS_FIN` do localStorage. É *dead-code defensivo*, não caminho
+     operacional.
+   - Botão "+" e tags de "remover categoria" do localStorage ficam **escondidos**
+     quando a lista vem do banco. No lugar, mensagem orientando ir em
+     **Finanças → Bancos & Categorias** para cadastrar/editar.
    - Novo select opcional **"Conta Bancária"** — lista contas ativas
      (`DATA.contas_bancarias.filter(c => c.ativo)`). Vazio por padrão.
    - `salvarLancamento`: inclui `categoria_id` (resolvido pelo slug) e
      `conta_bancaria_id` (do select) no payload. Mantém `categoria` (texto)
      redundante para compatibilidade com código antigo.
+   - `salvarEdicaoLancamento`: recalcula `categoria_id` pelo slug atual quando
+     o Tesoureiro muda a categoria, garantindo que `categoria` (texto) e
+     `categoria_id` (FK) **nunca divirjam**.
    - Filtros, relatórios e cálculos atuais **não mudam** — continuam usando
      `categoria` (string).
+
+3. **Invariante de deploy** (CRÍTICO):
+   - A migration `2026-06-28-fase2-vinculo-financas.sql` **DEVE** ser aplicada
+     no Supabase **ANTES** do merge do PR / publicação do `index.html` desta fase.
+   - Motivo: o cliente novo envia `categoria_id` e `conta_bancaria_id` no
+     INSERT/UPDATE de `financas`. Sem as colunas, o PostgREST devolve
+     `Could not find the 'categoria_id' column of 'financas' in the schema
+     cache` e o lançamento falha para o usuário final.
+   - Ordem segura: (1) snapshot/backup → (2) aplicar SQL via SQL Editor →
+     (3) rodar queries do bloco de verificação → (4) merge do PR →
+     (5) GitHub Pages republica o cliente.
 
 **Fora de escopo desta fase:**
 - Forçar `categoria_id NOT NULL` (futuro, após backfill total e migração de UI).
@@ -169,8 +188,9 @@ nenhum lançamento existente nem o fluxo atual de criação.
 - Backfill é idempotente e não destrutivo (`WHERE categoria_id IS NULL`).
 - Soft delete preservado: FKs usam `ON DELETE SET NULL` (não bloqueiam delete
   futuro de conta/categoria, embora a Fase 1 já proíba delete por policy).
-- Cliente tolera ausência de `DATA.categorias_financeiras`/`DATA.contas_bancarias`
-  (fallback ao comportamento legado).
+- `salvarEdicaoLancamento` só envia `categoria_id` se `_categoriasVemDoBanco()`
+  (defesa parcial). `salvarLancamento` envia sempre — a invariante de deploy
+  acima é o que garante a integridade.
 
 ### Fase 3 — Importação OFX do Sicoob *(planejada)*
 
@@ -268,6 +288,11 @@ nenhum lançamento existente nem o fluxo atual de criação.
    policies da Fase 1 omitem `FOR DELETE` propositadamente. UI esconde botões
    destrutivos. Razão: na Fase 2, `financas.conta_bancaria_id` apontará para
    `contas_bancarias`; apagar conta usada destruiria histórico.
+10. **Ordem de deploy:** quando uma fase adiciona colunas em `financas` que
+    o cliente novo passa a enviar (Fase 2 em diante), a **migration entra
+    ANTES** do merge/deploy do `index.html` correspondente. Não há
+    compatibilidade "cliente novo + DB antigo" no caminho de criação de
+    lançamento — o PostgREST rejeita colunas inexistentes.
 
 ---
 
@@ -312,3 +337,4 @@ Resumo:
 | 2026-06-28 | 1 | C1 corrigido: UI movida de Configurações para Finanças (Tesoureiro bloqueado por `configuracoes:'none'`) — commit `e7a7d36` | Denis + Claude |
 | 2026-06-28 | 1 | Migration aplicada em produção (Supabase) | Denis |
 | 2026-06-28 | 2 | Iniciada — branch `fase2-vinculo-financas-bancos-categorias` | Denis + Claude |
+| 2026-06-28 | 2 | Revisão pré-merge: botão "+" de categoria escondido quando vier do banco; `salvarEdicaoLancamento` recalcula `categoria_id`; invariante #10 de ordem de deploy registrada | Denis + Claude |
