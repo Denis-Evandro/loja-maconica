@@ -97,7 +97,8 @@ CREATE TABLE IF NOT EXISTS public.importacoes_ofx (
   CONSTRAINT importacoes_ofx_erros_ck    CHECK (total_erros      >= 0),
   CONSTRAINT importacoes_ofx_totais_ck   CHECK (
     total_inseridas + total_duplicadas + total_erros = total_linhas
-  )
+  ),
+  CONSTRAINT importacoes_ofx_hash_len_ck CHECK (length(arquivo_hash) = 64)
 );
 
 -- FKs em bloco DO para permitir reexecucao sem erro
