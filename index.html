@@ -7515,9 +7515,11 @@ async function salvarLancamento() {
 
   if (!descricao || !valor || !data) { toast('Preencha todos os campos obrigatórios'); return; }
 
-  // Fase 3A: data_vencimento padrão = data. Se o usuário preencheu manualmente,
-  // usa o valor dele; caso contrário, espelha 'data' (vencimento = data efetiva).
-  const data_vencimento = dataVencInput || data;
+  // Fase 3A: data_vencimento depende da flag de auto-sync.
+  // - Se o usuário tocou em f-data-venc (_dataVencTocado=true) e há valor, usa.
+  // - Caso contrário, espelha 'data' (que pode ter sido reescrita pelo bloco
+  //   do Tronco logo acima — daí o cálculo só agora, após esse ajuste).
+  const data_vencimento = (_dataVencTocado && dataVencInput) ? dataVencInput : data;
 
   // Monta um payload base reutilizado nas parcelas. Adiciona categoria_id,
   // conta_bancaria_id e forma_pagamento apenas quando preenchidos — payload limpo.
@@ -7956,7 +7958,7 @@ function abrirModalLancamento(prefCat='') {
             <div><label class="lbl">Valor (R$) *</label>
               <input id="f-valor" type="number" step="0.01" min="0" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"></div>
             <div><label class="lbl">Data *</label>
-              <input id="f-data-fin" type="date" value="${hoje}" oninput="_onChangeDataLancamento()" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"></div>
+              <input id="f-data-fin" type="date" value="${hoje}" oninput="_onChangeDataLancamento()" onchange="_onChangeDataLancamento()" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"></div>
           </div>
           <div>
             <label class="lbl">Categoria</label>
