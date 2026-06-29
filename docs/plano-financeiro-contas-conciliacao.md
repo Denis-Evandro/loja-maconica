@@ -22,7 +22,7 @@ financeiro. **Consulte este documento antes de tocar qualquer coisa em
   PDF fica apenas como conferência humana.
 
 ### Perfis / permissões
-- Importação e conciliação (fases 3+) **apenas para Tesoureiro e Administrador**.
+- Importação OFX e conciliação (Fase 4+) **apenas para Tesoureiro e Administrador**.
 - CRUD de contas bancárias e categorias financeiras (Fase 1):
   - **Editar**: Admin e Tesoureiro.
   - **Visualizar**: Venerável (pode ver para fins de relatório).
@@ -106,11 +106,10 @@ financeiro. **Consulte este documento antes de tocar qualquer coisa em
 - Soft delete (sem policy `FOR DELETE`).
 
 **Status:** migration `docs/migrations/2026-06-27-fase1-contas-categorias.sql`
-**aplicada no Supabase em 2026-06-28**. PR #1 (branch
-`fase1-contas-bancarias-categorias`) pendente de merge em `master` no momento
-em que a Fase 2 começa — ambas as fases serão mergeadas em ordem.
+**aplicada no Supabase em 2026-06-28**. PR #1 mergeado em `master`. Fase 1
+em produção.
 
-### Fase 2 — Vínculo de categoria/conta no lançamento *(em execução agora)*
+### Fase 2 — Vínculo de categoria/conta no lançamento *(CONCLUÍDA em 2026-06-28)*
 
 **Objetivo:** fazer `financas` referenciar as tabelas da Fase 1 sem quebrar
 nenhum lançamento existente nem o fluxo atual de criação.
@@ -192,6 +191,10 @@ nenhum lançamento existente nem o fluxo atual de criação.
   (defesa parcial). `salvarLancamento` envia sempre — a invariante de deploy
   acima é o que garante a integridade.
 
+**Status:** migration `docs/migrations/2026-06-28-fase2-vinculo-financas.sql`
+**aplicada no Supabase em 2026-06-28**. PR #2 mergeado em `master`. Fase 2
+em produção.
+
 ### Fase 3 — UX operacional do extrato *(CONCLUÍDA em 2026-06-29)*
 
 **Objetivo:** tornar o extrato de lançamentos operacional para o Tesoureiro
@@ -252,9 +255,8 @@ esperado e documentado.
 - Nenhuma mudança em "Meu Financeiro" do irmão nem nos relatórios formais.
 - Sem backfill automático de lançamentos antigos.
 
-**Status:** PRs #3 (3A) e #4 (3B) mergeados em `master`. GitHub Pages
-publicou. Branches `fase3a-forma-pagamento-vencimento` e
-`fase3b-filtros-extrato-financeiro` preservadas no remoto para histórico.
+**Status:** PRs #3 e #4 mergeados em `master`; Fase 3 validada
+funcionalmente em produção.
 
 ### Fase 4 — Importação OFX do Sicoob *(planejada)*
 
@@ -363,15 +365,24 @@ publicou. Branches `fase3a-forma-pagamento-vencimento` e
 ## 5. Como o financeiro funciona hoje (referência rápida)
 
 Detalhado em `docs/HISTORICO.md` e na auditoria feita em 2026-06-27.
-Resumo:
-- Tabela única: `financas` (id, descricao, valor, tipo, data, categoria,
-  status, membro_id).
-- Categorias em `localStorage.cats_fin` (será gradualmente migrado para
-  `categorias_financeiras` da Fase 1).
+Resumo atualizado após Fases 1–3:
+- Tabela `financas` (id, descricao, valor, tipo, data, categoria, status,
+  membro_id) **+ vínculos opcionais nullable** adicionados na Fase 2:
+  `categoria_id`, `conta_bancaria_id`, `forma_pagamento`,
+  `identificador_externo`, `data_vencimento`.
+- Categorias agora vêm de `categorias_financeiras` (Fase 1); o
+  `localStorage.cats_fin` permanece como fallback defensivo, dead-code
+  no caminho operacional.
 - "Saldo Bancário" no painel é cálculo virtual `receitas pagas - despesas pagas`
-  excluindo `categoria='tronco'`.
-- Sem conceito de conta bancária, extrato OFX, conciliação ou FITID.
-- `fechamentos_mensais` em localStorage (fase 6 migrará).
+  excluindo `categoria='tronco'` (inalterado pelas Fases 1–3).
+- O modal "Novo Lançamento" e a edição já gravam `forma_pagamento`,
+  `data_vencimento` e `conta_bancaria_id` (Fase 3). O extrato tem filtros
+  por conta, forma e situação de vencimento e mostra sublinha cinza
+  `conta · forma · vencimento`.
+- **Ainda não existe** importação OFX, tabela de extrato bancário, painel
+  de conciliação ou uso operacional de FITID (Fase 4+).
+- `fechamentos_mensais` em localStorage (Fase 7 migrará para tabela com
+  trava server-side).
 
 ---
 
