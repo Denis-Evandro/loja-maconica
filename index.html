@@ -7493,6 +7493,14 @@ async function salvarLancamento() {
   const parcelado = document.getElementById('f-parcelado')?.checked;
   const nParcelas = parseInt(document.getElementById('f-parcelas')?.value)||1;
 
+  // Fase 2: extras opcionais. categoria_id é resolvido a partir do slug
+  // selecionado consultando DATA.categorias_financeiras (não usa data-attribute
+  // do select porque setPresetCategoria/scripts antigos podem manipular o value
+  // sem refletir o data-id).
+  const catBancoEncontrada = (DATA.categorias_financeiras || []).find(c => c.slug === categoria);
+  const categoria_id = catBancoEncontrada?.id || null;
+  const conta_bancaria_id = document.getElementById('f-conta-bancaria')?.value || null;
+
   // Se tronco, validar sessão e usar data da sessão
   if (categoria === 'tronco') {
     const sessaoSel = document.getElementById('f-sessao-tronco');
@@ -7502,6 +7510,15 @@ async function salvarLancamento() {
   }
 
   if (!descricao || !valor || !data) { toast('Preencha todos os campos obrigatórios'); return; }
+
+  // Monta um payload base reutilizado nas parcelas. Adiciona categoria_id e
+  // conta_bancaria_id apenas quando preenchidos — payload limpo.
+  const payloadBase = {
+    descricao, valor, tipo, data, categoria, status,
+    membro_id: membro_id || null,
+    ...(categoria_id ? { categoria_id } : {}),
+    ...(conta_bancaria_id ? { conta_bancaria_id } : {})
+  };
 
   let inserts;
   if (parcelado && nParcelas > 1) {
@@ -7518,10 +7535,14 @@ async function salvarLancamento() {
       // Usar o dia original ou o ultimo dia do mes (o que for menor)
       const diaReal = Math.min(dia, ultimoDia);
       const dStr = `${anoAlvo}-${String(mesAlvo).padStart(2,'0')}-${String(diaReal).padStart(2,'0')}`;
-      return { descricao: `${descricao} (${i+1}/${nParcelas})`, valor: valorParc, tipo, data: dStr, categoria, status, membro_id: membro_id||null };
+      return { ...payloadBase,
+        descricao: `${descricao} (${i+1}/${nParcelas})`,
+        valor: valorParc,
+        data: dStr
+      };
     });
   } else {
-    inserts = [{ descricao, valor, tipo, data, categoria, status, membro_id: membro_id||null }];
+    inserts = [payloadBase];
   }
 
   const res = await sb.from('financas').insert(inserts);
@@ -7696,7 +7717,18 @@ async function salvarEdicaoLancamento(lancId) {
   const status = document.getElementById('ed-status')?.value || 'pago';
   const membro_id = document.getElementById('ed-membro')?.value || null;
   if (!descricao || !valor || !data) { toast('Preencha os campos obrigatórios'); return; }
-  const res = await sb.from('financas').update({ descricao, valor, tipo, data, categoria, status, membro_id: membro_id||null }).eq('id', lancId);
+
+  // Fase 2: ao mudar a categoria, recalcular categoria_id pelo slug atual.
+  // Garantia: financas.categoria (texto) e financas.categoria_id (FK) sempre
+  // apontam para a mesma categoria. Se o slug nao tiver correspondencia na
+  // tabela, o categoria_id vira NULL (consistente com lancamentos legados).
+  const catBancoEncontrada = (DATA.categorias_financeiras || []).find(c => c.slug === categoria);
+  const novoCategoriaId = catBancoEncontrada ? catBancoEncontrada.id : null;
+  const update = { descricao, valor, tipo, data, categoria, status, membro_id: membro_id||null };
+  // Só envia categoria_id se a tabela existe (evita erro PostgREST pre-Fase-2)
+  if (_categoriasVemDoBanco()) update.categoria_id = novoCategoriaId;
+
+  const res = await sb.from('financas').update(update).eq('id', lancId);
   if (res.error) { toast('Erro: ' + res.error.message); return; }
   toast('✅ Lançamento atualizado');
   fecharModal();
@@ -7742,8 +7774,47 @@ function getCatLabel(c) {
   return map[c] || c.charAt(0).toUpperCase()+c.slice(1);
 }
 
+// Fase 2: lista unificada de categorias para o formulário.
+// Prioridade: DATA.categorias_financeiras (banco) > CATEGORIAS_FIN (localStorage legado).
+// Mantém compatibilidade: se a tabela está vazia (raro pós-Fase 1), o formulário
+// volta a usar a lista local — mas o botão "+" e as tags de remoção só são
+// mostrados nesse fallback (ver _categoriasVemDoBanco).
+function _getCategoriasParaForm() {
+  const doBanco = (DATA.categorias_financeiras || []).filter(c => c.ativo !== false);
+  if (doBanco.length > 0) {
+    return doBanco
+      .slice()
+      .sort((a,b) => (a.ordem||100) - (b.ordem||100) || (a.nome||'').localeCompare(b.nome||''))
+      .map(c => ({ slug: c.slug, nome: c.nome, id: c.id }));
+  }
+  return CATEGORIAS_FIN.map(c => ({ slug: c, nome: getCatLabel(c), id: null }));
+}
+
+// True quando a lista vem da tabela categorias_financeiras (Fase 1 aplicada).
+// Usado para esconder o botão "+" e as tags de exclusão do localStorage no
+// modal — gestão de categorias passa a ser exclusivamente via
+// "Finanças → Bancos & Categorias".
+function _categoriasVemDoBanco() {
+  return (DATA.categorias_financeiras || []).some(c => c.ativo !== false);
+}
+
 function buildCatOptions(selecionada='') {
-  return CATEGORIAS_FIN.map(c=>`<option value="${c}" ${c===selecionada?'selected':''}>${getCatLabel(c)}</option>`).join('');
+  return _getCategoriasParaForm()
+    .map(c => `<option value="${c.slug}" data-cat-id="${c.id||''}" ${c.slug===selecionada?'selected':''}>${c.nome}</option>`)
+    .join('');
+}
+
+// Fase 2: opções de Conta Bancária para o formulário (apenas ativas).
+// Se a tabela estiver vazia (Fase 1 não aplicada), retorna string vazia —
+// o bloco visual da conta também esconde.
+function _buildContasOptions(selecionada='') {
+  const ativas = (DATA.contas_bancarias || []).filter(c => c.ativo);
+  return ativas.map(c =>
+    `<option value="${c.id}" ${c.id===selecionada?'selected':''}>${c.nome}</option>`
+  ).join('');
+}
+function _temContasBancarias() {
+  return (DATA.contas_bancarias || []).some(c => c.ativo);
 }
 
 function abrirModalLancamento(prefCat='') {
@@ -7772,15 +7843,19 @@ function abrirModalLancamento(prefCat='') {
               <select id="f-cat" onchange="toggleCampoSessaoTronco()" style="flex:1;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)">
                 ${buildCatOptions(prefCat)}
               </select>
-              <button type="button" onclick="adicionarCategoria()" title="Nova categoria"
-                style="padding:8px 12px;border:1px solid var(--border-mid);border-radius:3px;background:var(--cream);color:var(--gold-dark);cursor:pointer;font-size:16px">＋</button>
+              ${_categoriasVemDoBanco() ? '' : `<button type="button" onclick="adicionarCategoria()" title="Nova categoria (lista local)"
+                style="padding:8px 12px;border:1px solid var(--border-mid);border-radius:3px;background:var(--cream);color:var(--gold-dark);cursor:pointer;font-size:16px">＋</button>`}
             </div>
-            <div id="cats-tags" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">${CATEGORIAS_FIN.map(c=>`
-              <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:rgba(27,58,107,0.08);border:1px solid rgba(27,58,107,0.2);border-radius:20px;font-size:10px;color:var(--text-mid)">
-                ${getCatLabel(c)}
-                ${c==='mensalidade'||c==='outros'?'':'<span onclick="removerCategoria(\''+c+'\')" style="cursor:pointer;color:var(--red);font-size:11px;margin-left:2px">×</span>'}
-              </span>`).join('')}
-            </div>
+            ${_categoriasVemDoBanco()
+              ? `<div style="font-size:11px;color:var(--text-muted);font-style:italic;margin-top:6px;padding:6px 10px;background:rgba(27,58,107,0.04);border-left:3px solid var(--navy);border-radius:3px">
+                  Para criar/editar categorias, vá em <strong>Finanças → 🏦 Bancos &amp; Categorias</strong>.
+                </div>`
+              : `<div id="cats-tags" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">${CATEGORIAS_FIN.map(c=>`
+                  <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:rgba(27,58,107,0.08);border:1px solid rgba(27,58,107,0.2);border-radius:20px;font-size:10px;color:var(--text-mid)">
+                    ${getCatLabel(c)}
+                    ${c==='mensalidade'||c==='outros'?'':'<span onclick="removerCategoria(\''+c+'\')" style="cursor:pointer;color:var(--red);font-size:11px;margin-left:2px">×</span>'}
+                  </span>`).join('')}
+                </div>`}
           </div>
 
           <!-- Campo de sessão — aparece só quando categoria = tronco -->
@@ -7804,6 +7879,18 @@ function abrirModalLancamento(prefCat='') {
               <option value="agendado">📅 Agendado</option>
               <option value="aberto">⚠️ Em Aberto</option>
             </select></div>
+
+          <!-- Conta Bancaria (opcional) - Fase 2 -->
+          ${_temContasBancarias() ? `<div>
+            <label class="lbl">Conta Bancária <span style="font-weight:400;color:var(--text-muted);font-size:11px">(opcional)</span></label>
+            <select id="f-conta-bancaria" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)">
+              <option value="">— Não vincular —</option>
+              ${_buildContasOptions()}
+            </select>
+            <div style="font-size:10px;color:var(--text-muted);font-style:italic;margin-top:3px">
+              Indique onde o dinheiro saiu/entrou. Pode deixar em branco e vincular depois.
+            </div>
+          </div>` : ''}
 
           <!-- Parcelamento -->
           <div style="background:rgba(27,58,107,0.04);border:1px solid rgba(27,58,107,0.15);border-radius:4px;padding:14px 16px">
