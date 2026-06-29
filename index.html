@@ -7878,10 +7878,13 @@ function _labelFormaPagamento(slug) {
 }
 
 // Retorna <option>s para o select de forma de pagamento.
-// Inclui um item vazio ("— Não informar —") sempre como primeiro.
+// - selecionada: slug atualmente selecionado (default vazio)
+// - incluirVazio: quando true (default), prefixa com "— Não informar —" para
+//   uso em modais de criação/edição. Quando false (filtro do extrato), omite
+//   esse item porque o select de filtro já tem o seu próprio "Todas as formas".
 // Se houver um valor "selecionada" fora da lista canônica (legado/SQL
 // manual), adiciona um <option> extra ao final para não perder o dado.
-function _buildFormaPagamentoOptions(selecionada='') {
+function _buildFormaPagamentoOptions(selecionada='', incluirVazio=true) {
   const sel = selecionada || '';
   const itens = _FORMAS_PAGAMENTO.map(f =>
     `<option value="${f.slug}" ${f.slug===sel?'selected':''}>${f.label}</option>`
@@ -7890,7 +7893,10 @@ function _buildFormaPagamentoOptions(selecionada='') {
   const extra = (sel && !naLista)
     ? `<option value="${_esc(sel)}" selected>${_esc(sel)} (legado)</option>`
     : '';
-  return `<option value="" ${!sel?'selected':''}>— Não informar —</option>${itens}${extra}`;
+  const vazio = incluirVazio
+    ? `<option value="" ${!sel?'selected':''}>— Não informar —</option>`
+    : '';
+  return `${vazio}${itens}${extra}`;
 }
 
 // Nome da conta bancária por id, ou string vazia se não encontrar.
@@ -7918,6 +7924,107 @@ function _detalhesFinanceirosLinha(lanc) {
   if (vencRaw)   partes.push('Venc ' + fmtData(vencRaw));
   if (!partes.length) return '';
   return `<div style="font-size:10px;color:var(--text-muted);margin-top:2px;font-style:italic">${partes.join(' · ')}</div>`;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// FASE 3B — filtros do extrato (conta/forma/vencimento), helper único de
+// linha do extrato e helper de status de vencimento.
+// Não toca em saldos/inadimplência/previsão/gráficos/relatórios formais.
+// ══════════════════════════════════════════════════════════════════════════
+
+// Status de vencimento — usado apenas no filtro do extrato e no CSV/impressão.
+// Comparação como string 'YYYY-MM-DD' (sem Date) para evitar bug de timezone.
+// Regra: lançamento 'pago' NUNCA é vencido (foi quitado).
+function _calcularStatusVencimento(lanc) {
+  if ((lanc.status || 'pago') === 'pago') return 'pago';
+  if (!lanc.data_vencimento) return 'sem_vencimento';
+  const hojeStr = new Date().toISOString().slice(0,10);
+  const venc = lanc.data_vencimento;
+  if (venc < hojeStr) return 'vencido';
+  if (venc === hojeStr) return 'vence_hoje';
+  return 'a_vencer';
+}
+
+// Badge HTML padronizado para status — consolidando o que estava duplicado em
+// buildRows (renderFinancas) e em filtrarExtrato. Não exportar para fora do
+// escopo do extrato (relatórios formais têm suas próprias badges).
+function _statusBadgeExtrato(s) {
+  const map = {
+    pago:     {label:'✅ Pago',     color:'var(--green)', bg:'var(--green-bg)'},
+    agendado: {label:'📅 Agendado', color:'#1B5EA0',      bg:'rgba(27,94,160,0.1)'},
+    aberto:   {label:'⚠️ Aberto',  color:'var(--red)',   bg:'var(--red-bg)'}
+  };
+  const b = map[s||'pago'] || map.pago;
+  return `<span class="badge" style="color:${b.color};background:${b.bg};border-color:${b.color}22">${b.label}</span>`;
+}
+
+// Helper ÚNICO de linha do extrato. Usado em buildRows (render inicial) e em
+// filtrarExtrato (re-render após filtro). Inclui a sublinha cinza da 3A
+// (conta · forma · vencimento) via _detalhesFinanceirosLinha.
+function _buildRowExtrato(l) {
+  const mb = DATA.membros.find(m => m.id === l.membro_id);
+  const isRec = l.tipo === 'receita';
+  const subDetalhes = _detalhesFinanceirosLinha(l);
+  const valStyle = `color:${isRec?'var(--green)':'var(--red)'};font-weight:600`;
+  const tipoStyle = `color:${isRec?'var(--green)':'var(--red)'};background:${isRec?'var(--green-bg)':'var(--red-bg)'}`;
+  return `<tr>
+    <td>${fmtData(l.data)}</td>
+    <td>${l.descricao||'—'}${mb?`<br><span style="font-size:10px;color:var(--text-muted)">${_esc(mb.nome_maconico)}</span>`:''}${subDetalhes}</td>
+    <td style="font-size:11px;color:var(--text-muted)">${getCatLabel(l.categoria)||'—'}</td>
+    <td style="${valStyle}">${isRec?'+':'-'}${fmtVal(l.valor)}</td>
+    <td><span class="badge" style="${tipoStyle}">${isRec?'↑ Rec':'↓ Desp'}</span></td>
+    <td>${_statusBadgeExtrato(l.status)}</td>
+    <td style="display:flex;gap:3px">
+      <button class="btn" style="padding:2px 7px;font-size:10px" onclick="abrirModalEditarLancamento('${l.id}')">✏️</button>
+      <button class="btn" style="padding:2px 7px;font-size:10px;color:var(--red)" onclick="excluirLancamento('${l.id}')">🗑️</button>
+    </td>
+  </tr>`;
+}
+
+// Aplica todos os filtros do extrato sobre uma lista. Comportamento default
+// (todos vazios) = mês corrente + pendências de meses anteriores em status
+// agendado/aberto, mesmo critério usado hoje em renderFinancas e filtrarExtrato.
+function _aplicarFiltrosExtrato(lancs, filtros) {
+  const { irmao, tipo, cat, status, dataIni, dataFim, conta, forma, vencimento } = filtros;
+  // Default só dispara se TODOS os filtros estiverem vazios.
+  const todosVazios = !irmao && !tipo && !cat && !status && !dataIni && !dataFim
+                   && !conta && !forma && !vencimento;
+  let out = lancs;
+  if (todosVazios) {
+    const hoje = new Date();
+    const anoAtual = hoje.getFullYear();
+    const mesAtual = String(hoje.getMonth()+1).padStart(2,'0');
+    const inicioMes = `${anoAtual}-${mesAtual}-01`;
+    out = out.filter(l =>
+      l.data?.startsWith(`${anoAtual}-${mesAtual}`) ||
+      (l.data < inicioMes && (l.status === 'agendado' || l.status === 'aberto'))
+    );
+  }
+  if (irmao)   out = out.filter(l => l.membro_id === irmao);
+  if (tipo)    out = out.filter(l => l.tipo === tipo);
+  if (cat)     out = out.filter(l => l.categoria === cat);
+  if (status)  out = out.filter(l => (l.status || 'pago') === status);
+  if (dataIni) out = out.filter(l => l.data >= dataIni);
+  if (dataFim) out = out.filter(l => l.data <= dataFim);
+  if (conta)   out = out.filter(l => l.conta_bancaria_id === conta);
+  if (forma)   out = out.filter(l => (l.forma_pagamento || '') === forma);
+  if (vencimento) out = out.filter(l => _calcularStatusVencimento(l) === vencimento);
+  return out;
+}
+
+// Lê os 9 filtros do DOM. Centraliza para impressão, CSV e re-render.
+function _lerFiltrosExtrato() {
+  return {
+    irmao:      document.getElementById('fin-filtro-irmao')?.value      || '',
+    tipo:       document.getElementById('fin-filtro-tipo')?.value       || '',
+    cat:        document.getElementById('fin-filtro-cat')?.value        || '',
+    status:     document.getElementById('fin-filtro-status')?.value     || '',
+    dataIni:    document.getElementById('fin-filtro-ini')?.value        || '',
+    dataFim:    document.getElementById('fin-filtro-fim')?.value        || '',
+    conta:      document.getElementById('fin-filtro-conta')?.value      || '',
+    forma:      document.getElementById('fin-filtro-forma')?.value      || '',
+    vencimento: document.getElementById('fin-filtro-vencimento')?.value || ''
+  };
 }
 
 // Sincronização automática data_vencimento <- data no modal de novo lançamento.
@@ -8270,28 +8377,13 @@ function renderFinancas(access) {
   const opsMembros = DATA.membros.map(m=>`<option value="${m.id}">${m.nome_maconico}</option>`).join('');
   const opsCats = `<option value="">Todas as categorias</option>${CATEGORIAS_FIN.map(c=>`<option value="${c}">${getCatLabel(c)}</option>`).join('')}`;
 
+  // Fase 3B: usa o helper único _buildRowExtrato para garantir que linha
+  // renderizada no carregamento e linha re-renderizada após filtro sejam
+  // idênticas (corrige inconsistência herdada da 3A onde filtrarExtrato
+  // perdia a sublinha conta · forma · vencimento).
   const buildRows = (lista) => lista.length === 0
     ? `<tr><td colspan="7" style="text-align:center;padding:24px;font-style:italic;color:var(--text-muted)">Nenhum lançamento.</td></tr>`
-    : lista.slice(0,60).map(l => {
-        const mb = DATA.membros.find(m=>m.id===l.membro_id);
-        const isRec = l.tipo==='receita';
-        // Fase 3A: sublinha cinza compacta com conta · forma · vencimento.
-        // _detalhesFinanceirosLinha já faz escape com _esc e retorna '' se
-        // nenhum dos 3 campos novos estiver preenchido.
-        const subDetalhes = _detalhesFinanceirosLinha(l);
-        return `<tr>
-          <td>${fmtData(l.data)}</td>
-          <td>${l.descricao||'—'}${mb?`<br><span style="font-size:10px;color:var(--text-muted)">${mb.nome_maconico}</span>`:''}${subDetalhes}</td>
-          <td style="font-size:11px;color:var(--text-muted)">${getCatLabel(l.categoria)||'—'}</td>
-          <td style="color:${isRec?'var(--green)':'var(--red)'};font-weight:600">${isRec?'+':'-'}${fmtVal(l.valor)}</td>
-          <td><span class="badge" style="color:${isRec?'var(--green)':'var(--red)'};background:${isRec?'var(--green-bg)':'var(--red-bg)'}">${isRec?'↑ Rec':'↓ Desp'}</span></td>
-          <td>${statusBadgeHtml(l.status)}</td>
-          <td style="display:flex;gap:3px">
-            <button class="btn" style="padding:2px 7px;font-size:10px" onclick="abrirModalEditarLancamento('${l.id}')">✏️</button>
-            <button class="btn" style="padding:2px 7px;font-size:10px;color:var(--red)" onclick="excluirLancamento('${l.id}')">🗑️</button>
-          </td>
-        </tr>`;
-      }).join('');
+    : lista.slice(0,60).map(_buildRowExtrato).join('');
 
   // ── Gráfico histórico — ano corrente ou período customizado ─────
   const anoGrafico  = window._anoGraficoFin || anoAtual;
@@ -8663,11 +8755,20 @@ function renderFinancas(access) {
           <select id="fin-filtro-tipo" onchange="filtrarExtrato()" ${inp}><option value="">Todos os tipos</option><option value="receita">Receitas</option><option value="despesa">Despesas</option></select>
           <select id="fin-filtro-cat" onchange="filtrarExtrato()" ${inp}>${opsCats}</select>
           <select id="fin-filtro-status" onchange="filtrarExtrato()" ${inp}><option value="">Todos status</option><option value="pago">✅ Pago</option><option value="agendado">📅 Agendado</option><option value="aberto">⚠️ Aberto</option></select>
+          ${_temContasBancarias() ? `<select id="fin-filtro-conta" onchange="filtrarExtrato()" ${inp}><option value="">Todas as contas</option>${_buildContasOptions()}</select>` : '<input type="hidden" id="fin-filtro-conta" value="">'}
+          <select id="fin-filtro-forma" onchange="filtrarExtrato()" ${inp}><option value="">Todas as formas</option>${_buildFormaPagamentoOptions('', false)}</select>
+          <select id="fin-filtro-vencimento" onchange="filtrarExtrato()" ${inp}>
+            <option value="">Todos vencimentos</option>
+            <option value="vencido">⚠️ Vencidos</option>
+            <option value="vence_hoje">📅 Vence hoje</option>
+            <option value="a_vencer">⏳ A vencer</option>
+            <option value="sem_vencimento">— Sem vencimento</option>
+          </select>
           <span style="font-size:11px;color:var(--text-muted);white-space:nowrap">De:</span>
           <input type="date" id="fin-filtro-ini" onchange="filtrarExtrato()" title="Data início" ${inp}>
           <span style="font-size:11px;color:var(--text-muted);white-space:nowrap">Até:</span>
           <input type="date" id="fin-filtro-fim" onchange="filtrarExtrato()" title="Data fim" ${inp}>
-          <button class="btn" style="padding:4px 8px;font-size:9px" onclick="limparFiltroExtrato()" title="Limpar intervalo">✕ Limpar</button>
+          <button class="btn" style="padding:4px 8px;font-size:9px" onclick="limparFiltroExtrato()" title="Limpar todos os filtros">✕ Limpar filtros</button>
           ${canEdit?`<button class="btn" style="padding:4px 10px;font-size:9px" onclick="imprimirExtrato()">🖨️ Imprimir</button>
           <button class="btn" style="padding:4px 10px;font-size:9px;border-color:#1A5C3A;color:#1A5C3A" onclick="exportarFinancasCsv()" title="Exportar lançamentos em CSV">📥 CSV</button>
           <button class="btn" style="padding:4px 10px;font-size:9px;border-color:#1B3A6B;color:var(--navy)" onclick="exportarDados('financas')" title="Backup completo da tabela financas">💾 Backup</button>`:''}
@@ -9313,31 +9414,25 @@ function salvarOrcamento() {
 
 // ── Imprimir extrato ──────────────────────────────────────────
 function imprimirExtrato() {
-  const irmao  = document.getElementById('fin-filtro-irmao')?.value;
-  const tipo   = document.getElementById('fin-filtro-tipo')?.value;
-  const cat    = document.getElementById('fin-filtro-cat')?.value;
-  const status = document.getElementById('fin-filtro-status')?.value;
-  const dataIni = document.getElementById('fin-filtro-ini')?.value;
-  const dataFim = document.getElementById('fin-filtro-fim')?.value;
-  let lancs = DATA.financas;
-  if (!dataIni && !dataFim && !irmao && !tipo && !cat && !status) {
-    const hoje = new Date(), anoAtual = hoje.getFullYear(), mesAtual = String(hoje.getMonth()+1).padStart(2,'0');
-    lancs = lancs.filter(l=>
-      l.data?.startsWith(`${anoAtual}-${mesAtual}`) ||
-      (l.data < `${anoAtual}-${mesAtual}-01` && (l.status==='agendado'||l.status==='aberto'))
-    );
-  }
-  if (irmao)  lancs = lancs.filter(l=>l.membro_id===irmao);
-  if (tipo)   lancs = lancs.filter(l=>l.tipo===tipo);
-  if (cat)    lancs = lancs.filter(l=>l.categoria===cat);
-  if (status) lancs = lancs.filter(l=>(l.status||'pago')===status);
-  if (dataIni) lancs = lancs.filter(l=>l.data >= dataIni);
-  if (dataFim) lancs = lancs.filter(l=>l.data <= dataFim);
+  // Fase 3B: usa _aplicarFiltrosExtrato (mesma lógica do extrato em tela)
+  // e adiciona sublinha compacta com conta · forma · venc abaixo da descrição.
+  // Não toca em relatórios formais (RelFinancas/RelDebitos/RelTronco).
+  const lancs = _aplicarFiltrosExtrato(DATA.financas, _lerFiltrosExtrato());
   const total = lancs.reduce((s,l)=>s+(l.tipo==='receita'?1:-1)*parseFloat(l.valor||0),0);
-  const rows = lancs.map(l=>{
-    const mb = DATA.membros.find(m=>m.id===l.membro_id);
-    const isRec = l.tipo==='receita';
-    return `<tr><td>${fmtData(l.data)}</td><td>${l.descricao||'—'}${mb?` (${mb.nome_maconico})`:''}</td><td>${getCatLabel(l.categoria)||'—'}</td><td style="color:${isRec?'green':'red'};font-weight:600">${isRec?'+':'-'}${fmtVal(l.valor)}</td><td>${l.status||'pago'}</td></tr>`;
+  const rows = lancs.map(l => {
+    const mb = DATA.membros.find(m => m.id === l.membro_id);
+    const isRec = l.tipo === 'receita';
+    // Sublinha de detalhes para impressão (mesmo critério visual da tela,
+    // texto cinza pequeno). Reaproveita _detalhesFinanceirosLinha quando
+    // houver algo a mostrar.
+    const subDetalhes = _detalhesFinanceirosLinha(l);
+    return `<tr>
+      <td>${fmtData(l.data)}</td>
+      <td>${_esc(l.descricao||'—')}${mb?` <span style="color:#555">(${_esc(mb.nome_maconico)})</span>`:''}${subDetalhes}</td>
+      <td>${getCatLabel(l.categoria)||'—'}</td>
+      <td style="color:${isRec?'green':'red'};font-weight:600">${isRec?'+':'-'}${fmtVal(l.valor)}</td>
+      <td>${l.status||'pago'}</td>
+    </tr>`;
   }).join('');
   abrirJanelaPrint(`
     <div class="print-header"><div class="print-lodge">${_nomeImpressao()}</div>
@@ -9385,64 +9480,27 @@ function _renderChartFinanceiro() {
 }
 
 function filtrarExtrato() {
-  const irmao = document.getElementById('fin-filtro-irmao')?.value;
-  const tipo  = document.getElementById('fin-filtro-tipo')?.value;
-  const cat   = document.getElementById('fin-filtro-cat')?.value;
-  const status= document.getElementById('fin-filtro-status')?.value;
-  const dataIni = document.getElementById('fin-filtro-ini')?.value;
-  const dataFim = document.getElementById('fin-filtro-fim')?.value;
-  let lancs = DATA.financas;
-
-  // Padrão: mês corrente + pendências não pagas de meses anteriores
-  const hoje = new Date();
-  const anoAtual = hoje.getFullYear();
-  const mesAtual = String(hoje.getMonth()+1).padStart(2,'0');
-  if (!dataIni && !dataFim && !irmao && !tipo && !cat && !status) {
-    lancs = lancs.filter(l=>
-      l.data?.startsWith(`${anoAtual}-${mesAtual}`) ||
-      (l.data < `${anoAtual}-${mesAtual}-01` && (l.status==='agendado'||l.status==='aberto'))
-    );
-  }
-
-  if (irmao)  lancs = lancs.filter(l=>l.membro_id===irmao);
-  if (tipo)   lancs = lancs.filter(l=>l.tipo===tipo);
-  if (cat)    lancs = lancs.filter(l=>l.categoria===cat);
-  if (status) lancs = lancs.filter(l=>(l.status||'pago')===status);
-  if (dataIni) lancs = lancs.filter(l=>l.data >= dataIni);
-  if (dataFim) lancs = lancs.filter(l=>l.data <= dataFim);
+  // Fase 3B: lógica unificada via helpers _aplicarFiltrosExtrato + _buildRowExtrato.
+  // Cobre os 9 filtros (irmão, tipo, categoria, status, data ini/fim, conta,
+  // forma, vencimento). Quando todos vazios, mantém o default antigo (mês
+  // corrente + pendências anteriores em agendado/aberto).
+  const lancs = _aplicarFiltrosExtrato(DATA.financas, _lerFiltrosExtrato());
   const tbody = document.getElementById('tbody-extrato');
   if (!tbody) return;
-  const statusBadgeHtml = (s) => {
-    const map = {
-      pago:     {label:'✅ Pago',     color:'var(--green)',   bg:'var(--green-bg)'},
-      agendado: {label:'📅 Agendado', color:'#1B5EA0',        bg:'rgba(27,94,160,0.1)'},
-      aberto:   {label:'⚠️ Aberto',  color:'var(--red)',     bg:'var(--red-bg)'}
-    };
-    const b = map[s||'pago'] || map['pago'];
-    return `<span class="badge" style="color:${b.color};background:${b.bg};border-color:${b.color}22">${b.label}</span>`;
-  };
   tbody.innerHTML = lancs.length === 0
-    ? `<tr><td colspan="7" style="text-align:center;padding:20px;font-style:italic;color:var(--text-muted)">Nenhum lançamento encontrado.</td></tr>`
-    : lancs.slice(0,60).map(l=>{
-        const membro = DATA.membros.find(m=>m.id===l.membro_id);
-        const isRec = l.tipo==='receita';
-        return `<tr>
-          <td>${fmtData(l.data)}</td>
-          <td>${l.descricao||'—'}${membro?`<br><span style="font-size:10px;color:var(--text-muted);font-style:italic">${membro.nome_maconico}</span>`:''}</td>
-          <td style="font-size:11px;font-style:italic;color:var(--text-muted)">${getCatLabel(l.categoria)||'—'}</td>
-          <td style="color:${isRec?'var(--green)':'var(--red)'};font-weight:600">${isRec?'+':'-'}${fmtVal(l.valor)}</td>
-          <td><span class="badge" style="color:${isRec?'var(--green)':'var(--red)'};background:${isRec?'var(--green-bg)':'var(--red-bg)'}">${isRec?'↑ Receita':'↓ Despesa'}</span></td>
-          <td>${statusBadgeHtml(l.status)}</td>
-          <td><button class="btn" style="padding:2px 7px;font-size:10px" title="Editar" onclick="abrirModalEditarLancamento('${l.id}')">✏️</button></td>
-        </tr>`;
-      }).join('');
+    ? `<tr><td colspan="7" style="text-align:center;padding:20px;font-style:italic;color:var(--text-muted)">Nenhum lançamento encontrado com esses filtros. <a href="javascript:limparFiltroExtrato()" style="color:var(--navy);text-decoration:underline">Limpar filtros</a>.</td></tr>`
+    : lancs.slice(0,60).map(_buildRowExtrato).join('');
 }
 
 function limparFiltroExtrato() {
-  const ini = document.getElementById('fin-filtro-ini');
-  const fim = document.getElementById('fin-filtro-fim');
-  if (ini) ini.value = '';
-  if (fim) fim.value = '';
+  // Fase 3B: zera TODOS os filtros e reaplica o default (mês corrente +
+  // pendências). Antes da 3B zerava apenas data início/fim.
+  ['fin-filtro-irmao','fin-filtro-tipo','fin-filtro-cat','fin-filtro-status',
+   'fin-filtro-ini','fin-filtro-fim',
+   'fin-filtro-conta','fin-filtro-forma','fin-filtro-vencimento'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
   filtrarExtrato();
 }
 
@@ -13325,6 +13383,13 @@ function exportarFinancasCsv() {
     } else {
       obj['membro'] = '';
     }
+    // Fase 3B: colunas novas no FINAL (não reordena nem renomeia as anteriores
+    // — preserva planilhas externas que referenciam colunas por posição).
+    obj['conta_bancaria']                = _nomeContaBancaria(f.conta_bancaria_id) || '';
+    obj['conta_bancaria_id']             = f.conta_bancaria_id || '';
+    obj['forma_pagamento']               = f.forma_pagamento || '';
+    obj['data_vencimento']               = f.data_vencimento || '';
+    obj['status_vencimento_calculado']   = _calcularStatusVencimento(f);
     return obj;
   });
   exportarCSV(dados, 'financas_loja');
