@@ -1,8 +1,8 @@
 # Plano — Financeiro: Contas Bancárias e Conciliação OFX
 
 > Projeto: MestreVirtual / Loja Maçônica
-> Status: **Fase 1 em execução** · demais fases documentadas, **não implementadas**.
-> Última atualização: 2026-06-27
+> Status: **Fases 1, 2 e 3 concluídas e em produção**. Próxima: Fase 4 (importação OFX do Sicoob).
+> Última atualização: 2026-06-29
 
 Este documento registra as decisões já fechadas, o escopo de cada fase, e as
 regras invariantes que devem ser respeitadas em qualquer evolução do módulo
@@ -22,7 +22,7 @@ financeiro. **Consulte este documento antes de tocar qualquer coisa em
   PDF fica apenas como conferência humana.
 
 ### Perfis / permissões
-- Importação e conciliação (fases 3+) **apenas para Tesoureiro e Administrador**.
+- Importação OFX e conciliação (Fase 4+) **apenas para Tesoureiro e Administrador**.
 - CRUD de contas bancárias e categorias financeiras (Fase 1):
   - **Editar**: Admin e Tesoureiro.
   - **Visualizar**: Venerável (pode ver para fins de relatório).
@@ -36,9 +36,9 @@ financeiro. **Consulte este documento antes de tocar qualquer coisa em
   (mensalidade, joia, ágape, tronco, transferência interna, rendimento etc.).
 - `financas` continua sendo o **extrato de lançamentos da loja**
   (= o que aconteceu segundo o Tesoureiro), com `status ∈ {pago, agendado, vencido/aberto}`.
-- `extratos_bancarios` (Fase 3) representará **linhas brutas importadas do OFX**
+- `extratos_bancarios` (Fase 4) representará **linhas brutas importadas do OFX**
   (= o que o banco diz que aconteceu).
-- Conciliação (Fase 4) liga **uma linha de extrato a um lançamento de `financas`**,
+- Conciliação (Fase 5) liga **uma linha de extrato a um lançamento de `financas`**,
   agregando prova bancária ao lançamento existente. **Não substitui** o lançamento.
 
 ### Premissas operacionais
@@ -46,7 +46,7 @@ financeiro. **Consulte este documento antes de tocar qualquer coisa em
   necessidade de modelo "1 extrato → vários lançamentos".
 - Conciliação começa **para frente** — sem importar histórico retroativo.
 - Cadastro dos irmãos contém **nome civil e nome maçônico**. Regras futuras
-  (Fase 5) usarão preferencialmente **nome civil** para casar com a descrição
+  (Fase 6) usarão preferencialmente **nome civil** para casar com a descrição
   do PIX no OFX.
 - **Tronco/Beneficência** é uma **categoria/finalidade**, não banco separado.
 - **Transferência interna** (corrente ↔ poupança): tratada como `categoria='transferencia_interna'`.
@@ -75,10 +75,10 @@ financeiro. **Consulte este documento antes de tocar qualquer coisa em
        │   status: pago | agendado | aberto/vencido             │
        └────────────────────────┬───────────────────────────────┘
                                 │
-                                │ (Fase 4) financa_id NULL
+                                │ (Fase 5) financa_id NULL
                                 │
        ┌────────────────────────┴───────────────────────────────┐
-       │                  extratos_bancarios                    │  (Fase 3)
+       │                  extratos_bancarios                    │  (Fase 4)
        │   (linhas brutas vindas do OFX — verdade do banco)     │
        │   status_conciliacao: pendente | conciliado | ignorado │
        └────────────────────────────────────────────────────────┘
@@ -106,11 +106,10 @@ financeiro. **Consulte este documento antes de tocar qualquer coisa em
 - Soft delete (sem policy `FOR DELETE`).
 
 **Status:** migration `docs/migrations/2026-06-27-fase1-contas-categorias.sql`
-**aplicada no Supabase em 2026-06-28**. PR #1 (branch
-`fase1-contas-bancarias-categorias`) pendente de merge em `master` no momento
-em que a Fase 2 começa — ambas as fases serão mergeadas em ordem.
+**aplicada no Supabase em 2026-06-28**. PR #1 mergeado em `master`. Fase 1
+em produção.
 
-### Fase 2 — Vínculo de categoria/conta no lançamento *(em execução agora)*
+### Fase 2 — Vínculo de categoria/conta no lançamento *(CONCLUÍDA em 2026-06-28)*
 
 **Objetivo:** fazer `financas` referenciar as tabelas da Fase 1 sem quebrar
 nenhum lançamento existente nem o fluxo atual de criação.
@@ -138,7 +137,7 @@ nenhum lançamento existente nem o fluxo atual de criação.
      - `categoria_id uuid REFERENCES categorias_financeiras(id) ON DELETE SET NULL`
      - `conta_bancaria_id uuid REFERENCES contas_bancarias(id) ON DELETE SET NULL`
      - `forma_pagamento text` (`pix` / `ted` / `dinheiro` / `boleto` / `cartao` / `outro`)
-     - `identificador_externo text` (reservado para FITID/end-to-end-id do PIX — usado a partir da Fase 3)
+     - `identificador_externo text` (reservado para FITID/end-to-end-id do PIX — usado a partir da Fase 4)
      - `data_vencimento date` (separa "quando era devido" de `data` que vira "quando aconteceu" — só para lançamentos NOVOS; antigos ficam NULL)
    - **Backfill conservador**: `UPDATE financas SET categoria_id = c.id FROM categorias_financeiras c WHERE c.slug = financas.categoria AND financas.categoria_id IS NULL`.
      Não toca `financas.categoria` (texto) — mantém compatibilidade com cálculos atuais.
@@ -179,8 +178,8 @@ nenhum lançamento existente nem o fluxo atual de criação.
 **Fora de escopo desta fase:**
 - Forçar `categoria_id NOT NULL` (futuro, após backfill total e migração de UI).
 - Remover `financas.categoria` (texto) — fica como fallback até auditoria.
-- Usar `forma_pagamento`/`identificador_externo`/`data_vencimento` no fluxo
-  manual (entram na Fase 3+ junto com OFX).
+- Usar `forma_pagamento` e `data_vencimento` no fluxo manual (entram na
+  Fase 3); `identificador_externo` fica reservado para a Fase 4 (OFX).
 - Mexer em relatórios ou cálculos de saldo.
 
 **Cuidados / invariantes:**
@@ -192,7 +191,74 @@ nenhum lançamento existente nem o fluxo atual de criação.
   (defesa parcial). `salvarLancamento` envia sempre — a invariante de deploy
   acima é o que garante a integridade.
 
-### Fase 3 — Importação OFX do Sicoob *(planejada)*
+**Status:** migration `docs/migrations/2026-06-28-fase2-vinculo-financas.sql`
+**aplicada no Supabase em 2026-06-28**. PR #2 mergeado em `master`. Fase 2
+em produção.
+
+### Fase 3 — UX operacional do extrato *(CONCLUÍDA em 2026-06-29)*
+
+**Objetivo:** tornar o extrato de lançamentos operacional para o Tesoureiro
+no dia a dia — preenchimento e leitura mais rica, sem mexer em modelo de
+dados nem em cálculos.
+
+**Entregue:**
+
+Sub-fase **3A** — *forma de pagamento + data de vencimento*
+(`docs/migrations/`: nenhuma; sem alterações de schema; PR #3):
+- Modal "Novo Lançamento" passa a gravar `forma_pagamento` (select fechado:
+  pix / ted / dinheiro / boleto / cartao / outro) e `data_vencimento`.
+- `data_vencimento` espelha `data` por padrão, com auto-sync enquanto o
+  Tesoureiro não edita manualmente o campo de vencimento.
+- Modal de **edição** ganhou os 3 campos: `conta_bancaria_id`,
+  `forma_pagamento`, `data_vencimento` (completou a Fase 2, que tinha
+  adicionado o vínculo apenas na criação).
+- Lançamentos parcelados: cada parcela grava `data_vencimento` igual à sua
+  própria `data` (item 5 do escopo aprovado).
+- Sublinha cinza compacta abaixo da descrição do lançamento mostrando
+  `conta · forma · vencimento` (helper `_detalhesFinanceirosLinha`).
+- Correção pré-merge: auto-sync respeita reescritas programáticas de `data`
+  no bloco de Tronco; `oninput` + `onchange` em `f-data-fin` para
+  robustez (commit `64faf14`).
+
+Sub-fase **3B** — *filtros operacionais do extrato* (PR #4):
+- Helper único `_buildRowExtrato(lanc)` consumido pelo render inicial
+  (`buildRows` em `renderFinancas`) e pelo re-render após filtro
+  (`filtrarExtrato`). Corrige inconsistência herdada da 3A em que o filtro
+  perdia a sublinha conta · forma · vencimento.
+- Helper `_calcularStatusVencimento(lanc)` puro, com comparação como string
+  `'YYYY-MM-DD'` (sem `Date`). Regra invariante: `status === 'pago'` nunca
+  retorna "vencido".
+- 3 filtros novos no extrato: **conta bancária**, **forma de pagamento**,
+  **situação de vencimento** (`vencido` / `vence_hoje` / `a_vencer` /
+  `sem_vencimento`).
+- Botão **"Limpar filtros"** zera todos os 9 filtros e reaplica o default
+  (mês corrente + pendências de meses anteriores em `agendado`/`aberto`).
+- `imprimirExtrato` passa a usar `_aplicarFiltrosExtrato` e inclui a
+  sublinha conta · forma · venc. **Não toca em relatórios formais**
+  (`RelFinancas`, `RelDebitos`, `RelTronco`).
+- `exportarFinancasCsv` adiciona 5 colunas **no final** (sem reordenar
+  ou renomear as existentes — preserva planilhas externas que referenciam
+  colunas por posição): `conta_bancaria`, `conta_bancaria_id`,
+  `forma_pagamento`, `data_vencimento`, `status_vencimento_calculado`.
+
+**Sem migration / sem backfill / sem Supabase**: a Fase 3 inteira opera
+sobre as colunas que a Fase 2 já criou (`forma_pagamento`,
+`data_vencimento`, `conta_bancaria_id`). Lançamentos antigos preservados:
+quem tem os 3 campos nulos continua aparecendo no extrato sem a sublinha
+cinza e como `sem_vencimento` no filtro de situação — comportamento
+esperado e documentado.
+
+**Fora de escopo (e respeitado):**
+- Nenhuma mudança em `executarPagamentoAgendado`, Ágape, Tronco,
+  inadimplência, saldos, previsão, gráficos, "Lançar Mensalidades do Mês"
+  ou fechamento mensal.
+- Nenhuma mudança em "Meu Financeiro" do irmão nem nos relatórios formais.
+- Sem backfill automático de lançamentos antigos.
+
+**Status:** PRs #3 e #4 mergeados em `master`; Fase 3 validada
+funcionalmente em produção.
+
+### Fase 4 — Importação OFX do Sicoob *(planejada)*
 
 **Entrega:**
 - `CREATE TABLE extratos_bancarios` (id, conta_bancaria_id, data, descricao_bruta,
@@ -214,7 +280,7 @@ nenhum lançamento existente nem o fluxo atual de criação.
 - Erros de parsing não devem deixar linhas parciais no banco
   (importação inteira em transação).
 
-### Fase 4 — Painel manual de conciliação *(planejada)*
+### Fase 5 — Painel manual de conciliação *(planejada)*
 
 **Entrega:**
 - Tela "Extratos pendentes" lista linhas com `status_conciliacao = 'pendente'`.
@@ -233,7 +299,7 @@ nenhum lançamento existente nem o fluxo atual de criação.
 - **Toda ação exige clique humano.** Sugestões aparecem destacadas, nunca
   aplicadas automaticamente.
 
-### Fase 5 — Regras determinísticas *(planejada)*
+### Fase 6 — Regras determinísticas *(planejada)*
 
 **Entrega:**
 - `CREATE TABLE regras_conciliacao` (id, ativa, descricao_regex, valor_min,
@@ -241,11 +307,11 @@ nenhum lançamento existente nem o fluxo atual de criação.
   conta_bancaria_id, status_destino, prioridade).
 - Tela CRUD de regras.
 - Ao importar OFX, regras são aplicadas e geram **sugestões** mostradas no
-  painel da Fase 4 — **nunca conciliam sozinhas**.
+  painel da Fase 5 — **nunca conciliam sozinhas**.
 - Regras usam preferencialmente **nome civil** do irmão para casar com a
   descrição do PIX (ex: `PIX RECEBIDO JOSE DA SILVA` → membro José da Silva).
 
-### Fase 6 — Trava real, auditoria e relatório do Conselho Fiscal *(planejada)*
+### Fase 7 — Trava real, auditoria e relatório do Conselho Fiscal *(planejada)*
 
 **Entrega:**
 - Migrar `fechamentos_mensais` de localStorage para tabela `fechamentos_mensais`
@@ -299,15 +365,24 @@ nenhum lançamento existente nem o fluxo atual de criação.
 ## 5. Como o financeiro funciona hoje (referência rápida)
 
 Detalhado em `docs/HISTORICO.md` e na auditoria feita em 2026-06-27.
-Resumo:
-- Tabela única: `financas` (id, descricao, valor, tipo, data, categoria,
-  status, membro_id).
-- Categorias em `localStorage.cats_fin` (será gradualmente migrado para
-  `categorias_financeiras` da Fase 1).
+Resumo atualizado após Fases 1–3:
+- Tabela `financas` (id, descricao, valor, tipo, data, categoria, status,
+  membro_id) **+ vínculos opcionais nullable** adicionados na Fase 2:
+  `categoria_id`, `conta_bancaria_id`, `forma_pagamento`,
+  `identificador_externo`, `data_vencimento`.
+- Categorias agora vêm de `categorias_financeiras` (Fase 1); o
+  `localStorage.cats_fin` permanece como fallback defensivo, dead-code
+  no caminho operacional.
 - "Saldo Bancário" no painel é cálculo virtual `receitas pagas - despesas pagas`
-  excluindo `categoria='tronco'`.
-- Sem conceito de conta bancária, extrato OFX, conciliação ou FITID.
-- `fechamentos_mensais` em localStorage (fase 6 migrará).
+  excluindo `categoria='tronco'` (inalterado pelas Fases 1–3).
+- O modal "Novo Lançamento" e a edição já gravam `forma_pagamento`,
+  `data_vencimento` e `conta_bancaria_id` (Fase 3). O extrato tem filtros
+  por conta, forma e situação de vencimento e mostra sublinha cinza
+  `conta · forma · vencimento`.
+- **Ainda não existe** importação OFX, tabela de extrato bancário, painel
+  de conciliação ou uso operacional de FITID (Fase 4+).
+- `fechamentos_mensais` em localStorage (Fase 7 migrará para tabela com
+  trava server-side).
 
 ---
 
@@ -315,11 +390,11 @@ Resumo:
 
 | Risco | Mitigação |
 |---|---|
-| Importação OFX duplicada | UNIQUE(conta, fitid) + UNIQUE(conta, hash_linha) na Fase 3. |
-| Saldos inconsistentes após conciliação errada | Painel Fase 4 sempre exige clique; Fase 6 introduz desconciliação com motivo. |
+| Importação OFX duplicada | UNIQUE(conta, fitid) + UNIQUE(conta, hash_linha) na Fase 4. |
+| Saldos inconsistentes após conciliação errada | Painel Fase 5 sempre exige clique; Fase 7 introduz desconciliação com motivo. |
 | Categorias divergentes entre máquinas (localStorage) | Migrar para tabela na Fase 1. localStorage continua como fallback até confirmação. |
 | `financas.data` ambígua (vencimento ou efetiva) | Fase 2 separa `data` e `data_vencimento`; código antigo segue. |
-| `fechamentos_mensais` client-side | Fase 6 migra para tabela e adiciona trava server-side. |
+| `fechamentos_mensais` client-side | Fase 7 migra para tabela e adiciona trava server-side. |
 | Parser OFX divergente entre versões | Começar com OFX 2.x do Sicoob; expandir conforme necessidade. |
 | RLS frouxa em outras tabelas (TD-2) | Tabelas novas nascem com RLS estrita; TD-2 segue separado. |
 | Dados sensíveis em logs | Code review obrigatório nas funções de import; nunca `console.log` de descrição bruta em produção. |
@@ -338,3 +413,11 @@ Resumo:
 | 2026-06-28 | 1 | Migration aplicada em produção (Supabase) | Denis |
 | 2026-06-28 | 2 | Iniciada — branch `fase2-vinculo-financas-bancos-categorias` | Denis + Claude |
 | 2026-06-28 | 2 | Revisão pré-merge: botão "+" de categoria escondido quando vier do banco; `salvarEdicaoLancamento` recalcula `categoria_id`; invariante #10 de ordem de deploy registrada | Denis + Claude |
+| 2026-06-28 | 2 | Migration aplicada em produção; PR #2 mergeado em `master` | Denis |
+| 2026-06-28 | 3A | Iniciada — branch `fase3a-forma-pagamento-vencimento`. Modal "Novo Lançamento" passa a gravar `forma_pagamento` e `data_vencimento`; edição ganha `conta_bancaria_id`/`forma_pagamento`/`data_vencimento`; sublinha cinza `conta · forma · venc` no extrato | Denis + Claude |
+| 2026-06-28 | 3A | Fix pré-merge: auto-sync respeita reescritas programáticas de `data` (commit `64faf14`); `oninput` + `onchange` em `f-data-fin` | Denis + Claude |
+| 2026-06-29 | 3A | PR #3 mergeado em `master` (commit `edb5ad6`) | Denis |
+| 2026-06-29 | 3B | Iniciada — branch `fase3b-filtros-extrato-financeiro`. Helper único `_buildRowExtrato` corrige inconsistência da 3A (filtro perdia sublinha); helper `_calcularStatusVencimento`; filtros novos conta/forma/vencimento; "Limpar filtros" zera tudo; CSV +5 colunas no final; impressão do extrato com sublinha | Denis + Claude |
+| 2026-06-29 | 3B | Revisão pré-merge: `_buildFormaPagamentoOptions` ganha `incluirVazio` (sem regex em HTML) | Denis + Claude |
+| 2026-06-29 | 3B | PR #4 mergeado em `master` (commit `c79da56`) | Denis |
+| 2026-06-29 | 3 | Documentação consolidada: Fase 3 marcada como concluída; renumeração Fase 4 (OFX) / Fase 5 (conciliação) / Fase 6 (regras) / Fase 7 (auditoria) — branch `docs/fase3-concluida-financeiro` | Denis + Claude |
