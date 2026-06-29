@@ -7501,6 +7501,10 @@ async function salvarLancamento() {
   const categoria_id = catBancoEncontrada?.id || null;
   const conta_bancaria_id = document.getElementById('f-conta-bancaria')?.value || null;
 
+  // Fase 3A: forma_pagamento (select fechado) e data_vencimento (default = data).
+  const forma_pagamento = document.getElementById('f-forma-pagamento')?.value || null;
+  const dataVencInput = document.getElementById('f-data-venc')?.value || '';
+
   // Se tronco, validar sessão e usar data da sessão
   if (categoria === 'tronco') {
     const sessaoSel = document.getElementById('f-sessao-tronco');
@@ -7511,13 +7515,20 @@ async function salvarLancamento() {
 
   if (!descricao || !valor || !data) { toast('Preencha todos os campos obrigatórios'); return; }
 
-  // Monta um payload base reutilizado nas parcelas. Adiciona categoria_id e
-  // conta_bancaria_id apenas quando preenchidos — payload limpo.
+  // Fase 3A: data_vencimento padrão = data. Se o usuário preencheu manualmente,
+  // usa o valor dele; caso contrário, espelha 'data' (vencimento = data efetiva).
+  const data_vencimento = dataVencInput || data;
+
+  // Monta um payload base reutilizado nas parcelas. Adiciona categoria_id,
+  // conta_bancaria_id e forma_pagamento apenas quando preenchidos — payload limpo.
+  // data_vencimento sempre vai (default = data, item 3 do escopo da Fase 3A).
   const payloadBase = {
     descricao, valor, tipo, data, categoria, status,
     membro_id: membro_id || null,
+    data_vencimento,
     ...(categoria_id ? { categoria_id } : {}),
-    ...(conta_bancaria_id ? { conta_bancaria_id } : {})
+    ...(conta_bancaria_id ? { conta_bancaria_id } : {}),
+    ...(forma_pagamento ? { forma_pagamento } : {})
   };
 
   let inserts;
@@ -7538,7 +7549,8 @@ async function salvarLancamento() {
       return { ...payloadBase,
         descricao: `${descricao} (${i+1}/${nParcelas})`,
         valor: valorParc,
-        data: dStr
+        data: dStr,
+        data_vencimento: dStr  // Fase 3A item 5: cada parcela tem vencimento próprio.
       };
     });
   } else {
@@ -7684,6 +7696,20 @@ function abrirModalEditarLancamento(lancId) {
           </div>
           <div><label class="lbl">Categoria</label>
             <select id="ed-cat" style="${inp()}">${buildCatOptions(l.categoria)}</select></div>
+
+          <!-- Fase 3A: edição de conta bancária, forma de pagamento e data de vencimento -->
+          ${_temContasBancarias() ? `<div><label class="lbl">Conta Bancária <span style="font-weight:400;color:var(--text-muted);font-size:11px">(opcional)</span></label>
+            <select id="ed-conta-bancaria" style="${inp()}">
+              <option value="">— Não vincular —</option>
+              ${_buildContasOptions(l.conta_bancaria_id || '')}
+            </select></div>` : ''}
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div><label class="lbl">Forma de Pagamento <span style="font-weight:400;color:var(--text-muted);font-size:11px">(opcional)</span></label>
+              <select id="ed-forma-pagamento" style="${inp()}">${_buildFormaPagamentoOptions(l.forma_pagamento || '')}</select></div>
+            <div><label class="lbl">Vencimento <span style="font-weight:400;color:var(--text-muted);font-size:11px">(opcional)</span></label>
+              <input id="ed-data-venc" type="date" value="${l.data_vencimento || ''}" style="${inp()}"></div>
+          </div>
+
           <div><label class="lbl">Irmão (opcional)</label>
             <select id="ed-membro" style="${inp()}">
               <option value="">— Sem vínculo —</option>${opsMembros}</select></div>
@@ -7727,6 +7753,17 @@ async function salvarEdicaoLancamento(lancId) {
   const update = { descricao, valor, tipo, data, categoria, status, membro_id: membro_id||null };
   // Só envia categoria_id se a tabela existe (evita erro PostgREST pre-Fase-2)
   if (_categoriasVemDoBanco()) update.categoria_id = novoCategoriaId;
+
+  // Fase 3A: persistir conta_bancaria_id, forma_pagamento e data_vencimento.
+  // Valores vazios viram NULL explicitamente (limpar campo na edição).
+  // Os ids só existem se os blocos correspondentes foram renderizados —
+  // _temContasBancarias() gate o select de conta.
+  const elConta = document.getElementById('ed-conta-bancaria');
+  if (elConta) update.conta_bancaria_id = elConta.value || null;
+  const elForma = document.getElementById('ed-forma-pagamento');
+  if (elForma) update.forma_pagamento = elForma.value || null;
+  const elVenc  = document.getElementById('ed-data-venc');
+  if (elVenc)  update.data_vencimento = elVenc.value || null;
 
   const res = await sb.from('financas').update(update).eq('id', lancId);
   if (res.error) { toast('Erro: ' + res.error.message); return; }
@@ -7817,8 +7854,92 @@ function _temContasBancarias() {
   return (DATA.contas_bancarias || []).some(c => c.ativo);
 }
 
+// ══════════════════════════════════════════════════════════════════════════
+// FASE 3A — forma_pagamento + data_vencimento + sublinha no extrato
+// Coluna já existe em financas desde a Fase 2 (nullable). Esta fase apenas
+// passa a gravar/exibir esses campos. Cálculos atuais ficam inalterados.
+// ══════════════════════════════════════════════════════════════════════════
+
+const _FORMAS_PAGAMENTO = [
+  { slug: 'pix',      label: 'PIX' },
+  { slug: 'ted',      label: 'TED' },
+  { slug: 'dinheiro', label: 'Dinheiro' },
+  { slug: 'boleto',   label: 'Boleto' },
+  { slug: 'cartao',   label: 'Cartão' },
+  { slug: 'outro',    label: 'Outro' },
+];
+
+function _labelFormaPagamento(slug) {
+  if (!slug) return '';
+  const f = _FORMAS_PAGAMENTO.find(x => x.slug === slug);
+  return f ? f.label : String(slug);
+}
+
+// Retorna <option>s para o select de forma de pagamento.
+// Inclui um item vazio ("— Não informar —") sempre como primeiro.
+// Se houver um valor "selecionada" fora da lista canônica (legado/SQL
+// manual), adiciona um <option> extra ao final para não perder o dado.
+function _buildFormaPagamentoOptions(selecionada='') {
+  const sel = selecionada || '';
+  const itens = _FORMAS_PAGAMENTO.map(f =>
+    `<option value="${f.slug}" ${f.slug===sel?'selected':''}>${f.label}</option>`
+  ).join('');
+  const naLista = _FORMAS_PAGAMENTO.some(f => f.slug === sel);
+  const extra = (sel && !naLista)
+    ? `<option value="${_esc(sel)}" selected>${_esc(sel)} (legado)</option>`
+    : '';
+  return `<option value="" ${!sel?'selected':''}>— Não informar —</option>${itens}${extra}`;
+}
+
+// Nome da conta bancária por id, ou string vazia se não encontrar.
+function _nomeContaBancaria(id) {
+  if (!id) return '';
+  const c = (DATA.contas_bancarias || []).find(x => x.id === id);
+  return c ? c.nome : '';
+}
+
+// Sublinha cinza compacta para a tabela do extrato. Retorna '' se nenhum
+// dos 3 campos novos estiver preenchido — assim lançamentos legados não
+// ganham linha extra. Para o vencimento, usa data_vencimento || data.
+function _detalhesFinanceirosLinha(lanc) {
+  const nomeConta = _nomeContaBancaria(lanc.conta_bancaria_id);
+  const formaLab  = _labelFormaPagamento(lanc.forma_pagamento);
+  const vencRaw   = lanc.data_vencimento || lanc.data;
+  // Mostra "Venc dd/mm" apenas quando há data_vencimento explícita ou
+  // quando há conta/forma (sublinha visível) — para não poluir lançamentos
+  // antigos sem nada.
+  const temAlgo = !!(nomeConta || formaLab || lanc.data_vencimento);
+  if (!temAlgo) return '';
+  const partes = [];
+  if (nomeConta) partes.push(_esc(nomeConta));
+  if (formaLab)  partes.push(_esc(formaLab));
+  if (vencRaw)   partes.push('Venc ' + fmtData(vencRaw));
+  if (!partes.length) return '';
+  return `<div style="font-size:10px;color:var(--text-muted);margin-top:2px;font-style:italic">${partes.join(' · ')}</div>`;
+}
+
+// Sincronização automática data_vencimento <- data no modal de novo lançamento.
+// Para de sincronizar assim que o usuário editar manualmente o campo de
+// vencimento. Não tem efeito no modal de edição (lá os campos são independentes).
+let _dataVencTocado = false;
+function _onChangeDataLancamento() {
+  // Espelha f-data-fin -> f-data-venc enquanto o usuário não tiver
+  // editado manualmente o campo de vencimento (flag _dataVencTocado).
+  if (_dataVencTocado) return;
+  const ed = document.getElementById('f-data-fin');
+  const ev = document.getElementById('f-data-venc');
+  if (ed && ev) ev.value = ed.value || '';
+}
+function _onChangeDataVencimento() {
+  // Mudança via teclado/calendário dispara este handler. Auto-sync
+  // (que escreve em ev.value programaticamente) NÃO dispara 'change',
+  // então a flag só vira true por ação real do usuário.
+  _dataVencTocado = true;
+}
+
 function abrirModalLancamento(prefCat='') {
   const hoje = new Date().toISOString().split('T')[0];
+  _dataVencTocado = false; // Fase 3A: reset do estado de auto-sync data -> data_vencimento
   const opsMembros = DATA.membros.map(m=>`<option value="${m.id}">${m.nome_maconico}</option>`).join('');
   document.body.insertAdjacentHTML('beforeend', `
     <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center">
@@ -7835,7 +7956,7 @@ function abrirModalLancamento(prefCat='') {
             <div><label class="lbl">Valor (R$) *</label>
               <input id="f-valor" type="number" step="0.01" min="0" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"></div>
             <div><label class="lbl">Data *</label>
-              <input id="f-data-fin" type="date" value="${hoje}" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"></div>
+              <input id="f-data-fin" type="date" value="${hoje}" oninput="_onChangeDataLancamento()" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"></div>
           </div>
           <div>
             <label class="lbl">Categoria</label>
@@ -7891,6 +8012,23 @@ function abrirModalLancamento(prefCat='') {
               Indique onde o dinheiro saiu/entrou. Pode deixar em branco e vincular depois.
             </div>
           </div>` : ''}
+
+          <!-- Forma de Pagamento + Data de Vencimento - Fase 3A -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div>
+              <label class="lbl">Forma de Pagamento <span style="font-weight:400;color:var(--text-muted);font-size:11px">(opcional)</span></label>
+              <select id="f-forma-pagamento" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)">
+                ${_buildFormaPagamentoOptions('')}
+              </select>
+            </div>
+            <div>
+              <label class="lbl">Vencimento <span style="font-weight:400;color:var(--text-muted);font-size:11px">(opcional)</span></label>
+              <input id="f-data-venc" type="date" value="${hoje}" onchange="_onChangeDataVencimento()" style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)">
+              <div style="font-size:10px;color:var(--text-muted);font-style:italic;margin-top:3px">
+                Acompanha a data automaticamente até você editar.
+              </div>
+            </div>
+          </div>
 
           <!-- Parcelamento -->
           <div style="background:rgba(27,58,107,0.04);border:1px solid rgba(27,58,107,0.15);border-radius:4px;padding:14px 16px">
@@ -8135,9 +8273,13 @@ function renderFinancas(access) {
     : lista.slice(0,60).map(l => {
         const mb = DATA.membros.find(m=>m.id===l.membro_id);
         const isRec = l.tipo==='receita';
+        // Fase 3A: sublinha cinza compacta com conta · forma · vencimento.
+        // _detalhesFinanceirosLinha já faz escape com _esc e retorna '' se
+        // nenhum dos 3 campos novos estiver preenchido.
+        const subDetalhes = _detalhesFinanceirosLinha(l);
         return `<tr>
           <td>${fmtData(l.data)}</td>
-          <td>${l.descricao||'—'}${mb?`<br><span style="font-size:10px;color:var(--text-muted)">${mb.nome_maconico}</span>`:''}</td>
+          <td>${l.descricao||'—'}${mb?`<br><span style="font-size:10px;color:var(--text-muted)">${mb.nome_maconico}</span>`:''}${subDetalhes}</td>
           <td style="font-size:11px;color:var(--text-muted)">${getCatLabel(l.categoria)||'—'}</td>
           <td style="color:${isRec?'var(--green)':'var(--red)'};font-weight:600">${isRec?'+':'-'}${fmtVal(l.valor)}</td>
           <td><span class="badge" style="color:${isRec?'var(--green)':'var(--red)'};background:${isRec?'var(--green-bg)':'var(--red-bg)'}">${isRec?'↑ Rec':'↓ Desp'}</span></td>
