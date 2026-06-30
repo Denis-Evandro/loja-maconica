@@ -3738,6 +3738,260 @@ function renderBancosCategorias() {
   renderCategoriasFinSecao();
 }
 
+// ══════════════════════════════════════════════════════════════════════════
+// PLANO FINANCEIRO — FASE 4B: Importar Extrato (OFX) — PREVIEW-ONLY
+// Documentação: docs/plano-financeiro-contas-conciliacao.md (Fase 4)
+// Schema:       docs/migrations/2026-06-29-fase4a-ofx-extratos.sql (Fase 4A)
+// Escopo 4B: lê arquivo .ofx do Sicoob e mostra preview com dedup visual.
+//   NÃO grava nada. Botão "Confirmar" desabilitado — a gravação atômica
+//   (tudo-ou-nada) chega na Fase 4C via RPC importar_ofx_extrato.
+// Fonte do OFX: Internet Banking do PC (app só dá PDF/PNG).
+// ══════════════════════════════════════════════════════════════════════════
+
+let _ofxPreview = null; // última leitura: { contaId, arquivo, meta, linhas, dedup }
+
+async function abrirImportarOfx() {
+  if (!_podeEditarBancos()) { toast('⛔ Sem permissão'); return; }
+  if (!(DATA.contas_bancarias && DATA.contas_bancarias.length)
+      && typeof _reloadContasBancarias === 'function') {
+    await _reloadContasBancarias();
+  }
+  _modoFinancas = 'importar-ofx';
+  _ofxPreview = null;
+  renderFinancas(ROLES[currentRole]?.access?.['financas'] || 'none');
+}
+
+// ---- Parser OFX (funções puras) -------------------------------------------
+
+// Normaliza descrição: remove acentos, uppercase, colapsa espaços. Mesma regra
+// que alimenta o hash_linha (precisa casar com a fórmula da migration 4A).
+function _ofxNormalizar(s) {
+  return (s || '')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toUpperCase().replace(/\s+/g, ' ').trim();
+}
+
+// Conteúdo da primeira ocorrência de <TAG>valor (SGML do OFX, sem fechamento).
+function _ofxTag(bloco, tag) {
+  const m = (bloco || '').match(new RegExp('<' + tag + '>([^<\\r\\n]*)', 'i'));
+  return m ? m[1].trim() : '';
+}
+
+// DTPOSTED (ex.: 20260628 ou 20260628120000[-03:BRT]) -> 'YYYY-MM-DD'.
+function _ofxData(raw) {
+  const m = (raw || '').match(/^\s*(\d{4})(\d{2})(\d{2})/);
+  return m ? `${m[1]}-${m[2]}-${m[3]}` : '';
+}
+
+// SHA-256 hex (64 chars) via crypto.subtle — formato exigido pelos CHECK da 4A.
+async function _sha256Hex(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Texto do .ofx -> { meta, linhas[] }. Hashes calculados depois (são async).
+function _parseOfx(texto) {
+  const ledgerBloco = (texto.match(/<LEDGERBAL>([\s\S]*?)<\/LEDGERBAL>/i) || [, ''])[1];
+  const saldoStr = _ofxTag(ledgerBloco, 'BALAMT');
+  const linhas = [];
+  const re = /<STMTTRN>([\s\S]*?)<\/STMTTRN>/gi;
+  let m, ordem = 0;
+  while ((m = re.exec(texto)) !== null) {
+    ordem++;
+    const b = m[1];
+    linhas.push({
+      ordem,
+      data: _ofxData(_ofxTag(b, 'DTPOSTED')),
+      dtposted_raw: _ofxTag(b, 'DTPOSTED'),
+      tipo_operacao: _ofxTag(b, 'TRNTYPE').toUpperCase(),
+      valor: parseFloat((_ofxTag(b, 'TRNAMT') || '0').replace(',', '.')) || 0,
+      fitid: _ofxTag(b, 'FITID') || null,
+      name: _ofxTag(b, 'NAME'),
+      memo: _ofxTag(b, 'MEMO'),
+      checknum: _ofxTag(b, 'CHECKNUM') || null,
+      refnum: _ofxTag(b, 'REFNUM') || null,
+    });
+  }
+  return {
+    meta: {
+      bankid: _ofxTag(texto, 'BANKID'),
+      acctid: _ofxTag(texto, 'ACCTID'),
+      periodo_inicio: _ofxData(_ofxTag(texto, 'DTSTART')),
+      periodo_fim: _ofxData(_ofxTag(texto, 'DTEND')),
+      saldo_final: saldoStr ? (parseFloat(saldoStr.replace(',', '.')) || null) : null,
+      saldo_final_data: _ofxData(_ofxTag(ledgerBloco, 'DTASOF')) || null,
+    },
+    linhas,
+  };
+}
+
+// Preenche name_normalizado, memo_normalizado e hash_linha de cada linha.
+// Fórmula (igual à 4A): dtposted_raw|trntype|valor_centavos|name|memo|checknum|refnum
+async function _ofxCalcularHashes(linhas) {
+  for (const l of linhas) {
+    l.name_normalizado = _ofxNormalizar(l.name);
+    l.memo_normalizado = _ofxNormalizar(l.memo);
+    const base = [
+      l.dtposted_raw, l.tipo_operacao, Math.round(l.valor * 100),
+      l.name_normalizado, l.memo_normalizado, l.checknum || '', l.refnum || '',
+    ].join('|');
+    l.hash_linha = await _sha256Hex(base);
+  }
+}
+
+// Lê o que já existe em extratos_bancarios desta conta para dedup visual.
+// Tolerante a "tabela não existe" (4A ainda não aplicada) e a falta de permissão.
+async function _ofxConsultarDuplicatas(contaId) {
+  const res = { disponivel: false, fitids: new Set(), hashes: new Set() };
+  try {
+    const { data, error } = await sb.from('extratos_bancarios')
+      .select('fitid,hash_linha').eq('conta_bancaria_id', contaId);
+    if (error) throw error;
+    res.disponivel = true;
+    (data || []).forEach(r => {
+      if (r.fitid) res.fitids.add(r.fitid);
+      if (r.hash_linha) res.hashes.add(r.hash_linha);
+    });
+  } catch (_) { /* schema 4A ainda não aplicado ou sem acesso — segue sem dedup-DB */ }
+  return res;
+}
+
+async function _ofxArquivoSelecionado(input) {
+  const contaSel = document.getElementById('ofx-conta-sel');
+  const contaId = contaSel ? contaSel.value : '';
+  const resEl = document.getElementById('ofx-preview-resultado');
+  if (!contaId) { toast('Selecione a conta primeiro'); input.value = ''; return; }
+  const file = input.files && input.files[0];
+  if (!file || !resEl) return;
+  resEl.innerHTML = '<div style="padding:16px;color:var(--text-muted)">⏳ Lendo arquivo…</div>';
+  try {
+    const texto = await file.text();
+    const parsed = _parseOfx(texto);
+    if (!parsed.linhas.length) {
+      resEl.innerHTML = '<div class="card" style="padding:16px;color:#B00020">Nenhuma transação (&lt;STMTTRN&gt;) encontrada. Confirme que é um arquivo OFX do Sicoob.</div>';
+      return;
+    }
+    const arquivoHash = await _sha256Hex(texto);
+    await _ofxCalcularHashes(parsed.linhas);
+    const dedup = await _ofxConsultarDuplicatas(contaId);
+    _ofxPreview = {
+      contaId,
+      arquivo: { nome: file.name, hash: arquivoHash, tamanho: file.size },
+      meta: parsed.meta, linhas: parsed.linhas, dedup,
+    };
+    _renderOfxPreview();
+  } catch (e) {
+    // Sem dados sensíveis no console (invariante #8): só a mensagem genérica.
+    resEl.innerHTML = `<div class="card" style="padding:16px;color:#B00020">❌ Não foi possível ler o arquivo: ${_esc(e?.message || String(e))}</div>`;
+  }
+}
+
+function _renderOfxPreview() {
+  const el = document.getElementById('ofx-preview-resultado');
+  if (!el || !_ofxPreview) return;
+  const { meta, linhas, dedup, arquivo, contaId } = _ofxPreview;
+  const conta = (DATA.contas_bancarias || []).find(c => c.id === contaId);
+
+  const vistos = new Set();
+  let novas = 0, dups = 0;
+  linhas.forEach(l => {
+    const chave = l.fitid ? 'f:' + l.fitid : 'h:' + l.hash_linha;
+    const dupDB = dedup.disponivel
+      && ((l.fitid && dedup.fitids.has(l.fitid)) || (!l.fitid && dedup.hashes.has(l.hash_linha)));
+    const dupArquivo = vistos.has(chave);
+    vistos.add(chave);
+    l._dup = dupDB || dupArquivo;
+    l._dupTipo = dupDB ? 'banco' : (dupArquivo ? 'arquivo' : '');
+    if (l._dup) dups++; else novas++;
+  });
+
+  const soDigitos = s => String(s || '').replace(/\D/g, '');
+  const acctMismatch = meta.acctid && conta && conta.conta
+    && soDigitos(meta.acctid) !== soDigitos(conta.conta);
+
+  const rows = linhas.map(l => {
+    const cor = l.valor < 0 ? '#B00020' : 'var(--green)';
+    const badge = l._dup
+      ? `<span style="font-size:10px;color:var(--text-muted);background:rgba(0,0,0,0.06);border-radius:3px;padding:1px 6px">já importada${l._dupTipo === 'arquivo' ? ' (no arquivo)' : ''}</span>`
+      : '<span style="font-size:10px;color:var(--green)">● nova</span>';
+    return `<tr style="${l._dup ? 'opacity:0.55' : ''}">
+      <td style="padding:6px 8px;border-bottom:1px solid var(--border);font-size:12px;white-space:nowrap">${fmtData(l.data) || '—'}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid var(--border);font-size:12px">${_esc(l.name || l.memo || '—')}${(l.memo && l.name) ? `<div style="font-size:10px;color:var(--text-muted)">${_esc(l.memo)}</div>` : ''}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid var(--border);text-align:right;font-family:'Cinzel',serif;font-size:12px;color:${cor};white-space:nowrap">${fmtVal(l.valor)}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid var(--border);font-size:11px;color:var(--text-muted)">${_esc(l.tipo_operacao || '')}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid var(--border);text-align:center">${badge}</td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="card" style="padding:16px">
+      <div style="font-weight:700;color:var(--navy);margin-bottom:8px">Pré-visualização — ${_esc(arquivo.nome)}</div>
+      ${acctMismatch ? `<div style="background:rgba(176,0,32,0.07);border:1px solid rgba(176,0,32,0.3);border-radius:4px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:#B00020">⚠️ A conta do arquivo não confere com a conta selecionada. Verifique se escolheu a conta certa antes de seguir.</div>` : ''}
+      ${!dedup.disponivel ? `<div style="background:rgba(184,134,11,0.08);border:1px solid rgba(184,134,11,0.3);border-radius:4px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:#8a6d0b">ℹ️ Conferência de duplicatas contra o banco indisponível (a tabela de extratos ainda não foi criada no servidor — Fase 4A). Duplicatas dentro do próprio arquivo continuam sinalizadas.</div>` : ''}
+      <div style="display:flex;gap:18px;flex-wrap:wrap;font-size:13px;margin-bottom:12px">
+        <div><strong>${linhas.length}</strong> transações</div>
+        <div style="color:var(--green)"><strong>${novas}</strong> novas</div>
+        <div style="color:var(--text-muted)"><strong>${dups}</strong> já importadas</div>
+        <div>Período: <strong>${fmtData(meta.periodo_inicio) || '?'} – ${fmtData(meta.periodo_fim) || '?'}</strong></div>
+        ${meta.saldo_final != null ? `<div>Saldo final (banco): <strong>${fmtVal(meta.saldo_final)}</strong></div>` : ''}
+      </div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr style="text-align:left;font-size:10px;letter-spacing:0.06em;color:var(--text-muted)">
+            <th style="padding:6px 8px">DATA</th><th style="padding:6px 8px">DESCRIÇÃO</th>
+            <th style="padding:6px 8px;text-align:right">VALOR</th><th style="padding:6px 8px">TIPO</th>
+            <th style="padding:6px 8px;text-align:center">SITUAÇÃO</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <div style="margin-top:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <button class="btn" disabled style="opacity:0.5;cursor:not-allowed">✓ Confirmar importação</button>
+        <span style="font-size:11px;color:var(--text-muted);font-style:italic">A gravação definitiva (atômica, tudo-ou-nada) chega na Fase 4C.</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderImportarOfx() {
+  const el = document.getElementById('importar-ofx-container');
+  if (!el) return;
+  if (!_podeEditarBancos()) { el.innerHTML = accessDenied('Importar Extrato'); return; }
+  const contas = (DATA.contas_bancarias || []).filter(c => c.ativo);
+  const opts = contas.map(c =>
+    `<option value="${c.id}">${_esc(c.nome)}${c.conta ? ` — Cc. ${_esc(c.conta)}` : ''}</option>`
+  ).join('');
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <button class="btn" onclick="voltarParaExtratoFinanceiro()" style="padding:6px 14px;font-size:11px">← Voltar ao extrato</button>
+      <div class="fc" style="font-size:11px;font-weight:700;letter-spacing:0.12em;color:var(--navy)">FINANCEIRO › IMPORTAR EXTRATO (OFX)</div>
+    </div>
+
+    <div style="background:rgba(27,94,160,0.05);border:1px solid rgba(27,94,160,0.2);border-radius:4px;padding:12px 16px;margin-bottom:18px;font-size:12px;color:#1B5EA0;line-height:1.5">
+      <strong>📥 Fase 4B — Pré-visualização.</strong> Selecione a conta e o arquivo
+      <code>.ofx</code> baixado pelo Internet Banking do Sicoob
+      (Conta › Consultas › Conta Corrente › Salvar › Formato OFX). O sistema lê e
+      mostra as transações, sinalizando as que já foram importadas.
+      <strong>Nada é gravado nesta etapa.</strong>
+      <br><em>Dica: não inclua o dia de hoje no período; ele ainda pode mudar.</em>
+    </div>
+
+    ${contas.length ? `
+    <div class="card" style="padding:16px;margin-bottom:16px">
+      <label style="display:block;font-size:11px;font-weight:700;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:6px">CONTA BANCÁRIA</label>
+      <select id="ofx-conta-sel" style="width:100%;max-width:420px;padding:8px 10px;border:1px solid var(--border-mid);border-radius:3px;background:var(--cream);font-size:14px;margin-bottom:14px">
+        ${opts}
+      </select>
+      <label style="display:block;font-size:11px;font-weight:700;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:6px">ARQUIVO OFX</label>
+      <input type="file" id="ofx-file" accept=".ofx,.OFX" onchange="_ofxArquivoSelecionado(this)"
+        style="width:100%;max-width:420px;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-size:13px;background:var(--cream);cursor:pointer">
+    </div>
+    ` : `<div class="card" style="padding:16px;color:var(--text-muted)">Nenhuma conta ativa cadastrada. Cadastre uma conta em <strong>Bancos &amp; Categorias</strong> antes de importar.</div>`}
+
+    <div id="ofx-preview-resultado"></div>
+  `;
+}
+
 // ─── Contas Bancárias ─────────────────────────────────────────────────────
 function renderContasBancariasSecao() {
   const el = document.getElementById('cfg-cont-bancos-contas');
@@ -8246,6 +8500,14 @@ function renderFinancas(access) {
     // Se entrou em modo bancos sem permissão (não deveria), volta ao extrato
     _modoFinancas = 'extrato';
   }
+  // Sub-modo "Importar Extrato (OFX)" — Fase 4B. Só editores (admin/tesoureiro).
+  if (_modoFinancas === 'importar-ofx' && typeof _podeEditarBancos === 'function' && _podeEditarBancos()) {
+    document.getElementById('financas-content').innerHTML = `<div id="importar-ofx-container"></div>`;
+    renderImportarOfx();
+    return;
+  } else if (_modoFinancas === 'importar-ofx') {
+    _modoFinancas = 'extrato';
+  }
   if (access === 'none') { document.getElementById('financas-content').innerHTML = accessDenied('Finanças'); return; }
   const canEdit = access === 'full';
   const hoje = new Date();
@@ -8439,6 +8701,9 @@ function renderFinancas(access) {
       <span style="font-size:11px;color:var(--text-muted);font-style:italic">
         Cadastre contas bancárias e categorias financeiras${_podeEditarBancos() ? '' : ' (visualização)'}
       </span>
+      ${_podeEditarBancos() ? `<button class="btn" onclick="abrirImportarOfx()" style="display:inline-flex;align-items:center;gap:6px;border-color:var(--navy);color:var(--navy)">
+        📥 Importar Extrato (OFX)
+      </button>` : ''}
     </div>` : ''}
 
     <!-- BOTÕES DE AÇÃO -->
