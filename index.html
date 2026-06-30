@@ -4440,6 +4440,183 @@ function _concRowDesfazer(e) {
   </div>`;
 }
 
+// ══════════════════════════════════════════════════════════════════════════
+// PLANO FINANCEIRO — FASE 7: Relatório de Conciliação (Conselho Fiscal)
+// Somente leitura. Cruza extrato do banco × lançamentos da loja por período,
+// destacando o que ainda está pendente. Sem migration.
+// ══════════════════════════════════════════════════════════════════════════
+
+let _relContaId = null, _relAno = null, _relMes = null, _relData = null;
+
+async function abrirRelatorioConc() {
+  if (!_podeVerBancos()) { toast('⛔ Sem permissão'); return; }
+  if (!(DATA.contas_bancarias && DATA.contas_bancarias.length)
+      && typeof _reloadContasBancarias === 'function') {
+    await _reloadContasBancarias();
+  }
+  if (!_relContaId) {
+    const a = (DATA.contas_bancarias || []).find(c => c.ativo) || (DATA.contas_bancarias || [])[0];
+    _relContaId = a ? a.id : null;
+  }
+  if (!_relAno) { const h = new Date(); _relAno = h.getFullYear(); _relMes = h.getMonth() + 1; }
+  await _relCarregar();
+  _modoFinancas = 'relatorio-conc';
+  renderFinancas(ROLES[currentRole]?.access?.['financas'] || 'none');
+}
+
+function _relPeriodo() {
+  const mm = String(_relMes).padStart(2, '0');
+  const ultimo = new Date(_relAno, _relMes, 0).getDate();
+  return { ini: `${_relAno}-${mm}-01`, fim: `${_relAno}-${mm}-${String(ultimo).padStart(2, '0')}` };
+}
+
+async function _relCarregar() {
+  _relData = { extratos: [], saldo: null, saldoData: null };
+  if (!_relContaId) return;
+  const { ini, fim } = _relPeriodo();
+  try {
+    const { data: ext, error: e1 } = await sb.from('extratos_bancarios')
+      .select('*').eq('conta_bancaria_id', _relContaId)
+      .gte('data', ini).lte('data', fim).order('data', { ascending: true });
+    if (e1) throw e1;
+    _relData.extratos = ext || [];
+    const { data: imp, error: e2 } = await sb.from('importacoes_ofx')
+      .select('saldo_final,saldo_final_data').eq('conta_bancaria_id', _relContaId)
+      .not('saldo_final', 'is', null).lte('saldo_final_data', fim)
+      .order('saldo_final_data', { ascending: false }).limit(1);
+    if (!e2 && imp && imp.length) { _relData.saldo = imp[0].saldo_final; _relData.saldoData = imp[0].saldo_final_data; }
+  } catch (e) { toast('Erro ao carregar relatório: ' + (e?.message || '')); }
+}
+
+async function _relMudarConta(selEl) { _relContaId = selEl.value; await _relCarregar(); renderRelatorioConc(); }
+async function _relMudarPeriodo() {
+  _relMes = parseInt(document.getElementById('rel-mes')?.value) || _relMes;
+  _relAno = parseInt(document.getElementById('rel-ano')?.value) || _relAno;
+  await _relCarregar(); renderRelatorioConc();
+}
+
+function renderRelatorioConc() {
+  const el = document.getElementById('relatorio-conc-container');
+  if (!el) return;
+  if (!_podeVerBancos()) { el.innerHTML = accessDenied('Relatório de Conciliação'); return; }
+  const contas = (DATA.contas_bancarias || []).filter(c => c.ativo);
+  const optConta = contas.map(c => `<option value="${c.id}" ${c.id === _relContaId ? 'selected' : ''}>${_esc(c.nome)}</option>`).join('');
+  const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+  const optMes = meses.map((m, i) => `<option value="${i + 1}" ${(i + 1) === _relMes ? 'selected' : ''}>${m}</option>`).join('');
+  const anoAtual = new Date().getFullYear();
+  let optAno = '';
+  for (let a = anoAtual + 1; a >= anoAtual - 3; a--) optAno += `<option value="${a}" ${a === _relAno ? 'selected' : ''}>${a}</option>`;
+
+  const ext = (_relData && _relData.extratos) || [];
+  const { ini, fim } = _relPeriodo();
+  const somaE = arr => arr.reduce((s, e) => s + parseFloat(e.valor || 0), 0);
+  const entradas = ext.filter(e => parseFloat(e.valor) > 0);
+  const saidas = ext.filter(e => parseFloat(e.valor) < 0);
+  const concil = ext.filter(e => e.status_conciliacao === 'conciliado');
+  const pend = ext.filter(e => e.status_conciliacao === 'pendente');
+  const ign = ext.filter(e => e.status_conciliacao === 'ignorado');
+
+  const finsPagas = (DATA.financas || []).filter(f =>
+    f.status === 'pago' && f.data >= ini && f.data <= fim &&
+    (!f.conta_bancaria_id || f.conta_bancaria_id === _relContaId));
+  const somaF = arr => arr.reduce((s, f) => s + parseFloat(f.valor || 0), 0);
+  const recPagas = finsPagas.filter(f => f.tipo === 'receita');
+  const despPagas = finsPagas.filter(f => f.tipo === 'despesa');
+
+  const linha = (rot, val, cor) => `<div style="display:flex;justify-content:space-between;gap:10px;font-size:13px;margin-bottom:6px"><span style="color:var(--text-muted)">${rot}</span><strong style="color:${cor || 'var(--text)'};font-family:'Cinzel',serif">${val}</strong></div>`;
+  const card = (titulo, linhas) => `<div class="card" style="padding:14px;flex:1 1 280px;min-width:250px"><div style="font-size:11px;font-weight:700;letter-spacing:0.08em;color:var(--navy);margin-bottom:10px">${titulo}</div>${linhas}</div>`;
+
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <button class="btn" onclick="voltarParaExtratoFinanceiro()" style="padding:6px 14px;font-size:11px">← Voltar ao extrato</button>
+      <div class="fc" style="font-size:11px;font-weight:700;letter-spacing:0.12em;color:var(--navy)">FINANCEIRO › RELATÓRIO DE CONCILIAÇÃO</div>
+    </div>
+    <div style="margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <select onchange="_relMudarConta(this)" style="padding:7px 10px;border:1px solid var(--border-mid);border-radius:3px;background:var(--cream);font-size:13px">${optConta}</select>
+      <select id="rel-mes" onchange="_relMudarPeriodo()" style="padding:7px 10px;border:1px solid var(--border-mid);border-radius:3px;background:var(--cream);font-size:13px">${optMes}</select>
+      <select id="rel-ano" onchange="_relMudarPeriodo()" style="padding:7px 10px;border:1px solid var(--border-mid);border-radius:3px;background:var(--cream);font-size:13px">${optAno}</select>
+      <button class="btn" onclick="imprimirRelatorioConc()" style="padding:6px 12px;font-size:11px;margin-left:auto">🖨️ Imprimir</button>
+    </div>
+    ${ext.length === 0 ? '<div class="card" style="padding:16px;color:var(--text-muted)">Nenhuma linha de extrato importada nesta conta/período.</div>' : `
+    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px">
+      ${card('EXTRATO DO BANCO',
+        linha('Entradas (créditos)', fmtVal(somaE(entradas)), 'var(--green)') +
+        linha('Saídas (débitos)', fmtVal(somaE(saidas)), '#B00020') +
+        linha('Total de linhas', String(ext.length)) +
+        (_relData.saldo != null ? linha('Saldo final (banco)', fmtVal(_relData.saldo)) : ''))}
+      ${card('SITUAÇÃO DA CONCILIAÇÃO',
+        linha('✅ Conciliadas', `${concil.length} · ${fmtVal(Math.abs(somaE(concil)))}`, 'var(--green)') +
+        linha('⏳ Pendentes', `${pend.length} · ${fmtVal(Math.abs(somaE(pend)))}`, pend.length ? '#A05A00' : 'var(--text)') +
+        linha('🚫 Ignoradas', `${ign.length} · ${fmtVal(Math.abs(somaE(ign)))}`))}
+      ${card('LANÇAMENTOS DA LOJA (pagos)',
+        linha('Receitas pagas', fmtVal(somaF(recPagas)), 'var(--green)') +
+        linha('Despesas pagas', fmtVal(somaF(despPagas)), '#B00020') +
+        linha('Total de lançamentos', String(finsPagas.length)))}
+    </div>
+    ${pend.length ? `<div class="card" style="padding:14px">
+      <div style="font-size:11px;font-weight:700;letter-spacing:0.08em;color:#A05A00;margin-bottom:10px">⚠️ DIFERENÇAS A INVESTIGAR — ${pend.length} linha(s) do banco ainda não conciliada(s)</div>
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="text-align:left;font-size:10px;color:var(--text-muted)"><th style="padding:4px 6px">DATA</th><th style="padding:4px 6px">DESCRIÇÃO</th><th style="padding:4px 6px;text-align:right">VALOR</th></tr></thead>
+        <tbody>${pend.map(e => `<tr><td style="padding:4px 6px;font-size:12px;white-space:nowrap">${fmtData(e.data)}</td><td style="padding:4px 6px;font-size:12px">${_esc(e.descricao_bruta || '—')}</td><td style="padding:4px 6px;text-align:right;font-size:12px;color:${parseFloat(e.valor) < 0 ? '#B00020' : 'var(--green)'};white-space:nowrap">${fmtVal(e.valor)}</td></tr>`).join('')}</tbody>
+      </table>
+    </div>` : '<div class="card" style="padding:14px;color:var(--green)">✅ Todas as linhas do banco neste período estão conciliadas ou ignoradas.</div>'}
+    `}
+  `;
+}
+
+// Versão impressa do relatório (usa abrirJanelaPrint do app — janela própria,
+// já formatada; o window.print() direto sai em branco por causa do #print-area).
+function imprimirRelatorioConc() {
+  if (!_relData || !(_relData.extratos || []).length) { toast('Nada para imprimir neste período'); return; }
+  const conta = (DATA.contas_bancarias || []).find(c => c.id === _relContaId);
+  const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+  const { ini, fim } = _relPeriodo();
+  const ext = _relData.extratos || [];
+  const somaE = arr => arr.reduce((s, e) => s + parseFloat(e.valor || 0), 0);
+  const entradas = ext.filter(e => parseFloat(e.valor) > 0);
+  const saidas = ext.filter(e => parseFloat(e.valor) < 0);
+  const concil = ext.filter(e => e.status_conciliacao === 'conciliado');
+  const pend = ext.filter(e => e.status_conciliacao === 'pendente');
+  const ign = ext.filter(e => e.status_conciliacao === 'ignorado');
+  const finsPagas = (DATA.financas || []).filter(f =>
+    f.status === 'pago' && f.data >= ini && f.data <= fim &&
+    (!f.conta_bancaria_id || f.conta_bancaria_id === _relContaId));
+  const somaF = arr => arr.reduce((s, f) => s + parseFloat(f.valor || 0), 0);
+  const recPagas = finsPagas.filter(f => f.tipo === 'receita');
+  const despPagas = finsPagas.filter(f => f.tipo === 'despesa');
+
+  const ri = (v, l) => `<div class="print-resumo-item"><div class="print-resumo-valor">${v}</div><div class="print-resumo-label">${l}</div></div>`;
+  const pendRows = pend.map(e => `<tr><td>${fmtData(e.data)}</td><td>${_esc(e.descricao_bruta || '—')}</td><td style="text-align:right">${fmtVal(e.valor)}</td></tr>`).join('');
+
+  abrirJanelaPrint(`
+    <div class="print-header">
+      <div class="print-lodge">${_nomeImpressao()}</div>
+      <div class="print-title">Relatório de Conciliação Bancária</div>
+      <div class="print-date">${conta ? _esc(conta.nome) : '—'} · ${meses[_relMes - 1]}/${_relAno} · emitido em ${new Date().toLocaleDateString('pt-BR')}</div>
+    </div>
+    <div class="print-resumo">
+      ${ri(fmtVal(somaE(entradas)), 'Entradas (banco)')}
+      ${ri(fmtVal(Math.abs(somaE(saidas))), 'Saídas (banco)')}
+      ${ri(_relData.saldo != null ? fmtVal(_relData.saldo) : '—', 'Saldo final')}
+    </div>
+    <div class="print-section">Situação da conciliação (${ext.length} linha(s))</div>
+    <table><thead><tr><th>Situação</th><th>Linhas</th><th style="text-align:right">Valor</th></tr></thead><tbody>
+      <tr><td>Conciliadas</td><td>${concil.length}</td><td style="text-align:right">${fmtVal(Math.abs(somaE(concil)))}</td></tr>
+      <tr><td>Pendentes</td><td>${pend.length}</td><td style="text-align:right">${fmtVal(Math.abs(somaE(pend)))}</td></tr>
+      <tr><td>Ignoradas</td><td>${ign.length}</td><td style="text-align:right">${fmtVal(Math.abs(somaE(ign)))}</td></tr>
+    </tbody></table>
+    <div class="print-section">Lançamentos da loja pagos no período</div>
+    <table><thead><tr><th>Tipo</th><th>Lançamentos</th><th style="text-align:right">Valor</th></tr></thead><tbody>
+      <tr><td>Receitas</td><td>${recPagas.length}</td><td style="text-align:right">${fmtVal(somaF(recPagas))}</td></tr>
+      <tr><td>Despesas</td><td>${despPagas.length}</td><td style="text-align:right">${fmtVal(somaF(despPagas))}</td></tr>
+    </tbody></table>
+    ${pend.length ? `<div class="print-section">Diferenças a investigar — linhas do banco pendentes</div>
+    <table><thead><tr><th>Data</th><th>Descrição</th><th style="text-align:right">Valor</th></tr></thead><tbody>${pendRows}</tbody></table>`
+      : '<p style="margin-top:10px;color:#2A7A3A">Todas as linhas do período estão conciliadas ou ignoradas.</p>'}
+    <div class="print-rodape"><span>Conselho Fiscal</span><span>${_nomeImpressao()}</span></div>
+  `);
+}
+
 // ─── Contas Bancárias ─────────────────────────────────────────────────────
 function renderContasBancariasSecao() {
   const el = document.getElementById('cfg-cont-bancos-contas');
@@ -8964,6 +9141,14 @@ function renderFinancas(access) {
   } else if (_modoFinancas === 'conciliar-ofx') {
     _modoFinancas = 'extrato';
   }
+  // Sub-modo "Relatório de Conciliação" — Fase 7 (somente leitura; quem pode ver bancos).
+  if (_modoFinancas === 'relatorio-conc' && typeof _podeVerBancos === 'function' && _podeVerBancos()) {
+    document.getElementById('financas-content').innerHTML = `<div id="relatorio-conc-container"></div>`;
+    renderRelatorioConc();
+    return;
+  } else if (_modoFinancas === 'relatorio-conc') {
+    _modoFinancas = 'extrato';
+  }
   if (access === 'none') { document.getElementById('financas-content').innerHTML = accessDenied('Finanças'); return; }
   const canEdit = access === 'full';
   const hoje = new Date();
@@ -9163,6 +9348,9 @@ function renderFinancas(access) {
       <button class="btn" onclick="abrirConciliarOfx()" style="display:inline-flex;align-items:center;gap:6px;border-color:var(--navy);color:var(--navy)">
         🔗 Conciliar Extrato
       </button>` : ''}
+      <button class="btn" onclick="abrirRelatorioConc()" style="display:inline-flex;align-items:center;gap:6px;border-color:var(--navy);color:var(--navy)">
+        📊 Relatório de Conciliação
+      </button>
     </div>` : ''}
 
     <!-- BOTÕES DE AÇÃO -->
