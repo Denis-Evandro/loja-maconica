@@ -3789,6 +3789,24 @@ async function _sha256Hex(str) {
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+// SHA-256 hex sobre os bytes crus do arquivo (dedup byte-a-byte da 4A:
+// arquivo_hash deve refletir o arquivo inteiro, não o texto já decodificado).
+async function _sha256HexBuffer(buffer) {
+  const buf = await crypto.subtle.digest('SHA-256', buffer);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Decodifica o arquivo OFX respeitando o charset do cabeçalho. O OFX 1.x do
+// Sicoob vem em CHARSET:1252 (Windows-1252); ler como UTF-8 quebraria acentos
+// (ex.: "Transferência"). OFX 2.x (XML) costuma ser UTF-8.
+function _ofxDecodificar(buffer) {
+  const bytes = new Uint8Array(buffer);
+  const head = new TextDecoder('windows-1252').decode(bytes.subarray(0, 1024)).toUpperCase();
+  const label = /UTF-?8/.test(head) ? 'utf-8' : 'windows-1252';
+  try { return new TextDecoder(label).decode(bytes); }
+  catch (_) { return new TextDecoder('windows-1252').decode(bytes); }
+}
+
 // Texto do .ofx -> { meta, linhas[] }. Hashes calculados depois (são async).
 function _parseOfx(texto) {
   const ledgerBloco = (texto.match(/<LEDGERBAL>([\s\S]*?)<\/LEDGERBAL>/i) || [, ''])[1];
@@ -3865,13 +3883,14 @@ async function _ofxArquivoSelecionado(input) {
   if (!file || !resEl) return;
   resEl.innerHTML = '<div style="padding:16px;color:var(--text-muted)">⏳ Lendo arquivo…</div>';
   try {
-    const texto = await file.text();
+    const buffer = await file.arrayBuffer();
+    const texto = _ofxDecodificar(buffer);
     const parsed = _parseOfx(texto);
     if (!parsed.linhas.length) {
       resEl.innerHTML = '<div class="card" style="padding:16px;color:#B00020">Nenhuma transação (&lt;STMTTRN&gt;) encontrada. Confirme que é um arquivo OFX do Sicoob.</div>';
       return;
     }
-    const arquivoHash = await _sha256Hex(texto);
+    const arquivoHash = await _sha256HexBuffer(buffer);
     await _ofxCalcularHashes(parsed.linhas);
     const dedup = await _ofxConsultarDuplicatas(contaId);
     _ofxPreview = {
