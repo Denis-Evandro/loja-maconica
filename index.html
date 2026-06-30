@@ -4189,7 +4189,7 @@ function _concRenderPainel(ext) {
       <div style="font-size:11px;color:var(--text-muted);margin:4px 0 8px">${fmtData(f.data)} · ${_esc(f.status || '')}${f.categoria ? ' · ' + _esc(f.categoria) : ''}</div>
       <button class="btn" onclick="_concVincular('${ext.id}','${f.id}')" style="border-color:var(--green);color:var(--green);padding:4px 12px;font-size:12px">✓ Vincular este</button>
     </div>`).join('')
-    : '<div style="padding:10px;color:var(--text-muted);font-size:12px">Nenhum lançamento parecido (valor ±R$0,05, data ±15 dias). Você pode ignorar a linha — e criar o lançamento na próxima fase.</div>';
+    : '<div style="padding:10px;color:var(--text-muted);font-size:12px">Nenhum lançamento parecido (valor ±R$0,05, data ±15 dias). Use <strong>Criar lançamento</strong> abaixo para registrar a partir da linha do banco, ou ignore.</div>';
 
   return `
     <div class="card" style="padding:14px">
@@ -4204,10 +4204,87 @@ function _concRenderPainel(ext) {
       <div style="font-size:11px;font-weight:700;color:var(--navy);letter-spacing:0.08em;margin-bottom:8px">CANDIDATOS (${cands.length})</div>
       ${candHtml}
 
-      <div style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px">
+      <div style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" onclick="_concAbrirCriarLancamento('${ext.id}')" style="padding:4px 12px;font-size:12px;border-color:var(--navy);color:var(--navy)">➕ Criar lançamento</button>
         <button class="btn" onclick="_concIgnorar('${ext.id}')" style="padding:4px 12px;font-size:12px">🚫 Ignorar esta linha</button>
       </div>
     </div>`;
+}
+
+// Fase 5B — cria um lançamento a partir da linha do banco e concilia (atômico).
+function _concAbrirCriarLancamento(extId) {
+  const ext = _concExtratos.find(e => e.id === extId);
+  if (!ext) return;
+  const tipo = parseFloat(ext.valor) < 0 ? 'despesa' : 'receita';
+  const valorAbs = Math.abs(parseFloat(ext.valor)).toFixed(2);
+  const inp = `style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 10px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"`;
+  const cats = (typeof CATEGORIAS_FIN !== 'undefined' ? CATEGORIAS_FIN : [])
+    .map(c => `<option value="${c}">${typeof getCatLabel === 'function' ? getCatLabel(c) : c}</option>`).join('');
+  const membros = (DATA.membros || [])
+    .filter(m => m.nome_maconico)
+    .sort((a, b) => (a.nome_maconico || '').localeCompare(b.nome_maconico || ''))
+    .map(m => `<option value="${m.id}">${_esc(m.nome_maconico)}</option>`).join('');
+
+  document.body.insertAdjacentHTML('beforeend', `
+    <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px">
+      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;width:440px;max-height:90vh;overflow-y:auto;position:relative;padding:26px 30px">
+        <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--navy),#2A7ACC);border-radius:6px 6px 0 0"></div>
+        <div class="fc" style="font-size:13px;font-weight:700;letter-spacing:0.1em;color:var(--navy);margin-bottom:6px">➕ Criar lançamento a partir do extrato</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:16px">Será criado já como <strong>pago</strong>, com a data do banco (${fmtData(ext.data)}), e conciliado a esta linha.</div>
+        <div style="display:grid;gap:12px">
+          <div>
+            <label class="lbl" style="font-size:11px;color:var(--text-muted)">Descrição</label>
+            <input id="cl-desc" type="text" value="${_esc(ext.descricao_bruta || '')}" ${inp}>
+          </div>
+          <div style="display:flex;gap:10px">
+            <div style="flex:1">
+              <label class="lbl" style="font-size:11px;color:var(--text-muted)">Valor (R$)</label>
+              <input id="cl-valor" type="number" step="0.01" min="0.01" value="${valorAbs}" ${inp}>
+            </div>
+            <div style="flex:1">
+              <label class="lbl" style="font-size:11px;color:var(--text-muted)">Tipo</label>
+              <select id="cl-tipo" ${inp}>
+                <option value="receita" ${tipo === 'receita' ? 'selected' : ''}>↑ Receita</option>
+                <option value="despesa" ${tipo === 'despesa' ? 'selected' : ''}>↓ Despesa</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="lbl" style="font-size:11px;color:var(--text-muted)">Categoria</label>
+            <select id="cl-cat" ${inp}><option value="">— selecione —</option>${cats}</select>
+          </div>
+          <div>
+            <label class="lbl" style="font-size:11px;color:var(--text-muted)">Irmão (opcional)</label>
+            <select id="cl-membro" ${inp}><option value="">— nenhum —</option>${membros}</select>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
+          <button class="btn" onclick="fecharModal()" style="padding:8px 18px">Cancelar</button>
+          <button class="btn btn-solid" onclick="_concSalvarCriarLancamento('${ext.id}')" style="padding:8px 18px;background:var(--navy)">Criar e conciliar</button>
+        </div>
+      </div>
+    </div>`);
+}
+
+async function _concSalvarCriarLancamento(extId) {
+  const desc   = document.getElementById('cl-desc')?.value.trim() || '';
+  const valor  = parseFloat(document.getElementById('cl-valor')?.value);
+  const tipo   = document.getElementById('cl-tipo')?.value;
+  const categoria = document.getElementById('cl-cat')?.value || '';
+  const membro_id = document.getElementById('cl-membro')?.value || '';
+  if (!(valor > 0)) { toast('⚠️ Informe um valor válido'); return; }
+  const p_lancamento = { descricao: desc, valor, tipo, categoria, membro_id };
+  try {
+    const { error } = await sb.rpc('criar_lancamento_e_conciliar', {
+      p_extrato_id: extId, p_lancamento,
+    });
+    if (error) throw error;
+    toast('✅ Lançamento criado e conciliado');
+    fecharModal();
+    await Promise.all([_concCarregarPendentes(), _reloadFinancas()]);
+    _concSelId = null;
+    renderConciliarOfx();
+  } catch (e) { toast('❌ ' + (e?.message || e?.code || 'falha ao criar')); }
 }
 
 function renderConciliarOfx() {
