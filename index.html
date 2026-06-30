@@ -3965,11 +3965,71 @@ function _renderOfxPreview() {
         </table>
       </div>
       <div style="margin-top:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-        <button class="btn" disabled style="opacity:0.5;cursor:not-allowed">✓ Confirmar importação</button>
-        <span style="font-size:11px;color:var(--text-muted);font-style:italic">A gravação definitiva (atômica, tudo-ou-nada) chega na Fase 4C.</span>
+        ${(() => {
+          if (_ofxPreview.resultado) {
+            const r = _ofxPreview.resultado;
+            return `<div style="background:rgba(0,128,0,0.07);border:1px solid rgba(0,128,0,0.3);border-radius:4px;padding:10px 14px;font-size:13px;color:var(--green)">
+              ✅ Importação concluída: <strong>${r.total_inseridas || 0}</strong> nova(s) gravada(s), <strong>${r.total_duplicadas || 0}</strong> já existente(s) ignorada(s).
+            </div>`;
+          }
+          if (novas > 0) {
+            return `<button class="btn" id="ofx-confirmar-btn" onclick="_ofxConfirmarImportacao()" style="border-color:var(--green);color:var(--green)">✓ Confirmar importação (${novas} nova${novas > 1 ? 's' : ''})</button>
+              <span style="font-size:11px;color:var(--text-muted);font-style:italic">Grava as transações novas. As já existentes são ignoradas automaticamente.</span>`;
+          }
+          return `<button class="btn" disabled style="opacity:0.5;cursor:not-allowed">✓ Confirmar importação</button>
+            <span style="font-size:11px;color:var(--text-muted);font-style:italic">Tudo deste arquivo já foi importado — nada novo a gravar.</span>`;
+        })()}
       </div>
     </div>
   `;
+}
+
+// Fase 4C — grava o lote via RPC atômica importar_ofx_extrato. Envia TODAS as
+// linhas; a dedup (ON CONFLICT) acontece no servidor, que devolve os totais.
+async function _ofxConfirmarImportacao() {
+  if (!_ofxPreview || _ofxPreview.resultado) return;
+  const btn = document.getElementById('ofx-confirmar-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Gravando…'; btn.style.opacity = '0.6'; }
+  const { contaId, arquivo, meta, linhas } = _ofxPreview;
+
+  const datas = linhas.map(l => l.data).filter(Boolean).sort();
+  const p_arquivo_meta = {
+    arquivo_nome: arquivo.nome,
+    arquivo_hash: arquivo.hash,
+    arquivo_tamanho_bytes: arquivo.tamanho,
+    ofx_versao: meta.ofx_versao || null,
+    bankid_ofx: meta.bankid || null,
+    acctid_ofx: meta.acctid || null,
+    periodo_inicio: meta.periodo_inicio || datas[0] || null,
+    periodo_fim: meta.periodo_fim || datas[datas.length - 1] || null,
+    saldo_final: meta.saldo_final,
+    saldo_final_data: meta.saldo_final_data || null,
+  };
+  const p_linhas = linhas.map(l => {
+    const descBruta = [l.name, l.memo].filter(Boolean).join(' — ');
+    return {
+      data: l.data, dtposted_raw: l.dtposted_raw,
+      descricao_bruta: descBruta,
+      descricao_normalizada: _ofxNormalizar(descBruta),
+      valor: l.valor, tipo_operacao: l.tipo_operacao,
+      fitid: l.fitid, hash_linha: l.hash_linha,
+      name_normalizado: l.name_normalizado, memo_normalizado: l.memo_normalizado,
+      checknum: l.checknum, refnum: l.refnum, ordem_no_arquivo: l.ordem,
+    };
+  });
+
+  try {
+    const { data, error } = await sb.rpc('importar_ofx_extrato', {
+      p_conta_bancaria_id: contaId, p_arquivo_meta, p_linhas,
+    });
+    if (error) throw error;
+    _ofxPreview.resultado = data || {};
+    toast(`✅ Importado: ${_ofxPreview.resultado.total_inseridas || 0} nova(s), ${_ofxPreview.resultado.total_duplicadas || 0} já existente(s)`);
+    _renderOfxPreview();
+  } catch (e) {
+    if (btn) { btn.disabled = false; btn.textContent = '✓ Confirmar importação'; btn.style.opacity = '1'; }
+    toast('❌ Falha ao importar: ' + (e?.message || e?.code || 'erro desconhecido'));
+  }
 }
 
 function renderImportarOfx() {
@@ -3987,11 +4047,12 @@ function renderImportarOfx() {
     </div>
 
     <div style="background:rgba(27,94,160,0.05);border:1px solid rgba(27,94,160,0.2);border-radius:4px;padding:12px 16px;margin-bottom:18px;font-size:12px;color:#1B5EA0;line-height:1.5">
-      <strong>📥 Fase 4B — Pré-visualização.</strong> Selecione a conta e o arquivo
+      <strong>📥 Importar Extrato.</strong> Selecione a conta e o arquivo
       <code>.ofx</code> baixado pelo Internet Banking do Sicoob
-      (Conta › Consultas › Conta Corrente › Salvar › Formato OFX). O sistema lê e
-      mostra as transações, sinalizando as que já foram importadas.
-      <strong>Nada é gravado nesta etapa.</strong>
+      (Conta › Consultas › Conta Corrente › Salvar › Formato OFX). O sistema lê,
+      mostra as transações e sinaliza as que já foram importadas; em seguida
+      você revisa e clica em <strong>Confirmar importação</strong> para gravar
+      só as novas (as duplicadas são ignoradas).
       <br><em>Dica: não inclua o dia de hoje no período; ele ainda pode mudar.</em>
     </div>
 
