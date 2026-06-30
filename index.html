@@ -4072,6 +4072,186 @@ function renderImportarOfx() {
   `;
 }
 
+// ══════════════════════════════════════════════════════════════════════════
+// PLANO FINANCEIRO — FASE 5A: Conciliar Extrato (Vincular / Ignorar)
+// Documentação: docs/plano-financeiro-contas-conciliacao.md (Fase 5)
+// RPCs: conciliar_extrato / ignorar_extrato (migration 2026-06-30-fase5a).
+// Escopo 5A: lista extratos pendentes, sugere lançamentos candidatos e permite
+//   Vincular (atômico) ou Ignorar. "Criar lançamento" fica para a 5B.
+// ══════════════════════════════════════════════════════════════════════════
+
+let _concExtratos = [];   // linhas pendentes da conta selecionada
+let _concContaId  = null;
+let _concSelId    = null; // id do extrato selecionado no painel
+
+async function abrirConciliarOfx() {
+  if (!_podeEditarBancos()) { toast('⛔ Sem permissão'); return; }
+  if (!(DATA.contas_bancarias && DATA.contas_bancarias.length)
+      && typeof _reloadContasBancarias === 'function') {
+    await _reloadContasBancarias();
+  }
+  if (!_concContaId) {
+    const ativa = (DATA.contas_bancarias || []).find(c => c.ativo)
+      || (DATA.contas_bancarias || [])[0];
+    _concContaId = ativa ? ativa.id : null;
+  }
+  _concSelId = null;
+  await _concCarregarPendentes();
+  _modoFinancas = 'conciliar-ofx';
+  renderFinancas(ROLES[currentRole]?.access?.['financas'] || 'none');
+}
+
+async function _concCarregarPendentes() {
+  _concExtratos = [];
+  if (!_concContaId) return;
+  try {
+    const { data, error } = await sb.from('extratos_bancarios')
+      .select('*')
+      .eq('conta_bancaria_id', _concContaId)
+      .eq('status_conciliacao', 'pendente')
+      .order('data', { ascending: true });
+    if (error) throw error;
+    _concExtratos = data || [];
+  } catch (e) { toast('Erro ao carregar pendentes: ' + (e?.message || '')); }
+}
+
+function _concDiffDias(d1, d2) {
+  const a = new Date(d1 + 'T00:00:00'), b = new Date(d2 + 'T00:00:00');
+  return Math.abs((a - b) / 86400000);
+}
+
+// Candidatos: cruza sinal->tipo (entrada=receita / saida=despesa), valor ±0,05,
+// data ±15 dias, status agendado/aberto, mesma conta (ou conta em branco).
+function _concCandidatos(ext) {
+  const tipoEsp = parseFloat(ext.valor) < 0 ? 'despesa' : 'receita';
+  const valorAbs = Math.abs(parseFloat(ext.valor));
+  return (DATA.financas || []).filter(f => {
+    if (f.tipo !== tipoEsp) return false;
+    if (!['agendado', 'aberto'].includes(f.status)) return false;
+    if (Math.abs(parseFloat(f.valor || 0) - valorAbs) > 0.05) return false;
+    if (!f.data || _concDiffDias(f.data, ext.data) > 15) return false;
+    if (f.conta_bancaria_id && f.conta_bancaria_id !== ext.conta_bancaria_id) return false;
+    return true;
+  }).sort((a, b) => {
+    const da = _concDiffDias(a.data, ext.data), db = _concDiffDias(b.data, ext.data);
+    if (da !== db) return da - db;
+    return Math.abs(parseFloat(a.valor) - valorAbs) - Math.abs(parseFloat(b.valor) - valorAbs);
+  });
+}
+
+async function abrirConciliarConta(selEl) {
+  _concContaId = selEl.value;
+  _concSelId = null;
+  await _concCarregarPendentes();
+  renderConciliarOfx();
+}
+
+function _concSelecionar(id) { _concSelId = id; renderConciliarOfx(); }
+
+async function _concVincular(extId, financaId) {
+  try {
+    const { error } = await sb.rpc('conciliar_extrato', {
+      p_extrato_id: extId, p_financa_id: financaId,
+    });
+    if (error) throw error;
+    toast('✅ Conciliado');
+    await Promise.all([_concCarregarPendentes(), _reloadFinancas()]);
+    _concSelId = null;
+    renderConciliarOfx();
+  } catch (e) { toast('❌ ' + (e?.message || e?.code || 'falha ao vincular')); }
+}
+
+async function _concIgnorar(extId) {
+  const motivo = prompt('Motivo para ignorar esta linha (ex.: tarifa bancária, transferência interna):', '');
+  if (motivo === null) return; // cancelou
+  try {
+    const { error } = await sb.rpc('ignorar_extrato', {
+      p_extrato_id: extId, p_motivo: motivo,
+    });
+    if (error) throw error;
+    toast('Linha ignorada');
+    await _concCarregarPendentes();
+    _concSelId = null;
+    renderConciliarOfx();
+  } catch (e) { toast('❌ ' + (e?.message || e?.code || 'falha ao ignorar')); }
+}
+
+function _concRenderPainel(ext) {
+  const cands = _concCandidatos(ext);
+  const cor = parseFloat(ext.valor) < 0 ? '#B00020' : 'var(--green)';
+  const alvo = parseFloat(ext.valor) < 0 ? 'saída (despesa)' : 'entrada (receita)';
+  const candHtml = cands.length ? cands.map(f => `
+    <div style="border:1px solid var(--border);border-radius:4px;padding:10px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;gap:8px">
+        <strong style="font-size:13px">${_esc(f.descricao || '(sem descrição)')}</strong>
+        <span style="font-family:'Cinzel',serif;font-size:13px">${fmtVal(f.valor)}</span>
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);margin:4px 0 8px">${fmtData(f.data)} · ${_esc(f.status || '')}${f.categoria ? ' · ' + _esc(f.categoria) : ''}</div>
+      <button class="btn" onclick="_concVincular('${ext.id}','${f.id}')" style="border-color:var(--green);color:var(--green);padding:4px 12px;font-size:12px">✓ Vincular este</button>
+    </div>`).join('')
+    : '<div style="padding:10px;color:var(--text-muted);font-size:12px">Nenhum lançamento parecido (valor ±R$0,05, data ±15 dias). Você pode ignorar a linha — e criar o lançamento na próxima fase.</div>';
+
+  return `
+    <div class="card" style="padding:14px">
+      <div style="font-size:11px;font-weight:700;color:var(--navy);letter-spacing:0.08em;margin-bottom:6px">LINHA DO BANCO</div>
+      <div style="display:flex;justify-content:space-between;gap:8px">
+        <span style="font-size:13px">${fmtData(ext.data)}</span>
+        <span style="font-family:'Cinzel',serif;font-size:14px;color:${cor}">${fmtVal(ext.valor)}</span>
+      </div>
+      <div style="font-size:12px;color:var(--text);margin:4px 0">${_esc(ext.descricao_bruta || '—')}</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px">Procurando ${alvo} equivalente</div>
+
+      <div style="font-size:11px;font-weight:700;color:var(--navy);letter-spacing:0.08em;margin-bottom:8px">CANDIDATOS (${cands.length})</div>
+      ${candHtml}
+
+      <div style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px">
+        <button class="btn" onclick="_concIgnorar('${ext.id}')" style="padding:4px 12px;font-size:12px">🚫 Ignorar esta linha</button>
+      </div>
+    </div>`;
+}
+
+function renderConciliarOfx() {
+  const el = document.getElementById('conciliar-ofx-container');
+  if (!el) return;
+  if (!_podeEditarBancos()) { el.innerHTML = accessDenied('Conciliar Extrato'); return; }
+  const contas = (DATA.contas_bancarias || []).filter(c => c.ativo);
+  const opts = contas.map(c =>
+    `<option value="${c.id}" ${c.id === _concContaId ? 'selected' : ''}>${_esc(c.nome)}</option>`
+  ).join('');
+  const sel = _concExtratos.find(e => e.id === _concSelId) || null;
+
+  const lista = _concExtratos.length ? _concExtratos.map(e => {
+    const cor = parseFloat(e.valor) < 0 ? '#B00020' : 'var(--green)';
+    const ativa = e.id === _concSelId;
+    return `<div onclick="_concSelecionar('${e.id}')" style="cursor:pointer;padding:8px 10px;border:1px solid ${ativa ? 'var(--navy)' : 'var(--border)'};border-radius:4px;margin-bottom:6px;background:${ativa ? 'rgba(27,94,160,0.06)' : 'var(--cream)'}">
+      <div style="display:flex;justify-content:space-between;gap:8px">
+        <span style="font-size:12px">${fmtData(e.data)}</span>
+        <span style="font-family:'Cinzel',serif;font-size:12px;color:${cor}">${fmtVal(e.valor)}</span>
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_esc(e.descricao_bruta || e.name_normalizado || '—')}</div>
+    </div>`;
+  }).join('') : '<div style="padding:16px;color:var(--text-muted);font-size:13px">Nenhuma linha pendente nesta conta. 🎉</div>';
+
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <button class="btn" onclick="voltarParaExtratoFinanceiro()" style="padding:6px 14px;font-size:11px">← Voltar ao extrato</button>
+      <div class="fc" style="font-size:11px;font-weight:700;letter-spacing:0.12em;color:var(--navy)">FINANCEIRO › CONCILIAR EXTRATO</div>
+    </div>
+    <div style="background:rgba(27,94,160,0.05);border:1px solid rgba(27,94,160,0.2);border-radius:4px;padding:12px 16px;margin-bottom:14px;font-size:12px;color:#1B5EA0;line-height:1.5">
+      <strong>🔗 Conciliação.</strong> Clique numa linha pendente do banco (à esquerda) e, à direita, vincule ao lançamento correspondente da loja ou marque como ignorada. Toda ação é manual — nada é conciliado automaticamente.
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:11px;font-weight:700;letter-spacing:0.08em;color:var(--text-muted);margin-right:8px">CONTA</label>
+      <select onchange="abrirConciliarConta(this)" style="padding:7px 10px;border:1px solid var(--border-mid);border-radius:3px;background:var(--cream);font-size:13px">${opts}</select>
+      <span style="font-size:12px;color:var(--text-muted);margin-left:10px">${_concExtratos.length} pendente(s)</span>
+    </div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start">
+      <div style="flex:1 1 320px;min-width:280px">${lista}</div>
+      <div style="flex:1 1 360px;min-width:300px">${sel ? _concRenderPainel(sel) : '<div style="padding:16px;color:var(--text-muted);font-size:13px;border:1px dashed var(--border);border-radius:4px">Selecione uma linha à esquerda para ver os lançamentos candidatos.</div>'}</div>
+    </div>
+  `;
+}
+
 // ─── Contas Bancárias ─────────────────────────────────────────────────────
 function renderContasBancariasSecao() {
   const el = document.getElementById('cfg-cont-bancos-contas');
@@ -8588,6 +8768,14 @@ function renderFinancas(access) {
   } else if (_modoFinancas === 'importar-ofx') {
     _modoFinancas = 'extrato';
   }
+  // Sub-modo "Conciliar Extrato" — Fase 5A. Só editores (admin/tesoureiro).
+  if (_modoFinancas === 'conciliar-ofx' && typeof _podeEditarBancos === 'function' && _podeEditarBancos()) {
+    document.getElementById('financas-content').innerHTML = `<div id="conciliar-ofx-container"></div>`;
+    renderConciliarOfx();
+    return;
+  } else if (_modoFinancas === 'conciliar-ofx') {
+    _modoFinancas = 'extrato';
+  }
   if (access === 'none') { document.getElementById('financas-content').innerHTML = accessDenied('Finanças'); return; }
   const canEdit = access === 'full';
   const hoje = new Date();
@@ -8783,6 +8971,9 @@ function renderFinancas(access) {
       </span>
       ${_podeEditarBancos() ? `<button class="btn" onclick="abrirImportarOfx()" style="display:inline-flex;align-items:center;gap:6px;border-color:var(--navy);color:var(--navy)">
         📥 Importar Extrato (OFX)
+      </button>
+      <button class="btn" onclick="abrirConciliarOfx()" style="display:inline-flex;align-items:center;gap:6px;border-color:var(--navy);color:var(--navy)">
+        🔗 Conciliar Extrato
       </button>` : ''}
     </div>` : ''}
 
