@@ -98,7 +98,7 @@ CREATE TABLE IF NOT EXISTS public.importacoes_ofx (
   CONSTRAINT importacoes_ofx_totais_ck   CHECK (
     total_inseridas + total_duplicadas + total_erros = total_linhas
   ),
-  CONSTRAINT importacoes_ofx_hash_len_ck CHECK (length(arquivo_hash) = 64)
+  CONSTRAINT importacoes_ofx_hash_len_ck CHECK (arquivo_hash ~ '^[0-9a-f]{64}$')
 );
 
 -- FKs em bloco DO para permitir reexecucao sem erro
@@ -193,7 +193,7 @@ CREATE TABLE IF NOT EXISTS public.extratos_bancarios (
   criado_por             uuid NOT NULL DEFAULT auth.uid(),
   criado_em              timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT extratos_status_ck    CHECK (status_conciliacao IN ('pendente','conciliado','ignorado')),
-  CONSTRAINT extratos_hash_len_ck  CHECK (length(hash_linha) = 64)
+  CONSTRAINT extratos_hash_len_ck  CHECK (hash_linha ~ '^[0-9a-f]{64}$')
 );
 
 -- FKs
