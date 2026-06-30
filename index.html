@@ -4535,7 +4535,7 @@ function renderRelatorioConc() {
       <select onchange="_relMudarConta(this)" style="padding:7px 10px;border:1px solid var(--border-mid);border-radius:3px;background:var(--cream);font-size:13px">${optConta}</select>
       <select id="rel-mes" onchange="_relMudarPeriodo()" style="padding:7px 10px;border:1px solid var(--border-mid);border-radius:3px;background:var(--cream);font-size:13px">${optMes}</select>
       <select id="rel-ano" onchange="_relMudarPeriodo()" style="padding:7px 10px;border:1px solid var(--border-mid);border-radius:3px;background:var(--cream);font-size:13px">${optAno}</select>
-      <button class="btn" onclick="window.print()" style="padding:6px 12px;font-size:11px;margin-left:auto">🖨️ Imprimir</button>
+      <button class="btn" onclick="imprimirRelatorioConc()" style="padding:6px 12px;font-size:11px;margin-left:auto">🖨️ Imprimir</button>
     </div>
     ${ext.length === 0 ? '<div class="card" style="padding:16px;color:var(--text-muted)">Nenhuma linha de extrato importada nesta conta/período.</div>' : `
     <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px">
@@ -4562,6 +4562,59 @@ function renderRelatorioConc() {
     </div>` : '<div class="card" style="padding:14px;color:var(--green)">✅ Todas as linhas do banco neste período estão conciliadas ou ignoradas.</div>'}
     `}
   `;
+}
+
+// Versão impressa do relatório (usa abrirJanelaPrint do app — janela própria,
+// já formatada; o window.print() direto sai em branco por causa do #print-area).
+function imprimirRelatorioConc() {
+  if (!_relData || !(_relData.extratos || []).length) { toast('Nada para imprimir neste período'); return; }
+  const conta = (DATA.contas_bancarias || []).find(c => c.id === _relContaId);
+  const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+  const { ini, fim } = _relPeriodo();
+  const ext = _relData.extratos || [];
+  const somaE = arr => arr.reduce((s, e) => s + parseFloat(e.valor || 0), 0);
+  const entradas = ext.filter(e => parseFloat(e.valor) > 0);
+  const saidas = ext.filter(e => parseFloat(e.valor) < 0);
+  const concil = ext.filter(e => e.status_conciliacao === 'conciliado');
+  const pend = ext.filter(e => e.status_conciliacao === 'pendente');
+  const ign = ext.filter(e => e.status_conciliacao === 'ignorado');
+  const finsPagas = (DATA.financas || []).filter(f =>
+    f.status === 'pago' && f.data >= ini && f.data <= fim &&
+    (!f.conta_bancaria_id || f.conta_bancaria_id === _relContaId));
+  const somaF = arr => arr.reduce((s, f) => s + parseFloat(f.valor || 0), 0);
+  const recPagas = finsPagas.filter(f => f.tipo === 'receita');
+  const despPagas = finsPagas.filter(f => f.tipo === 'despesa');
+
+  const ri = (v, l) => `<div class="print-resumo-item"><div class="print-resumo-valor">${v}</div><div class="print-resumo-label">${l}</div></div>`;
+  const pendRows = pend.map(e => `<tr><td>${fmtData(e.data)}</td><td>${_esc(e.descricao_bruta || '—')}</td><td style="text-align:right">${fmtVal(e.valor)}</td></tr>`).join('');
+
+  abrirJanelaPrint(`
+    <div class="print-header">
+      <div class="print-lodge">${_nomeImpressao()}</div>
+      <div class="print-title">Relatório de Conciliação Bancária</div>
+      <div class="print-date">${conta ? _esc(conta.nome) : '—'} · ${meses[_relMes - 1]}/${_relAno} · emitido em ${new Date().toLocaleDateString('pt-BR')}</div>
+    </div>
+    <div class="print-resumo">
+      ${ri(fmtVal(somaE(entradas)), 'Entradas (banco)')}
+      ${ri(fmtVal(Math.abs(somaE(saidas))), 'Saídas (banco)')}
+      ${ri(_relData.saldo != null ? fmtVal(_relData.saldo) : '—', 'Saldo final')}
+    </div>
+    <div class="print-section">Situação da conciliação (${ext.length} linha(s))</div>
+    <table><thead><tr><th>Situação</th><th>Linhas</th><th style="text-align:right">Valor</th></tr></thead><tbody>
+      <tr><td>Conciliadas</td><td>${concil.length}</td><td style="text-align:right">${fmtVal(Math.abs(somaE(concil)))}</td></tr>
+      <tr><td>Pendentes</td><td>${pend.length}</td><td style="text-align:right">${fmtVal(Math.abs(somaE(pend)))}</td></tr>
+      <tr><td>Ignoradas</td><td>${ign.length}</td><td style="text-align:right">${fmtVal(Math.abs(somaE(ign)))}</td></tr>
+    </tbody></table>
+    <div class="print-section">Lançamentos da loja pagos no período</div>
+    <table><thead><tr><th>Tipo</th><th>Lançamentos</th><th style="text-align:right">Valor</th></tr></thead><tbody>
+      <tr><td>Receitas</td><td>${recPagas.length}</td><td style="text-align:right">${fmtVal(somaF(recPagas))}</td></tr>
+      <tr><td>Despesas</td><td>${despPagas.length}</td><td style="text-align:right">${fmtVal(somaF(despPagas))}</td></tr>
+    </tbody></table>
+    ${pend.length ? `<div class="print-section">Diferenças a investigar — linhas do banco pendentes</div>
+    <table><thead><tr><th>Data</th><th>Descrição</th><th style="text-align:right">Valor</th></tr></thead><tbody>${pendRows}</tbody></table>`
+      : '<p style="margin-top:10px;color:#2A7A3A">Todas as linhas do período estão conciliadas ou ignoradas.</p>'}
+    <div class="print-rodape"><span>Conselho Fiscal</span><span>${_nomeImpressao()}</span></div>
+  `);
 }
 
 // ─── Contas Bancárias ─────────────────────────────────────────────────────
