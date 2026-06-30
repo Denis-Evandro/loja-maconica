@@ -4557,7 +4557,7 @@ function renderRelatorioConc() {
       <div style="font-size:11px;font-weight:700;letter-spacing:0.08em;color:#A05A00;margin-bottom:10px">⚠️ DIFERENÇAS A INVESTIGAR — ${pend.length} linha(s) do banco ainda não conciliada(s)</div>
       <table style="width:100%;border-collapse:collapse">
         <thead><tr style="text-align:left;font-size:10px;color:var(--text-muted)"><th style="padding:4px 6px">DATA</th><th style="padding:4px 6px">DESCRIÇÃO</th><th style="padding:4px 6px;text-align:right">VALOR</th></tr></thead>
-        <tbody>${pend.map(e => `<tr><td style="padding:4px 6px;font-size:12px;white-space:nowrap">${fmtData(e.data)}</td><td style="padding:4px 6px;font-size:12px">${_esc(e.descricao_bruta || '—')}</td><td style="padding:4px 6px;text-align:right;font-size:12px;color:${parseFloat(e.valor) < 0 ? '#B00020' : 'var(--green)'};white-space:nowrap">${fmtVal(e.valor)}</td></tr>`).join('')}</tbody>
+        <tbody>${pend.map(e => `<tr><td style="padding:4px 6px;font-size:12px;white-space:nowrap">${fmtData(e.data)}</td><td style="padding:4px 6px;font-size:12px">${_esc(e.descricao_bruta || e.name_normalizado || e.memo_normalizado || '—')}</td><td style="padding:4px 6px;text-align:right;font-size:12px;color:${parseFloat(e.valor) < 0 ? '#B00020' : 'var(--green)'};white-space:nowrap">${fmtVal(e.valor)}</td></tr>`).join('')}</tbody>
       </table>
     </div>` : '<div class="card" style="padding:14px;color:var(--green)">✅ Todas as linhas do banco neste período estão conciliadas ou ignoradas.</div>'}
     `}
@@ -4586,7 +4586,7 @@ function imprimirRelatorioConc() {
   const despPagas = finsPagas.filter(f => f.tipo === 'despesa');
 
   const ri = (v, l) => `<div class="print-resumo-item"><div class="print-resumo-valor">${v}</div><div class="print-resumo-label">${l}</div></div>`;
-  const pendRows = pend.map(e => `<tr><td>${fmtData(e.data)}</td><td>${_esc(e.descricao_bruta || '—')}</td><td style="text-align:right">${fmtVal(e.valor)}</td></tr>`).join('');
+  const pendRows = pend.map(e => `<tr><td>${fmtData(e.data)}</td><td>${_esc(e.descricao_bruta || e.name_normalizado || e.memo_normalizado || '—')}</td><td style="text-align:right">${fmtVal(e.valor)}</td></tr>`).join('');
 
   abrirJanelaPrint(`
     <div class="print-header">
