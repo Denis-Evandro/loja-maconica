@@ -4176,20 +4176,58 @@ async function _concIgnorar(extId) {
   } catch (e) { toast('❌ ' + (e?.message || e?.code || 'falha ao ignorar')); }
 }
 
+// Fase 6 (leve) — identifica o irmão pelo nome civil na descrição do PIX.
+// Stopwords: termos do OFX que não são nome de pessoa.
+const _CONC_STOPWORDS = new Set(['DOS','DAS','DE','DA','DO','REM','PIX','RECEBIDO',
+  'RECEBIMENTO','TRANSF','TRANSFERENCIA','EMITIDO','PAGAMENTO','CRED','DEB','OUTRA','IF','SICOOB']);
+
+function _concTokensNome(nome) {
+  return _ofxNormalizar(nome || '').split(' ')
+    .filter(t => t.length >= 3 && !_CONC_STOPWORDS.has(t));
+}
+
+// Retorna { membro, score } do irmão cujo nome melhor casa com a descrição,
+// exigindo ao menos 2 partes do nome presentes (evita falso positivo).
+function _concDetectarIrmao(descricao) {
+  const desc = _ofxNormalizar(descricao || '');
+  if (!desc) return null;
+  const palavras = new Set(desc.split(/[^A-Z0-9]+/).filter(Boolean));
+  let best = null, bestScore = 0;
+  for (const m of (DATA.membros || [])) {
+    const base = m.nome_civil || (m.nome_maconico || '').replace(/^IR\.?\s*/i, '');
+    const tokens = _concTokensNome(base);
+    if (tokens.length < 2) continue;
+    const matched = tokens.filter(t => palavras.has(t)).length;
+    if (matched >= 2 && matched > bestScore) { best = m; bestScore = matched; }
+  }
+  return best ? { membro: best, score: bestScore } : null;
+}
+
 function _concRenderPainel(ext) {
   const cands = _concCandidatos(ext);
+  const detect = _concDetectarIrmao(ext.descricao_bruta);
+  // Joga o candidato do irmão provável para o topo.
+  if (detect) {
+    cands.sort((a, b) =>
+      (b.membro_id === detect.membro.id ? 1 : 0) - (a.membro_id === detect.membro.id ? 1 : 0));
+  }
   const cor = parseFloat(ext.valor) < 0 ? '#B00020' : 'var(--green)';
   const alvo = parseFloat(ext.valor) < 0 ? 'saída (despesa)' : 'entrada (receita)';
-  const candHtml = cands.length ? cands.map(f => `
-    <div style="border:1px solid var(--border);border-radius:4px;padding:10px;margin-bottom:8px">
+  const candHtml = cands.length ? cands.map(f => {
+    const provavel = detect && f.membro_id === detect.membro.id;
+    return `
+    <div style="border:1px solid ${provavel ? 'var(--green)' : 'var(--border)'};border-radius:4px;padding:10px;margin-bottom:8px;${provavel ? 'background:rgba(0,128,0,0.05)' : ''}">
       <div style="display:flex;justify-content:space-between;gap:8px">
-        <strong style="font-size:13px">${_esc(f.descricao || '(sem descrição)')}</strong>
+        <strong style="font-size:13px">${_esc(f.descricao || '(sem descrição)')}${provavel ? ' <span style="font-size:10px;color:var(--green)">👤 provável</span>' : ''}</strong>
         <span style="font-family:'Cinzel',serif;font-size:13px">${fmtVal(f.valor)}</span>
       </div>
       <div style="font-size:11px;color:var(--text-muted);margin:4px 0 8px">${fmtData(f.data)} · ${_esc(f.status || '')}${f.categoria ? ' · ' + _esc(f.categoria) : ''}</div>
       <button class="btn" onclick="_concVincular('${ext.id}','${f.id}')" style="border-color:var(--green);color:var(--green);padding:4px 12px;font-size:12px">✓ Vincular este</button>
-    </div>`).join('')
+    </div>`;
+  }).join('')
     : '<div style="padding:10px;color:var(--text-muted);font-size:12px">Nenhum lançamento parecido (valor ±R$0,05, data ±15 dias). Use <strong>Criar lançamento</strong> abaixo para registrar a partir da linha do banco, ou ignore.</div>';
+
+  const hint = detect ? `<div style="background:rgba(0,128,0,0.06);border:1px solid rgba(0,128,0,0.25);border-radius:4px;padding:6px 10px;margin-bottom:10px;font-size:12px;color:var(--green)">👤 Provável irmão: <strong>${_esc(detect.membro.nome_maconico || detect.membro.nome_civil || '')}</strong> <span style="color:var(--text-muted)">(detectado pela descrição)</span></div>` : '';
 
   return `
     <div class="card" style="padding:14px">
@@ -4201,6 +4239,7 @@ function _concRenderPainel(ext) {
       <div style="font-size:12px;color:var(--text);margin:4px 0">${_esc(ext.descricao_bruta || '—')}</div>
       <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px">Procurando ${alvo} equivalente</div>
 
+      ${hint}
       <div style="font-size:11px;font-weight:700;color:var(--navy);letter-spacing:0.08em;margin-bottom:8px">CANDIDATOS (${cands.length})</div>
       ${candHtml}
 
@@ -4220,10 +4259,12 @@ function _concAbrirCriarLancamento(extId) {
   const inp = `style="width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 10px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"`;
   const cats = (typeof CATEGORIAS_FIN !== 'undefined' ? CATEGORIAS_FIN : [])
     .map(c => `<option value="${c}">${typeof getCatLabel === 'function' ? getCatLabel(c) : c}</option>`).join('');
+  const det = _concDetectarIrmao(ext.descricao_bruta);
+  const detId = det ? det.membro.id : '';
   const membros = (DATA.membros || [])
     .filter(m => m.nome_maconico)
     .sort((a, b) => (a.nome_maconico || '').localeCompare(b.nome_maconico || ''))
-    .map(m => `<option value="${m.id}">${_esc(m.nome_maconico)}</option>`).join('');
+    .map(m => `<option value="${m.id}" ${m.id === detId ? 'selected' : ''}>${_esc(m.nome_maconico)}</option>`).join('');
 
   document.body.insertAdjacentHTML('beforeend', `
     <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px">
