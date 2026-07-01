@@ -8620,9 +8620,11 @@ function abrirModalEditarLancamento(lancId) {
 
 function inp() { return "width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"; }
 
-// Fase 7 (auditoria) — resolve um auth_user_id para o nome do irmão, se houver.
+// Fase 7 (auditoria) — resolve um auth_user_id para o nome de quem agiu.
+// 1) usuário logado (cobre Admin, que não está em membros); 2) membros.
 function _nomePorAuthUid(uid) {
   if (!uid) return null;
+  if (uid === _currentAuthUserId && _membroLogado?.nome_maconico) return _membroLogado.nome_maconico;
   const m = (DATA.membros || []).find(x => x.auth_user_id === uid);
   return m ? (m.nome_maconico || m.nome_civil || 'Irmão') : null;
 }
