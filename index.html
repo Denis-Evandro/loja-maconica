@@ -8448,12 +8448,14 @@ async function salvarLancamento() {
     inserts = [payloadBase];
   }
 
-  const res = await sb.from('financas').insert(inserts);
+  const res = await sb.from('financas').insert(inserts).select();
   if (res.error) { toast('Erro: ' + res.error.message); return; }
   toast(parcelado && nParcelas > 1 ? `✦ ${nParcelas} parcelas lançadas!` : 'Lançamento registrado ✦');
   fecharModal();
-  await _reloadFinancas();
+  // Atualização otimista: adiciona os lançamentos criados na hora.
+  if (res.data && res.data.length) DATA.financas = [...res.data, ...(DATA.financas || [])];
   renderFinancas('full');
+  _reloadFinancas().then(() => renderFinancas('full')).catch(()=>{});
   } catch(e) {
     console.error("[salvarLancamento]", e);
     toast("❌ Erro inesperado. Tente novamente.");
@@ -8684,8 +8686,10 @@ async function salvarEdicaoLancamento(lancId) {
   if (res.error) { toast('Erro: ' + res.error.message); return; }
   toast('✅ Lançamento atualizado');
   fecharModal();
-  await _reloadFinancas();
+  // Atualização otimista: aplica a mudança na memória e re-renderiza na hora.
+  DATA.financas = (DATA.financas || []).map(l => l.id === lancId ? { ...l, ...update } : l);
   renderFinancas('full');
+  _reloadFinancas().then(() => renderFinancas('full')).catch(()=>{});
   } catch(e) {
     console.error('[salvarEdicaoLancamento]', e);
     toast('❌ Erro inesperado. Tente novamente.');
@@ -10918,12 +10922,13 @@ async function lancarMensalidadesAuto() {
     };
   });
 
-  const res = await sb.from('financas').insert(inserts);
+  const res = await sb.from('financas').insert(inserts).select();
   if (_sbErr('comissao', res.error)) return;
   toast(`✦ ${inserts.length} mensalidades lançadas com vencimento em ${diaReal}/${mes+1}!`);
   fecharModal();
-  await _reloadFinancas();
+  if (res.data && res.data.length) DATA.financas = [...res.data, ...(DATA.financas || [])];
   renderFinancas(ROLES[currentRole].access['financas'] || 'full');
+  _reloadFinancas().then(() => renderFinancas(ROLES[currentRole].access['financas'] || 'full')).catch(()=>{});
   } catch(e) {
     console.error('[lancarMensalidadesAuto]', e);
     toast('❌ Erro inesperado. Tente novamente.');
