@@ -8700,8 +8700,11 @@ async function excluirLancamento(lancId) {
   if (res.error) { toast('Erro: ' + res.error.message); return; }
   toast('🗑️ Lançamento excluído');
   fecharModal();
-  await _reloadFinancas();
+  // Atualização otimista: tira da memória e re-renderiza na hora (a releitura
+  // imediata do servidor às vezes ainda traz o item). Sincroniza depois.
+  DATA.financas = (DATA.financas || []).filter(x => x.id !== lancId);
   renderFinancas('full');
+  _reloadFinancas().then(() => renderFinancas('full')).catch(()=>{});
   } catch(e) {
     console.error('[excluirLancamento]', e);
     toast('❌ Erro inesperado. Tente novamente.');
