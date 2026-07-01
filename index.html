@@ -9708,7 +9708,7 @@ function renderFinancas(access) {
       const fechamentos = DATA.fechamentos_mensais || [];
       if (!fechamentos.length) return '';
       const mesesN = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-      const isAdmin = currentRole === 'admin';
+      const podeReabrir = typeof _podeEditarBancos === 'function' && _podeEditarBancos(); // Admin ou Tesoureiro
       return `<div class="card" style="margin-top:14px">
         <div class="card-header"><div class="card-title">📦 Histórico de Fechamentos Mensais</div></div>
         <table><thead><tr><th>Mês/Ano</th><th>Saldo Inicial</th><th>Receitas</th><th>Despesas</th><th>Saldo Final</th><th></th></tr></thead>
@@ -9721,7 +9721,7 @@ function renderFinancas(access) {
           <td style="color:var(--green)">+${fmtVal(f.receitas)}</td>
           <td style="color:var(--red)">-${fmtVal(f.despesas)}</td>
           <td style="font-weight:700;color:${f.saldo_final>=0?'var(--green)':'var(--red)'}">${fmtVal(f.saldo_final)}</td>
-          <td style="white-space:nowrap"><button class="btn" style="padding:2px 8px;font-size:8px" onclick='imprimirFechamento(${fp})'>🖨️</button>${isAdmin?` <button class="btn" style="padding:2px 8px;font-size:8px;border-color:#A05A00;color:#A05A00" onclick="reabrirMes(${f.ano},${f.mes},'${mesNome}')">🔓 Reabrir</button>`:''}</td>
+          <td style="white-space:nowrap"><button class="btn" style="padding:2px 8px;font-size:8px" onclick='imprimirFechamento(${fp})'>🖨️</button>${podeReabrir?` <button class="btn" style="padding:2px 8px;font-size:8px;border-color:#A05A00;color:#A05A00" onclick="reabrirMes(${f.ano},${f.mes},'${mesNome}')">🔓 Reabrir</button>`:''}</td>
         </tr>`;}).join('')}</tbody></table>
       </div>`;
     })()}`;
