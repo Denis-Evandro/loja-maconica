@@ -2098,12 +2098,14 @@ async function loadAllData() {
     // antes da migration ser aplicada). Falhas aqui são silenciosas para
     // não quebrar o boot de quem ainda não rodou a migration.
     try {
-      const [cb, cf] = await Promise.allSettled([
+      const [cb, cf, fm] = await Promise.allSettled([
         ft(sb.from('contas_bancarias').select('*').order('ativo', { ascending: false }).order('nome')),
-        ft(sb.from('categorias_financeiras').select('*').order('ordem').order('nome'))
+        ft(sb.from('categorias_financeiras').select('*').order('ordem').order('nome')),
+        ft(sb.from('fechamentos_mensais').select('*').order('ano', { ascending: false }).order('mes', { ascending: false }))
       ]);
       if (cb.status==='fulfilled' && cb.value?.data) DATA.contas_bancarias = cb.value.data;
       if (cf.status==='fulfilled' && cf.value?.data) DATA.categorias_financeiras = cf.value.data;
+      if (fm.status==='fulfilled' && fm.value?.data) DATA.fechamentos_mensais = fm.value.data;
     } catch (e) { console.warn('[loadAllData] tabelas financeiras Fase 1:', e?.message); }
 
     reRenderActive();
@@ -3690,6 +3692,14 @@ async function _reloadCategoriasFin() {
     if (error) throw error;
     DATA.categorias_financeiras = data || [];
   } catch (e) { console.warn('[reloadCategoriasFin]', e?.message); }
+}
+async function _reloadFechamentos() {
+  try {
+    const { data, error } = await sb.from('fechamentos_mensais')
+      .select('*').order('ano', { ascending: false }).order('mes', { ascending: false });
+    if (error) throw error;
+    DATA.fechamentos_mensais = data || [];
+  } catch (e) { console.warn('[reloadFechamentos]', e?.message); }
 }
 
 // Estado do painel Finanças: 'extrato' (default) ou 'bancos' (Bancos & Categorias)
@@ -9695,19 +9705,24 @@ function renderFinancas(access) {
 
     <!-- FECHAMENTOS MENSAIS -->
     ${(() => {
-      const fechamentos = JSON.parse(localStorage.getItem('fechamentos_mensais')||'[]');
+      const fechamentos = DATA.fechamentos_mensais || [];
       if (!fechamentos.length) return '';
+      const mesesN = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+      const podeReabrir = typeof _podeEditarBancos === 'function' && _podeEditarBancos(); // Admin ou Tesoureiro
       return `<div class="card" style="margin-top:14px">
         <div class="card-header"><div class="card-title">📦 Histórico de Fechamentos Mensais</div></div>
         <table><thead><tr><th>Mês/Ano</th><th>Saldo Inicial</th><th>Receitas</th><th>Despesas</th><th>Saldo Final</th><th></th></tr></thead>
-        <tbody>${fechamentos.slice().reverse().map(f=>`<tr>
-          <td style="font-weight:700">${f.mesAno}</td>
-          <td style="color:var(--navy)">${fmtVal(f.saldoInicial)}</td>
+        <tbody>${fechamentos.map(f=>{
+          const mesNome = (mesesN[f.mes-1]||'') + ' ' + f.ano;
+          const fp = JSON.stringify({mesNome, saldo_inicial:f.saldo_inicial, receitas:f.receitas, despesas:f.despesas, saldo_final:f.saldo_final, fechado_em:f.fechado_em}).replace(/'/g,'&#39;');
+          return `<tr>
+          <td style="font-weight:700">${mesNome}</td>
+          <td style="color:var(--navy)">${fmtVal(f.saldo_inicial)}</td>
           <td style="color:var(--green)">+${fmtVal(f.receitas)}</td>
           <td style="color:var(--red)">-${fmtVal(f.despesas)}</td>
-          <td style="font-weight:700;color:${f.saldoFinal>=0?'var(--green)':'var(--red)'}">${fmtVal(f.saldoFinal)}</td>
-          <td><button class="btn" style="padding:2px 8px;font-size:8px" onclick="imprimirFechamento(${JSON.stringify(f).replace(/'/g,'&#39;')})">🖨️</button></td>
-        </tr>`).join('')}</tbody></table>
+          <td style="font-weight:700;color:${f.saldo_final>=0?'var(--green)':'var(--red)'}">${fmtVal(f.saldo_final)}</td>
+          <td style="white-space:nowrap"><button class="btn" style="padding:2px 8px;font-size:8px" onclick='imprimirFechamento(${fp})'>🖨️</button>${podeReabrir?` <button class="btn" style="padding:2px 8px;font-size:8px;border-color:#A05A00;color:#A05A00" onclick="reabrirMes(${f.ano},${f.mes},'${mesNome}')">🔓 Reabrir</button>`:''}</td>
+        </tr>`;}).join('')}</tbody></table>
       </div>`;
     })()}`;
 
@@ -10163,11 +10178,12 @@ async function salvarTronco() {
   }
 }
 
-function abrirModalFecharMes() {
+async function abrirModalFecharMes() {
+  if (typeof _reloadFechamentos === 'function') { await _reloadFechamentos(); }
   const hoje = new Date();
   const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   const anoAtual = hoje.getFullYear();
-  const fechamentos = JSON.parse(localStorage.getItem('fechamentos_mensais')||'[]');
+  const fechamentos = DATA.fechamentos_mensais || [];
 
   // Gerar opções dos últimos 24 meses
   const opcoes = [];
@@ -10176,7 +10192,7 @@ function abrirModalFecharMes() {
     const ano = d.getFullYear();
     const mes = String(d.getMonth()+1).padStart(2,'0');
     const nome = meses[d.getMonth()] + ' ' + ano;
-    const jaFechado = fechamentos.some(f => f.mesAno === nome);
+    const jaFechado = fechamentos.some(f => f.ano === ano && f.mes === (d.getMonth()+1));
     opcoes.push({ano, mes, nome, jaFechado});
   }
 
@@ -10221,8 +10237,7 @@ function atualizarResumoFechamento(anoMes) {
   const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   const [ano, mes] = anoMes.split('-');
   const mesNome = meses[parseInt(mes)-1] + ' ' + ano;
-  const fechamentos = JSON.parse(localStorage.getItem('fechamentos_mensais')||'[]');
-  const jaFechado = fechamentos.some(f => f.mesAno === mesNome);
+  const jaFechado = (DATA.fechamentos_mensais || []).some(f => f.ano === parseInt(ano) && f.mes === parseInt(mes));
 
   const finMes  = DATA.financas.filter(l => l.data?.startsWith(anoMes));
   const recMes  = finMes.filter(l => l.tipo==='receita' && l.status==='pago').reduce((s,l)=>s+parseFloat(l.valor||0),0);
@@ -10246,42 +10261,58 @@ function atualizarResumoFechamento(anoMes) {
     btnEl.disabled = jaFechado;
     btnEl.style.opacity = jaFechado ? '0.4' : '1';
     btnEl.onclick = jaFechado ? null : () => {
-      confirmarFechamentoMes(mesNome, saldoInicial, recMes, despMes, saldoFinal);
+      confirmarFechamentoMes(parseInt(ano), parseInt(mes), mesNome, saldoInicial, recMes, despMes, saldoFinal);
     };
   }
 }
 
 
 // ─── Verificar se um mês está encerrado ─────────────────────
+// Fase 7: lê da tabela fechamentos_mensais (DATA), com a trava real no servidor.
 function _mesFechado(dataStr) {
   if (!dataStr) return false;
-  const fechamentos = JSON.parse(localStorage.getItem('fechamentos_mensais')||'[]');
-  if (!fechamentos.length) return false;
-  const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-  const [ano, mes] = dataStr.split('-');
-  const mesNome = meses[parseInt(mes)-1] + ' ' + ano;
-  return fechamentos.some(f => f.mesAno === mesNome);
+  const [ano, mes] = dataStr.split('-').map(Number);
+  return (DATA.fechamentos_mensais || []).some(f => f.ano === ano && f.mes === mes);
 }
-function confirmarFechamentoMes(mesAno, saldoInicial, receitas, despesas, saldoFinal) {
-  const fechamentos = JSON.parse(localStorage.getItem('fechamentos_mensais')||'[]');
-  if (fechamentos.find(f=>f.mesAno===mesAno)) { toast('Este mês já foi fechado!'); fecharModal(); return; }
-  fechamentos.push({mesAno, saldoInicial, receitas, despesas, saldoFinal, fechadoEm: new Date().toISOString()});
-  localStorage.setItem('fechamentos_mensais', JSON.stringify(fechamentos));
-  fecharModal();
-  toast('📦 Mês fechado e registrado com sucesso!');
-  renderFinancas(ROLES[currentRole].access['financas']||'full');
+// Recebe o ano/mes numéricos (além dos saldos) — chamada por atualizarResumoFechamento.
+async function confirmarFechamentoMes(ano, mes, mesNome, saldoInicial, receitas, despesas, saldoFinal) {
+  // Confirmação reforçada: um clique sem querer não fecha nada.
+  if (!confirm(`Fechar ${mesNome}?\n\nIsso BLOQUEIA edições, importação e conciliação desse mês até que um Administrador reabra. Nenhum dado é apagado.\n\nConfirmar fechamento?`)) return;
+  try {
+    const { error } = await sb.rpc('fechar_mes', {
+      p_ano: ano, p_mes: mes, p_observacao: '',
+      p_saldo_inicial: saldoInicial, p_receitas: receitas,
+      p_despesas: despesas, p_saldo_final: saldoFinal,
+    });
+    if (error) throw error;
+    await _reloadFechamentos();
+    fecharModal();
+    toast('📦 Mês fechado e registrado com sucesso!');
+    renderFinancas(ROLES[currentRole].access['financas'] || 'full');
+  } catch (e) { toast('❌ ' + (e?.message || e?.code || 'falha ao fechar mês')); }
+}
+// Reabrir mês (somente Admin no servidor; botão exibido só para admin).
+async function reabrirMes(ano, mes, mesNome) {
+  if (!confirm(`Reabrir ${mesNome}? O mês volta a aceitar edições.`)) return;
+  try {
+    const { error } = await sb.rpc('reabrir_mes', { p_ano: ano, p_mes: mes });
+    if (error) throw error;
+    await _reloadFechamentos();
+    toast('🔓 Mês reaberto');
+    renderFinancas(ROLES[currentRole].access['financas'] || 'full');
+  } catch (e) { toast('❌ ' + (e?.message || e?.code || 'falha ao reabrir')); }
 }
 
 function imprimirFechamento(f) {
   abrirJanelaPrint(`
     <div class="print-header"><div class="print-lodge">${_nomeImpressao()}</div>
-    <div class="print-title">Fechamento Mensal — ${f.mesAno}</div>
-    <div class="print-date">Fechado em: ${new Date(f.fechadoEm).toLocaleDateString('pt-BR')}</div></div>
+    <div class="print-title">Fechamento Mensal — ${f.mesNome || ''}</div>
+    <div class="print-date">Fechado em: ${f.fechado_em ? new Date(f.fechado_em).toLocaleDateString('pt-BR') : '—'}</div></div>
     <div class="print-resumo">
-      <div class="print-resumo-item"><div class="print-resumo-valor">${fmtVal(f.saldoInicial)}</div><div class="print-resumo-label">Saldo Inicial</div></div>
+      <div class="print-resumo-item"><div class="print-resumo-valor">${fmtVal(f.saldo_inicial)}</div><div class="print-resumo-label">Saldo Inicial</div></div>
       <div class="print-resumo-item"><div class="print-resumo-valor" style="color:green">+${fmtVal(f.receitas)}</div><div class="print-resumo-label">Receitas</div></div>
       <div class="print-resumo-item"><div class="print-resumo-valor" style="color:red">-${fmtVal(f.despesas)}</div><div class="print-resumo-label">Despesas</div></div>
-      <div class="print-resumo-item"><div class="print-resumo-valor" style="color:${f.saldoFinal>=0?'green':'red'}">${fmtVal(f.saldoFinal)}</div><div class="print-resumo-label">Saldo Final</div></div>
+      <div class="print-resumo-item"><div class="print-resumo-valor" style="color:${f.saldo_final>=0?'green':'red'}">${fmtVal(f.saldo_final)}</div><div class="print-resumo-label">Saldo Final</div></div>
     </div>`);
 }
 
