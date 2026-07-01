@@ -8971,8 +8971,8 @@ function abrirModalLancamento(prefCat='') {
   _dataVencTocado = false; // Fase 3A: reset do estado de auto-sync data -> data_vencimento
   const opsMembros = DATA.membros.map(m=>`<option value="${m.id}">${m.nome_maconico}</option>`).join('');
   document.body.insertAdjacentHTML('beforeend', `
-    <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center">
-      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;padding:36px 40px;width:500px;position:relative">
+    <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px">
+      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;padding:36px 40px;width:500px;max-width:100%;max-height:90vh;overflow-y:auto;position:relative">
         <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gold-dark),var(--gold-rich),var(--gold-light),var(--gold-dark));border-radius:6px 6px 0 0"></div>
         <div class="fc-hdr" style="margin-bottom:24px">+ Novo Lançamento</div>
         <div style="display:grid;gap:14px">
@@ -16531,8 +16531,8 @@ function imprimirRelComissoes() {
 function abrirModalLancamentoTronco() {
   const hoje = new Date().toISOString().split('T')[0];
   document.body.insertAdjacentHTML('beforeend', `
-    <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center">
-      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;padding:36px 40px;width:440px;position:relative">
+    <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px">
+      <div style="background:var(--white);border:1px solid var(--border-mid);border-radius:6px;padding:36px 40px;width:440px;max-width:100%;max-height:90vh;overflow-y:auto;position:relative">
         <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gold-dark),var(--gold-rich),var(--gold-light),var(--gold-dark));border-radius:6px 6px 0 0"></div>
         <div class="fc-hdr" style="margin-bottom:24px">🏺 Lançamento no Tronco de Beneficência</div>
         <div style="display:grid;gap:14px">
