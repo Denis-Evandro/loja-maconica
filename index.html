@@ -8604,6 +8604,7 @@ function abrirModalEditarLancamento(lancId) {
           <div><label class="lbl">Irmão (opcional)</label>
             <select id="ed-membro" style="${inp()}">
               <option value="">— Sem vínculo —</option>${opsMembros}</select></div>
+          ${_auditoriaFinancaHtml(l)}
         </div>
         <div style="display:flex;gap:10px;justify-content:space-between;margin-top:24px">
           <button class="btn" onclick="excluirLancamento('${lancId}')"
@@ -8618,6 +8619,27 @@ function abrirModalEditarLancamento(lancId) {
 }
 
 function inp() { return "width:100%;border:1px solid var(--border-mid);border-radius:3px;padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:14px;background:var(--cream);color:var(--text)"; }
+
+// Fase 7 (auditoria) — resolve um auth_user_id para o nome do irmão, se houver.
+function _nomePorAuthUid(uid) {
+  if (!uid) return null;
+  const m = (DATA.membros || []).find(x => x.auth_user_id === uid);
+  return m ? (m.nome_maconico || m.nome_civil || 'Irmão') : null;
+}
+// Rodapé "criado por / alterado por" para o modal de edição de lançamento.
+function _auditoriaFinancaHtml(l) {
+  const partes = [];
+  if (l.criado_em) {
+    const quem = _nomePorAuthUid(l.criado_por);
+    partes.push(`Criado ${quem ? 'por ' + _esc(quem) + ' ' : ''}em ${fmtData(String(l.criado_em).split('T')[0])}`);
+  }
+  if (l.alterado_em) {
+    const quem = _nomePorAuthUid(l.alterado_por);
+    partes.push(`Alterado ${quem ? 'por ' + _esc(quem) + ' ' : ''}em ${fmtData(String(l.alterado_em).split('T')[0])}`);
+  }
+  if (!partes.length) return '';
+  return `<div style="font-size:10px;color:var(--text-muted);font-style:italic;border-top:1px dashed var(--border);padding-top:8px">🕐 ${partes.join(' · ')}</div>`;
+}
 
 async function salvarEdicaoLancamento(lancId) {
   try {
